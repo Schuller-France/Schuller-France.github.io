@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interface simple de saisie de commande pour commerciaux terrain."
+    />
+    <meta name="theme-color" content="#e30613" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Schuller" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/schuller-app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
+    <title>Saisie de commande</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css?v=20260710b" />
+  </head>
+  <body>
+    <section class="login-view" id="loginView" aria-labelledby="loginTitle">
+      <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
+      <form class="login-card" id="loginForm">
+        <p class="eyebrow">Schuller Eh'Klar France</p>
+        <h1 id="loginTitle">Connexion commercial</h1>
+        <p class="login-intro">Accédez à votre secteur client et préparez vos commandes terrain.</p>
+
+        <label for="loginId">
+          Identifiant
+          <input id="loginId" name="loginId" type="text" autocomplete="username" required />
+        </label>
+
+        <label for="loginPassword">
+          Mot de passe
+          <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+        </label>
+
+        <label class="remember-login" for="rememberLogin">
+          <input id="rememberLogin" type="checkbox" />
+          <span>Rester connecté sur cet ordinateur</span>
+        </label>
+
+        <p class="login-error" id="loginError" role="alert"></p>
+        <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
+        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oublié ?</button>
+      </form>
+
+      <section class="login-card is-hidden" id="passwordResetCard" aria-labelledby="passwordResetTitle">
+        <p class="eyebrow">Accès sécurisé</p>
+        <h1 id="passwordResetTitle">Réinitialiser le mot de passe</h1>
+        <p class="login-intro">Recevez un code à 6 chiffres sur votre adresse enregistrée.</p>
+
+        <form class="password-reset-form" id="passwordResetRequestForm">
+          <label for="passwordResetEmail">
+            Adresse e-mail
+            <input id="passwordResetEmail" type="email" autocomplete="email" required />
+          </label>
+          <button class="primary-button full" type="submit" id="requestResetButton">Recevoir mon code</button>
+        </form>
+
+        <form class="password-reset-form is-hidden" id="passwordResetConfirmForm">
+          <label for="passwordResetCode">
+            Code reçu
+            <input id="passwordResetCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+          </label>
+          <label for="newPassword">
+            Nouveau mot de passe
+            <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+          </label>
+          <label for="confirmNewPassword">
+            Confirmer le mot de passe
+            <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required />
+          </label>
+          <button class="primary-button full" type="submit" id="confirmResetButton">Modifier mon mot de passe</button>
+        </form>
+
+        <p class="reset-status" id="passwordResetStatus" role="status"></p>
+        <button class="text-button" type="button" id="backToLoginButton">Retour à la connexion</button>
+      </section>
+    </section>
+
+    <div class="app-view is-hidden" id="appView">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
+        </div>
+        <div class="header-actions">
+          <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
+          <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
+        </div>
+      </header>
+
+      <nav class="app-tabs" aria-label="Navigation application">
+        <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
+        <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
+        <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
+        <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
+        <button class="tab-button" type="button" id="tourTab">Tournées</button>
+        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
+        <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
+        <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
+        <button class="tab-button" type="button" id="promotionTab">Promotions</button>
+        <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
+      </nav>
+
+      <main class="app-shell dashboard-shell" id="homeView">
+        <section class="panel dashboard-hero" aria-labelledby="homeTitle">
+          <div>
+            <p class="step">Accueil</p>
+            <h2 id="homeTitle">Tableau de bord commercial</h2>
+            <p id="dashboardPeriod">Vue synthétique de votre activité commerciale.</p>
+            <div class="dashboard-sector-switch is-hidden" id="dashboardSectorSwitch" aria-label="Choisir le secteur du tableau de bord"></div>
+          </div>
+          <div class="dashboard-status">
+            <span>Données actualisées</span>
+            <strong id="dashboardUpdatedAt">En attente</strong>
+          </div>
+        </section>
+
+        <section class="dashboard-grid" aria-label="Indicateurs principaux">
+          <article class="panel metric-card">
+            <span>CA prévisionnel</span>
+            <strong id="metricOrders">--</strong>
+            <small id="metricOrdersNote">Secteur du commercial</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Clients actifs</span>
+            <strong id="metricRevenue">--</strong>
+            <small id="metricRevenueNote">Clients avec CA prévisionnel</small>
+          </article>
+          <article class="panel metric-card">
+            <span>CA moyen / client</span>
+            <strong id="metricClients">--</strong>
+            <small id="metricClientsNote">Valeur moyenne du portefeuille</small>
+          </article>
+        </section>
+
+        <section class="panel reminder-home-panel is-hidden" id="homeRemindersPanel" aria-labelledby="homeRemindersTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">À ne pas oublier</p>
+              <h2 id="homeRemindersTitle">Relances clients</h2>
+            </div>
+            <span class="status-pill" id="homeRemindersCount">0 relance</span>
+          </div>
+          <div class="home-reminders-list" id="homeRemindersList"></div>
+        </section>
+
+        <section class="dashboard-main-grid">
+          <article class="panel dashboard-panel dashboard-chart-panel">
+            <div class="panel-heading">
+              <div><p class="step">Territoire</p><h2>CA par département</h2></div>
+              <span class="status-pill" id="trendTotal">--</span>
+            </div>
+            <div class="sales-chart" id="salesChart" aria-label="Graphique d'évolution des ventes"></div>
+          </article>
+          <article class="panel dashboard-panel">
+            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons clés</h2></div></div>
+            <div class="goal-list" id="goalList"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-ranking-grid dashboard-ranking-single">
+          <article class="panel dashboard-panel">
+            <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
+            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
+          </article>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="orderView">
+      <section class="panel client-panel" aria-labelledby="clientTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 1</p>
+            <h2 id="clientTitle">Choisir le client</h2>
+          </div>
+          <span class="status-pill" id="clientStatus">Client non selectionne</span>
+        </div>
+
+        <div class="search-block">
+          <label for="clientSearch">Rechercher par nom, ville ou code client</label>
+          <input
+            id="clientSearch"
+            type="search"
+            autocomplete="off"
+            placeholder="Ex. Peinture Martin, Lyon, C001..."
+          />
+          <div class="suggestions" id="clientSuggestions" role="listbox"></div>
+        </div>
+
+        <article class="selected-client" id="selectedClient" aria-live="polite">
+          <span>Aucun client choisi pour le moment.</span>
+        </article>
+      </section>
+
+      <section class="panel order-panel" aria-labelledby="orderTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 2</p>
+            <h2 id="orderTitle">Ajouter les produits</h2>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="order-table">
+            <colgroup>
+              <col class="col-ref" />
+              <col class="col-gencod" />
+              <col class="col-name" />
+              <col class="col-udv" />
+              <col class="col-qty" />
+              <col class="col-price" />
+              <col class="col-total" />
+              <col class="col-action" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Gencod</th>
+                <th>Designation</th>
+                <th>UDV</th>
+                <th>Qte</th>
+                <th>Prix U.</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="orderLines"></tbody>
+          </table>
+        </div>
+        <div class="order-actions">
+          <p>Une nouvelle ligne s’ajoute automatiquement après saisie d’une référence valide et d’une quantité.</p>
+          <button class="ghost-button compact" type="button" id="addLine">Ajouter une ligne vide</button>
+        </div>
+      </section>
+
+      <aside class="panel summary-panel" aria-labelledby="summaryTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 3</p>
+            <h2 id="summaryTitle">Valider</h2>
+          </div>
+        </div>
+
+        <dl class="summary-list">
+          <div>
+            <dt>Client</dt>
+            <dd id="summaryClient">Non selectionne</dd>
+          </div>
+          <div>
+            <dt>Lignes</dt>
+            <dd id="summaryLines">0</dd>
+          </div>
+          <div>
+            <dt>Total HT</dt>
+            <dd id="summaryTotal">0,00 €</dd>
+          </div>
+        </dl>
+
+        <label class="note-field" for="orderNote">
+          Note commande
+          <textarea id="orderNote" rows="4" placeholder="Instruction livraison, commentaire interne..."></textarea>
+        </label>
+
+        <button class="primary-button full" type="button" id="generateOrderFiles">
+          Télécharger CSV ERP + PDF
+        </button>
+        <p class="helper-text">
+          Le CSV contient uniquement les références. Le PDF contient la commande complète.
+        </p>
+      </aside>
+      </main>
+
+      <main class="app-shell is-hidden" id="prenetView">
+        <section class="panel prenet-panel" aria-labelledby="prenetTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Tarifs clients</p>
+              <h2 id="prenetTitle">Nouveaux prix nets</h2>
+            </div>
+            <span class="status-pill" id="prenetSector">Secteur</span>
+          </div>
+
+          <div class="prenet-search-block">
+            <label for="prenetClientSearch">Rechercher un client de votre secteur</label>
+            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code client…" />
+            <div class="suggestions prenet-suggestions" id="prenetClientSuggestions" role="listbox"></div>
+          </div>
+
+          <article class="prenet-result" id="prenetResult" aria-live="polite">
+            <div class="prenet-empty">
+              <strong>Sélectionnez un client</strong>
+              <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="historyView">
+        <section class="panel history-panel" aria-labelledby="historyTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Historique</p>
+              <h2 id="historyTitle">Commandes passées</h2>
+            </div>
+            <div class="history-actions">
+              <span class="status-pill" id="historyCount">0 commande</span>
+              <button class="ghost-button compact" type="button" id="clearHistoryOrders">Effacer mes commandes</button>
+            </div>
+          </div>
+          <div class="history-layout">
+            <div class="history-list" id="historyList"></div>
+            <article class="history-detail" id="historyDetail">
+              <span>Sélectionnez une commande pour consulter le détail.</span>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden notes-shell" id="notesView">
+        <section class="panel notes-panel" aria-labelledby="notesTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Rendez-vous clients</p>
+              <h2 id="notesTitle">Prise de notes</h2>
+            </div>
+            <span class="status-pill" id="notesStatus">Aucun client sélectionné</span>
+          </div>
+
+          <div class="notes-search">
+            <label for="notesClientSearch">Rechercher un client</label>
+            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
+            <button class="primary-button compact" type="button" id="showAllNotesButton">Mes notes</button>
+            <div class="suggestions notes-suggestions" id="notesClientSuggestions" role="listbox"></div>
+          </div>
+
+          <article class="notes-reminder-focus is-hidden" id="notesReminderFocus"></article>
+
+          <div class="notes-layout">
+            <aside class="notes-editor">
+              <article class="notes-selected-client" id="notesSelectedClient">
+                <strong>Sélectionnez un client</strong>
+                <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
+              </article>
+
+              <form class="notes-form" id="notesForm">
+                <label for="notesDate">Date du rendez-vous</label>
+                <input id="notesDate" type="date" required />
+
+                <label for="notesText">Note du rendez-vous</label>
+                <div class="quick-note-buttons" aria-label="Modèles de notes rapides">
+                  <button type="button" data-note-template="Promo présentée">Promo présentée</button>
+                  <button type="button" data-note-template="Client intéressé">Client intéressé</button>
+                  <button type="button" data-note-template="À relancer" data-template-reminder="1">À relancer</button>
+                  <button type="button" data-note-template="Commande probable">Commande probable</button>
+                  <button type="button" data-note-template="Devis à faire">Devis à faire</button>
+                  <button type="button" data-note-template="Pas intéressé">Pas intéressé</button>
+                  <button type="button" data-note-template="Problème tarif">Problème tarif</button>
+                  <button type="button" data-note-template="Besoin catalogue">Besoin catalogue</button>
+                </div>
+                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
+
+                <button class="voice-note-button" type="button" id="startVoiceNote">
+                  <span aria-hidden="true">🎙️</span>
+                  Dicter la note
+                </button>
+                <p class="voice-note-status" id="voiceNoteStatus" role="status"></p>
+
+                <section class="note-reminder-box">
+                  <label class="note-reminder-toggle" for="noteReminderEnabled">
+                    <input id="noteReminderEnabled" type="checkbox" />
+                    <span>Prévoir une relance client</span>
+                  </label>
+                  <div class="note-reminder-fields" id="noteReminderFields">
+                    <label for="noteReminderDate">Date de relance</label>
+                    <input id="noteReminderDate" type="date" />
+                    <label for="noteReminderText">Motif de la relance</label>
+                    <input id="noteReminderText" type="text" placeholder="Ex. Rappeler pour confirmer la commande promo" />
+                  </div>
+                </section>
+
+                <div class="notes-form-actions">
+                  <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
+                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminé</button>
+                  <button class="ghost-button compact" type="button" id="exportVisitReportButton">Exporter compte-rendu Excel</button>
+                  <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
+                </div>
+              </form>
+            </aside>
+
+            <section class="notes-history" aria-labelledby="notesHistoryTitle">
+              <div class="notes-history-header">
+                <div>
+                  <p class="step">Historique</p>
+                  <h3 id="notesHistoryTitle">Notes du client</h3>
+                </div>
+                <span class="status-pill" id="notesCount">0 note</span>
+              </div>
+              <div class="notes-report-toolbar">
+                <label for="reportStartDate">Du <input id="reportStartDate" type="date" /></label>
+                <label for="reportEndDate">Au <input id="reportEndDate" type="date" /></label>
+                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la période</button>
+              </div>
+              <div class="notes-list" id="notesList">
+                <div class="notes-empty">Les notes du client sélectionné apparaîtront ici.</div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden tour-shell" id="tourView">
+        <section class="panel tour-panel" aria-labelledby="tourTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Préparation terrain</p>
+              <h2 id="tourTitle">Tournées clients</h2>
+            </div>
+            <span class="status-pill" id="tourSelectionCount">0 client sélectionné</span>
+          </div>
+
+          <div class="tour-toolbar">
+            <label for="tourSearch">
+              Rechercher un client
+              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postal…" />
+            </label>
+            <div class="tour-actions">
+              <button class="primary-button compact" type="button" id="openGoogleMapsRoute">Ouvrir dans Google Maps</button>
+              <button class="ghost-button compact" type="button" id="openWazeRoute">Waze prochain client</button>
+              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tournée</button>
+            </div>
+          </div>
+
+          <div class="tour-savebar">
+            <label for="tourName">
+              Nom de la tournée
+              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tournée mardi…" />
+            </label>
+            <button class="primary-button compact" type="button" id="saveTourButton">Sauvegarder</button>
+            <label for="savedTourSelect">
+              Tournées enregistrées
+              <select id="savedTourSelect">
+                <option value="">Aucune tournée enregistrée</option>
+              </select>
+            </label>
+            <button class="ghost-button compact" type="button" id="loadTourButton">Charger</button>
+            <button class="ghost-button compact" type="button" id="deleteTourButton">Supprimer</button>
+          </div>
+
+          <div class="tour-layout">
+            <section class="tour-map-card" aria-labelledby="tourMapTitle">
+              <div class="tour-map-heading">
+                <div>
+                  <p class="step">Carte</p>
+                  <h3 id="tourMapTitle">Clients du secteur</h3>
+                </div>
+                <small>Carte interactive</small>
+              </div>
+              <div class="france-map" id="tourMap" aria-label="Carte interactive des clients"></div>
+              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée. Les coordonnées exactes seront utilisées dès qu'elles seront présentes dans le fichier clients.</p>
+            </section>
+
+            <aside class="tour-list-panel" aria-labelledby="tourListTitle">
+              <div class="tour-selected-box">
+                <div class="tour-map-heading">
+                  <div>
+                    <p class="step">Itinéraire</p>
+                    <h3>Clients cochés</h3>
+                  </div>
+                </div>
+                <div class="tour-selected-list" id="tourSelectedList"></div>
+              </div>
+              <div class="tour-results-heading">
+                <h3 id="tourListTitle">Liste des clients</h3>
+                <small id="tourResultCount">0 client</small>
+              </div>
+              <div class="tour-client-list" id="tourClientList"></div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="backlogView">
+        <section class="panel backlog-panel" aria-labelledby="backlogTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Suivi terrain</p>
+              <h2 id="backlogTitle">Reliquats &amp; reprise</h2>
+              <p class="helper-text">Consultez les commandes en attente et les marchandises à récupérer chez les clients de votre secteur.</p>
+            </div>
+            <span class="status-pill" id="backlogStatus">À connecter au Drive</span>
+          </div>
+
+          <section class="dashboard-grid backlog-metrics" aria-label="Résumé reliquats et reprises">
+            <article class="panel metric-card"><span>Reliquats</span><strong id="backlogRemainderCount">0</strong><small>Commandes en attente</small></article>
+            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises à récupérer</small></article>
+            <article class="panel metric-card"><span>Total affiché</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
+          </section>
+
+          <div class="backlog-toolbar">
+            <label for="backlogSearch">
+              Rechercher
+              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, référence, ville…" />
+            </label>
+            <label for="backlogTypeFilter">
+              Type
+              <select id="backlogTypeFilter">
+                <option value="all">Tout afficher</option>
+                <option value="reliquat">Reliquats uniquement</option>
+                <option value="reprise">Reprises uniquement</option>
+              </select>
+            </label>
+            <button class="primary-button compact" type="button" id="refreshBacklog">Actualiser</button>
+          </div>
+
+          <div class="backlog-table-wrap">
+            <table class="backlog-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>N° commande</th>
+                  <th>Client</th>
+                  <th>Produit</th>
+                  <th>Quantité</th>
+                  <th>Commentaire</th>
+                </tr>
+              </thead>
+              <tbody id="backlogBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="tarifView">
+        <section class="panel tarif-panel" aria-labelledby="tarifTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Documents commerciaux</p>
+              <h2 id="tarifTitle">Tarifs à envoyer</h2>
+            </div>
+            <span class="status-pill">Envoi par e-mail</span>
+          </div>
+
+          <div class="tarif-grid">
+            <article class="tarif-card">
+              <div class="tarif-icon" aria-hidden="true">%</div>
+              <div class="tarif-card-copy">
+                <span>Tarif client</span>
+                <h3>Tarif 50 + 10</h3>
+                <p>Tarif NET applicable à partir du 1er juillet 2026.</p>
+              </div>
+              <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
+            </article>
+
+            <article class="tarif-card">
+              <div class="tarif-icon" aria-hidden="true">€</div>
+              <div class="tarif-card-copy">
+                <span>Tarif client</span>
+                <h3>Tarif de base</h3>
+                <p>Tarif de base applicable à partir du 1er juillet 2026.</p>
+              </div>
+              <button class="primary-button" type="button" id="selectTarifBase">Envoyer ce tarif</button>
+            </article>
+
+            <article class="tarif-card">
+              <div class="tarif-icon tarif-icon-pdf" aria-hidden="true">PDF</div>
+              <div class="tarif-card-copy">
+                <span>Document commercial</span>
+                <h3>Catalogue 2026</h3>
+                <p>Catalogue Schuller 2026 au format PDF.</p>
+              </div>
+              <button class="primary-button" type="button" id="selectCatalogue2026">Envoyer ce catalogue</button>
+            </article>
+
+            <form class="tarif-send-form is-hidden" id="tarifSendForm">
+              <div class="tarif-form-heading">
+                <div><span>Document sélectionné</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
+                <small>Expéditeur : Schuller – Ne pas répondre</small>
+              </div>
+              <label for="tarifRecipient">Adresse e-mail du client</label>
+              <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
+              <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
+              <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
+              <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
+            </form>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="promotionView">
+        <section class="panel promotion-panel" aria-labelledby="promotionTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Supports commerciaux</p>
+              <h2 id="promotionTitle">Promotions</h2>
+            </div>
+            <span class="status-pill">Aperçu tablette + envoi e-mail</span>
+          </div>
+
+          <div class="promotion-toolbar">
+            <label for="promotionRecipient">Adresse e-mail du client</label>
+            <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
+            <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
+          </div>
+
+          <div class="promotion-grid" id="promotionGrid"></div>
+        </section>
+      </main>
+
+      <div class="promotion-modal is-hidden" id="promotionModal" role="dialog" aria-modal="true" aria-labelledby="promotionModalTitle">
+        <div class="promotion-modal-header">
+          <strong id="promotionModalTitle">Promotion</strong>
+          <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
+        </div>
+        <iframe id="promotionPreviewFrame" title="Aperçu promotion"></iframe>
+      </div>
+
+      <main class="app-shell admin-shell is-hidden" id="adminView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Administration</p>
+            <h2>Dashboard gérant</h2>
+            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoyés.</p>
+          </div>
+          <div class="admin-actions">
+            <label for="adminScopeFilter">
+              Voir
+              <select id="adminScopeFilter">
+                <option value="all">Tous les commerciaux</option>
+              </select>
+            </label>
+            <button class="primary-button" type="button" id="adminOpenTourButton">Ouvrir la carte complète</button>
+            <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
+            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre à zéro l'affichage</button>
+          </div>
+        </section>
+        <section class="dashboard-grid admin-metrics" aria-label="Résumé de l'activité">
+          <article class="panel metric-card"><span>Activités affichées</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sélectionné</small></article>
+          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes générées</small></article>
+          <article class="panel metric-card"><span>Documents envoyés</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
+          <article class="panel metric-card"><span>Clients consultés</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
+          <article class="panel metric-card"><span>Notes ajoutées</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
+          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminées</small></article>
+        </section>
+        <section class="admin-dashboard-grid">
+          <article class="panel admin-feed-panel">
+            <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activité récente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
+            <div id="adminActivityFeed" class="admin-activity-feed"></div>
+          </article>
+          <aside class="panel admin-summary-panel">
+            <div class="panel-heading"><div><p class="step">Synthèse</p><h2>Par type</h2></div></div>
+            <div id="adminTypeSummary" class="admin-type-summary"></div>
+          </aside>
+        </section>
+        <section class="panel admin-log-panel">
+          <div class="panel-heading"><div><p class="step">Détail</p><h2>Table complète</h2></div></div>
+          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>Détail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="productRefs"></datalist>
+
+    <script src="stats.js?v=20260701f"></script>
+    <script src="prenets.js"></script>
+    <script src="tarifs.js?v=20260710b"></script>
+    <script src="data.js?v=20260709g"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js?v=20260710c"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
