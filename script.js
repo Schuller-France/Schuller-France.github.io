@@ -1,7 +1,10 @@
-const allClients = window.APP_DATA?.clients || [];
-const products = window.APP_DATA?.products || [];
-const prenetClients = window.PRENET_DATA?.clients || [];
-const tariffConfig = window.TARIF_CONFIG || {};
+let allClients = [];
+let products = [];
+let prenetClients = [];
+let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
+let localStatsData = {};
+let prenetDataMeta = { updatedAt: "" };
+let secureDataLoaded = false;
 const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
@@ -200,6 +203,38 @@ async function postService(parameters) {
   const result = JSON.parse(await response.text());
   if (!result.ok) throw new Error(result.message || "Opération impossible.");
   return result;
+}
+
+async function loadSecureAppData(token) {
+  if (secureDataLoaded && allClients.length && products.length) return;
+  const result = await postService({ action: "getAppData", token });
+  allClients = Array.isArray(result.appData?.clients) ? result.appData.clients : [];
+  products = Array.isArray(result.appData?.products) ? result.appData.products : [];
+  prenetClients = Array.isArray(result.prenetData?.clients) ? result.prenetData.clients : [];
+  prenetDataMeta = {
+    updatedAt: result.prenetData?.updatedAt || "",
+    sourceFile: result.prenetData?.sourceFile || "",
+  };
+  localStatsData = result.stats || {};
+  tariffConfig = {
+    ...tariffConfig,
+    ...(result.tariffConfig || {}),
+    endpoint: tariffConfig.endpoint,
+  };
+  secureDataLoaded = true;
+  populateProductRefs();
+  renderPromotions();
+}
+
+function clearSecureAppData() {
+  allClients = [];
+  products = [];
+  prenetClients = [];
+  localStatsData = {};
+  prenetDataMeta = { updatedAt: "" };
+  tariffConfig = { endpoint: tariffConfig.endpoint || "" };
+  secureDataLoaded = false;
+  populateProductRefs();
 }
 
 function recordActivity(type, detail = "") {
@@ -568,7 +603,7 @@ function selectPrenetClient(client) {
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
       <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
-      <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(window.PRENET_DATA?.updatedAt || "-")}</strong></div>
+      <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
     ${entries.length
       ? renderPrenetTable("Nouveaux prix nets", newEntries, "is-new")
@@ -683,7 +718,7 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 
   return {
     bySector,
-    default: bySector["Secteur 9"] || Object.values(bySector)[0] || window.APP_STATS?.default || {},
+    default: bySector["Secteur 9"] || Object.values(bySector)[0] || localStatsData.default || {},
   };
 }
 
@@ -708,7 +743,7 @@ async function loadDashboardStatsFromDrive() {
 }
 
 function getDashboardStats(user) {
-  const stats = dashboardStatsOverride || window.APP_STATS || {};
+  const stats = dashboardStatsOverride || localStatsData || {};
   if (activeDashboardSector && stats.bySector?.[activeDashboardSector]) return stats.bySector[activeDashboardSector];
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
@@ -995,12 +1030,15 @@ function openGlobalSearchResult(index) {
   recordActivity("Recherche globale", `${item.type} - ${item.title}`);
 }
 
-products.forEach((product) => {
-  const option = document.createElement("option");
-  option.value = product.ref;
-  option.label = `${product.ref} - ${product.name} - ${product.gencod}`;
-  productRefs.appendChild(option);
-});
+function populateProductRefs() {
+  productRefs.innerHTML = "";
+  products.forEach((product) => {
+    const option = document.createElement("option");
+    option.value = product.ref;
+    option.label = `${product.ref} - ${product.name} - ${product.gencod}`;
+    productRefs.appendChild(option);
+  });
+}
 
 function renderClientSuggestions(query) {
   const cleanQuery = normalize(query.trim());
@@ -1224,6 +1262,7 @@ function showLogin() {
   renderPrenetEmpty();
   renderNotesEmpty();
   resetTarifForm();
+  clearSecureAppData();
   requestAnimationFrame(() => loginId.focus());
 }
 
@@ -1282,6 +1321,7 @@ async function submitLogin() {
       password: loginPassword.value,
       remember: rememberLogin.checked ? "1" : "",
     });
+    await loadSecureAppData(result.token);
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
   } catch (error) {
     loginError.textContent = error.message || "Connexion impossible.";
@@ -1348,17 +1388,21 @@ async function confirmPasswordReset(event) {
   }
 }
 
-function restoreSession() {
+async function restoreSession() {
   try {
     const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
     if (savedUser?.id) {
       rememberLogin.checked = Boolean(savedUser.remember);
+      loginError.textContent = "Reconnexion securisee...";
+      loginError.className = "login-error";
+      await loadSecureAppData(savedUser.token || "");
       showApp(savedUser, savedUser.token || "");
       return;
     }
   } catch (error) {
     sessionStorage.removeItem(sessionStorageKey);
     localStorage.removeItem(rememberedSessionKey);
+    clearSecureAppData();
   }
 
   loginView.classList.remove("is-hidden");
