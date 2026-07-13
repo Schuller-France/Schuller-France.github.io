@@ -68,6 +68,8 @@ const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const displayModeToggle = document.querySelector("#displayModeToggle");
+const globalSearchInput = document.querySelector("#globalSearchInput");
+const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
@@ -137,6 +139,7 @@ const tourSelectedList = document.querySelector("#tourSelectedList");
 const tourSelectionCount = document.querySelector("#tourSelectionCount");
 const tourResultCount = document.querySelector("#tourResultCount");
 const tourMapTitle = document.querySelector("#tourMapTitle");
+const tourRouteSummary = document.querySelector("#tourRouteSummary");
 const openGoogleMapsRoute = document.querySelector("#openGoogleMapsRoute");
 const openWazeRoute = document.querySelector("#openWazeRoute");
 const clearTourSelection = document.querySelector("#clearTourSelection");
@@ -181,6 +184,9 @@ const noteReminderEnabled = document.querySelector("#noteReminderEnabled");
 const noteReminderFields = document.querySelector("#noteReminderFields");
 const noteReminderDate = document.querySelector("#noteReminderDate");
 const noteReminderText = document.querySelector("#noteReminderText");
+const visitNextAction = document.querySelector("#visitNextAction");
+const visitFollowupDays = document.querySelector("#visitFollowupDays");
+const visitFollowupDaysLabel = document.querySelector("#visitFollowupDaysLabel");
 let adminLogsCache = [];
 
 async function postService(parameters) {
@@ -802,6 +808,191 @@ function normalize(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function actionLabel(value) {
+  const labels = {
+    relance: "Relance client",
+    devis: "Devis a faire",
+    commande: "Commande probable",
+    rien: "Rien a faire",
+  };
+  return labels[value] || "";
+}
+
+function setVisitActionVisibility() {
+  if (!visitFollowupDaysLabel || !visitNextAction) return;
+  const needsDelay = ["relance", "devis", "commande"].includes(visitNextAction.value);
+  visitFollowupDaysLabel.classList.toggle("is-hidden", !needsDelay);
+}
+
+function appendVisitSummaryToNote(action) {
+  const currentText = notesText.value.trim();
+  const label = actionLabel(action);
+  const dateLabel = formatNoteDate(notesDate.value || todayInputDate());
+  const summaryLines = [
+    "---- Resume fin de visite ----",
+    `Client : ${selectedNotesClient.name} (${selectedNotesClient.code})`,
+    `Date : ${dateLabel}`,
+    `Prochaine action : ${label}`,
+  ];
+  if (action !== "rien") {
+    summaryLines.push(`Delai prevu : ${Math.max(0, Number(visitFollowupDays.value) || 0)} jour(s)`);
+  }
+  const summary = summaryLines.join("\n");
+  return currentText ? `${currentText}\n\n${summary}` : summary;
+}
+
+function buildGlobalSearchResults(query) {
+  if (!currentUser) return [];
+  const cleanQuery = normalize(query.trim());
+  if (cleanQuery.length < 2) return [];
+  const results = [];
+
+  visibleClients
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingCity,
+      client.billingZip,
+      client.deliveryCity,
+      client.deliveryZip,
+      client.deliveryAddress,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 8)
+    .forEach((client) => {
+      results.push({
+        type: "client",
+        title: client.name,
+        meta: `${client.code} - ${client.deliveryZip || client.billingZip || ""} ${client.deliveryCity || client.billingCity || ""}`,
+        action: () => {
+          setActiveTab("notes");
+          selectNotesClient(client);
+        },
+      });
+    });
+
+  getVisibleStoredOrders()
+    .filter((order) => normalize([
+      order.orderNumber,
+      order.client?.name,
+      order.client?.code,
+      order.note,
+      ...(order.lines || []).flatMap((line) => [line.ref, line.name]),
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 5)
+    .forEach((order) => {
+      results.push({
+        type: "commande",
+        title: order.orderNumber,
+        meta: `${order.client?.name || "Client"} - ${formatStoredDate(order.dayKey || order.orderDate || todayInputDate())}`,
+        action: () => {
+          setActiveTab("history");
+          activeHistoryOrderId = order.id;
+          renderOrderHistory();
+        },
+      });
+    });
+
+  getVisibleVisitNotes()
+    .filter((note) => normalize([note.clientName, note.clientCode, note.text, note.reminderText].join(" ")).includes(cleanQuery))
+    .slice(0, 5)
+    .forEach((note) => {
+      results.push({
+        type: "note",
+        title: note.clientName,
+        meta: `${formatNoteDate(note.date)} - ${(note.text || "").slice(0, 90)}`,
+        action: () => {
+          const client = findVisibleClientByCode(note.clientCode);
+          setActiveTab("notes");
+          if (client) selectNotesClient(client);
+        },
+      });
+    });
+
+  products
+    .filter((product) => normalize([product.ref, product.gencod, product.name].join(" ")).includes(cleanQuery))
+    .slice(0, 5)
+    .forEach((product) => {
+      results.push({
+        type: "reference",
+        title: product.ref,
+        meta: `${product.name || ""}${product.price ? ` - ${formatter.format(product.price)}` : ""}`,
+        action: () => {
+          setActiveTab("order");
+          productRefs.value = product.ref;
+          clientSearch.focus();
+        },
+      });
+    });
+
+  getVisiblePrenetClients()
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      ...(client.entries || []).flatMap((entry) => [entry.ref, entry.designation]),
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 4)
+    .forEach((client) => {
+      results.push({
+        type: "prix net",
+        title: client.name || client.code,
+        meta: `${client.code || ""} - ${(client.entries || []).length} reference(s)`,
+        action: () => {
+          setActiveTab("prenet");
+          selectPrenetClient(client);
+        },
+      });
+    });
+
+  Object.entries(tariffConfig.documents || {})
+    .filter(([, doc]) => normalize([doc.name, doc.id].join(" ")).includes(cleanQuery))
+    .slice(0, 4)
+    .forEach(([id, doc]) => {
+      results.push({
+        type: "document",
+        title: doc.name,
+        meta: "Tarifs & Documents",
+        action: () => {
+          setActiveTab("tarif");
+          openTarifForm(id);
+        },
+      });
+    });
+
+  return results.slice(0, 18);
+}
+
+function renderGlobalSearchResults() {
+  if (!globalSearchInput || !globalSearchResults) return;
+  const results = buildGlobalSearchResults(globalSearchInput.value);
+  if (!results.length) {
+    globalSearchResults.classList.toggle("is-hidden", globalSearchInput.value.trim().length < 2);
+    globalSearchResults.innerHTML = globalSearchInput.value.trim().length >= 2
+      ? `<div class="global-search-empty">Aucun resultat trouve.</div>`
+      : "";
+    return;
+  }
+  globalSearchResults.innerHTML = results.map((item, index) => `
+    <button type="button" data-global-result="${index}">
+      <span>${escapeHtml(item.type)}</span>
+      <strong>${escapeHtml(item.title || "-")}</strong>
+      <small>${escapeHtml(item.meta || "")}</small>
+    </button>
+  `).join("");
+  globalSearchResults._results = results;
+  globalSearchResults.classList.remove("is-hidden");
+}
+
+function openGlobalSearchResult(index) {
+  const item = globalSearchResults?._results?.[index];
+  if (!item) return;
+  item.action();
+  globalSearchInput.value = "";
+  globalSearchResults.classList.add("is-hidden");
+  globalSearchResults.innerHTML = "";
+  recordActivity("Recherche globale", `${item.type} - ${item.title}`);
 }
 
 products.forEach((product) => {
@@ -1654,6 +1845,40 @@ function formatNoteDate(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
+function finishVisit() {
+  if (!selectedNotesClient) {
+    notesStatus.textContent = "Selectionnez un client avant de terminer le rendez-vous.";
+    notesClientSearch.focus();
+    return;
+  }
+  const action = visitNextAction?.value || "";
+  if (!action) {
+    notesStatus.textContent = "Choisissez la prochaine action avant de terminer le rendez-vous.";
+    visitNextAction?.focus();
+    return;
+  }
+  notesText.value = appendVisitSummaryToNote(action);
+  if (["relance", "devis", "commande"].includes(action)) {
+    const days = Math.max(0, Number(visitFollowupDays?.value) || 0);
+    const reminder = new Date();
+    reminder.setDate(reminder.getDate() + days);
+    setReminderFieldsEnabled(true);
+    noteReminderDate.value = reminder.toISOString().slice(0, 10);
+    noteReminderText.value = action === "relance"
+      ? "Relancer le client suite au rendez-vous"
+      : action === "devis"
+        ? "Faire ou envoyer le devis"
+        : "Reprendre contact pour commande probable";
+  } else {
+    resetReminderFields();
+  }
+  recordActivity("Rendez-vous termine", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${actionLabel(action)}`);
+  notesForm.requestSubmit();
+  visitNextAction.value = "";
+  if (visitFollowupDays) visitFollowupDays.value = "7";
+  setVisitActionVisibility();
+}
+
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -2069,6 +2294,9 @@ function saveClientNote(event) {
   notesText.value = "";
   notesDate.value = todayInputDate();
   resetReminderFields();
+  if (visitNextAction) visitNextAction.value = "";
+  if (visitFollowupDays) visitFollowupDays.value = "7";
+  setVisitActionVisibility();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   if (notesHistoryMode === "all") {
@@ -2338,6 +2566,47 @@ function getClientCoordinates(client, scopeClients = visibleClients) {
   return null;
 }
 
+function distanceKmBetweenPoints(a, b) {
+  if (!a || !b) return 0;
+  const earthRadius = 6371;
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(h));
+}
+
+function getSelectedTourStats(codes = Array.from(selectedTourCodes)) {
+  const clients = codes
+    .map((code) => visibleClients.find((client) => client.code === code))
+    .filter(Boolean)
+    .filter(isAllowedTourClient);
+  const coordinates = clients.map((client) => getClientCoordinates(client)).filter(Boolean);
+  let straightDistance = 0;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    straightDistance += distanceKmBetweenPoints(coordinates[index - 1], coordinates[index]);
+  }
+  const estimatedDistance = straightDistance ? Math.round(straightDistance * 1.28) : 0;
+  const estimatedMinutes = estimatedDistance ? Math.round((estimatedDistance / 55) * 60 + clients.length * 8) : 0;
+  return {
+    clients,
+    clientCount: clients.length,
+    gpsCount: coordinates.length,
+    distanceKm: estimatedDistance,
+    minutes: estimatedMinutes,
+  };
+}
+
+function formatDuration(minutes) {
+  if (!minutes) return "--";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest} min`;
+  return `${hours} h ${String(rest).padStart(2, "0")}`;
+}
+
 function initTourMap() {
   if (!tourMap) return false;
   if (!window.L) {
@@ -2405,6 +2674,21 @@ function renderInteractiveTourMap(clients) {
   } else if (fitPoints.length > 1) {
     tourMapInstance.fitBounds(fitPoints, { padding: [26, 26], maxZoom: selectedCoordinates.length ? 12 : 8 });
   }
+  updateTourRouteSummary();
+}
+
+function updateTourRouteSummary() {
+  if (!tourRouteSummary) return;
+  const stats = getSelectedTourStats();
+  const distanceText = stats.distanceKm && stats.gpsCount >= 2 ? `env. ${stats.distanceKm} km` : "--";
+  const timeText = stats.minutes && stats.gpsCount >= 2 ? formatDuration(stats.minutes) : "--";
+  const gpsText = stats.clientCount ? `${stats.gpsCount}/${stats.clientCount} avec GPS` : "Aucun client coche";
+  tourRouteSummary.innerHTML = `
+    <strong>${stats.clientCount} client${stats.clientCount > 1 ? "s" : ""}</strong>
+    <span>Distance estimee : ${escapeHtml(distanceText)}</span>
+    <span>Temps estime : ${escapeHtml(timeText)}</span>
+    <small>${escapeHtml(gpsText)}</small>
+  `;
 }
 
 function getAllSavedTours() {
@@ -2497,6 +2781,57 @@ function focusTourClientOnMap(code) {
   if (!coordinates) return;
   tourMapInstance.setView([coordinates.lat, coordinates.lng], 15);
   tourMarkerByCode.get(code)?.openPopup();
+}
+
+function renderSavedTours() {
+  if (!savedTourSelect) return;
+  const tours = getCurrentUserSavedTours();
+  savedTourSelect.innerHTML = tours.length
+    ? `<option value="">Choisir une tournee</option>${tours.map((tour) => {
+        const stats = tour.stats || getSelectedTourStats(tour.codes);
+        const distance = stats.distanceKm ? ` - env. ${stats.distanceKm} km` : "";
+        return `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})${distance}</option>`;
+      }).join("")}`
+    : `<option value="">Aucune tournee enregistree</option>`;
+  loadTourButton.disabled = tours.length === 0;
+  deleteTourButton.disabled = tours.length === 0;
+}
+
+function saveCurrentTour() {
+  const codes = Array.from(selectedTourCodes);
+  if (!codes.length) {
+    alert("Selectionnez au moins un client avant de sauvegarder une tournee.");
+    return;
+  }
+  const name = tourName.value.trim();
+  if (!name) {
+    alert("Donnez un nom a la tournee avant de la sauvegarder.");
+    tourName.focus();
+    return;
+  }
+  const tours = getCurrentUserSavedTours();
+  const existingIndex = tours.findIndex((tour) => normalize(tour.name) === normalize(name));
+  const stats = getSelectedTourStats(codes);
+  const payload = {
+    id: existingIndex >= 0 ? tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name,
+    codes,
+    stats: {
+      clientCount: stats.clientCount,
+      gpsCount: stats.gpsCount,
+      distanceKm: stats.distanceKm,
+      minutes: stats.minutes,
+    },
+    updatedAt: new Date().toISOString(),
+    createdAt: existingIndex >= 0 ? tours[existingIndex].createdAt : new Date().toISOString(),
+  };
+  if (existingIndex >= 0) tours[existingIndex] = payload;
+  else tours.push(payload);
+  saveCurrentUserTours(tours.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })));
+  renderSavedTours();
+  savedTourSelect.value = payload.id;
+  updateTourRouteSummary();
+  recordActivity("Tournee sauvegardee", `${payload.name} - ${payload.codes.length} client(s) - ${payload.stats.distanceKm || 0} km estimes`);
 }
 
 function renderTourPlanner() {
@@ -3097,6 +3432,20 @@ promotionGrid.addEventListener("click", (event) => {
 });
 closePromotionModal.addEventListener("click", closePromotionPreview);
 displayModeToggle.addEventListener("click", toggleDisplayMode);
+globalSearchInput?.addEventListener("input", renderGlobalSearchResults);
+globalSearchResults?.addEventListener("click", (event) => {
+  const resultButton = event.target.closest("[data-global-result]");
+  if (!resultButton) return;
+  openGlobalSearchResult(Number(resultButton.dataset.globalResult));
+});
+globalSearchInput?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  const first = globalSearchResults?._results?.[0];
+  if (!first) return;
+  event.preventDefault();
+  openGlobalSearchResult(0);
+});
+visitNextAction?.addEventListener("change", setVisitActionVisibility);
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -3129,8 +3478,12 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".notes-search")) {
     notesClientSuggestions.classList.remove("is-open");
   }
+  if (!event.target.closest(".global-search")) {
+    globalSearchResults?.classList.add("is-hidden");
+  }
 });
 
 setupVoiceNotes();
 setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
+setVisitActionVisibility();
 restoreSession();

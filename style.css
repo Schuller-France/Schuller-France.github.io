@@ -35,6 +35,10 @@
 @media (max-width: 800px) {
   .tarif-grid { grid-template-columns: 1fr; }
   .tarif-form-heading { flex-direction: column; }
+  .global-search { order: 3; width: 100%; max-width: none; flex-basis: 100%; }
+  .global-search-results button { grid-template-columns: 1fr; }
+  .global-search-results span { grid-row: auto; }
+  .tour-route-summary { grid-template-columns: 1fr; }
 }
 
 * {
@@ -190,6 +194,99 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.global-search {
+  position: relative;
+  flex: 1;
+  max-width: 720px;
+}
+
+.global-search label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.global-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--dark);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(30, 30, 34, .06);
+  font-weight: 800;
+}
+
+.global-search input:focus {
+  outline: 3px solid rgba(227, 6, 19, .12);
+  border-color: var(--red);
+}
+
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: grid;
+  max-height: min(520px, 70vh);
+  overflow: auto;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(30, 30, 34, .18);
+}
+
+.global-search-results button {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 2px 12px;
+  padding: 12px;
+  color: var(--dark);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+
+.global-search-results button:hover {
+  background: #fff5f5;
+}
+
+.global-search-results span {
+  grid-row: span 2;
+  align-self: center;
+  justify-self: start;
+  padding: 5px 8px;
+  color: var(--red);
+  background: #fff5f5;
+  border: 1px solid #f1b8bd;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.global-search-results strong,
+.global-search-results small {
+  display: block;
+}
+
+.global-search-results small,
+.global-search-empty {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.global-search-empty {
+  padding: 16px;
+  text-align: center;
 }
 
 .app-tabs {
@@ -1628,6 +1725,56 @@ h2 {
   background: #fff;
 }
 
+.visit-finish-box {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #1f232b, #111318);
+  color: #fff;
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(17, 19, 24, .14);
+}
+
+.visit-finish-box label {
+  display: grid;
+  gap: 7px;
+  color: rgba(255, 255, 255, .78);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.visit-finish-box select,
+.visit-finish-box input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--dark);
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 900;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.visit-finish-box .helper-text {
+  margin: 0;
+  color: rgba(255, 255, 255, .72);
+}
+
+.visit-finish-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #ffb8bf;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
 @keyframes voicePulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(214, 0, 28, 0.32); }
   50% { box-shadow: 0 0 0 12px rgba(214, 0, 28, 0); }
@@ -2106,6 +2253,37 @@ h2 {
 .tour-client-list {
   display: grid;
   gap: 10px;
+}
+
+.tour-route-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: #111318;
+  color: #fff;
+  border-radius: 14px;
+}
+
+.tour-route-summary strong,
+.tour-route-summary span,
+.tour-route-summary small {
+  display: block;
+}
+
+.tour-route-summary strong {
+  font-size: 18px;
+}
+
+.tour-route-summary span,
+.tour-route-summary small {
+  color: rgba(255, 255, 255, .76);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.tour-route-summary small {
+  grid-column: 1 / -1;
 }
 
 .tour-client-list {

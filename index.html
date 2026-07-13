@@ -21,7 +21,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260710b" />
+    <link rel="stylesheet" href="style.css?v=20260713b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -89,6 +89,11 @@
       <header class="app-header">
         <div>
           <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
+        </div>
+        <div class="global-search" id="globalSearchBlock">
+          <label for="globalSearchInput">Recherche globale</label>
+          <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Client, ville, référence, commande, note..." />
+          <div class="global-search-results is-hidden" id="globalSearchResults"></div>
         </div>
         <div class="header-actions">
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
@@ -386,6 +391,28 @@
                   </div>
                 </section>
 
+                <section class="visit-finish-box" aria-labelledby="visitFinishTitle">
+                  <div>
+                    <span class="visit-finish-kicker">Fin de rendez-vous</span>
+                    <strong id="visitFinishTitle">Action obligatoire avant de cloturer</strong>
+                  </div>
+                  <label for="visitNextAction">
+                    Prochaine action
+                    <select id="visitNextAction">
+                      <option value="">Choisir une action...</option>
+                      <option value="relance">Relance client</option>
+                      <option value="devis">Devis a faire</option>
+                      <option value="commande">Commande probable</option>
+                      <option value="rien">Rien a faire</option>
+                    </select>
+                  </label>
+                  <label for="visitFollowupDays" id="visitFollowupDaysLabel">
+                    Relance dans X jours
+                    <input id="visitFollowupDays" type="number" min="0" max="365" value="7" />
+                  </label>
+                  <p class="helper-text">Le bouton Rendez-vous termine ajoute un resume propre et prepare la relance si besoin.</p>
+                </section>
+
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
                   <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminé</button>
@@ -476,6 +503,11 @@
                   </div>
                 </div>
                 <div class="tour-selected-list" id="tourSelectedList"></div>
+                <div class="tour-route-summary" id="tourRouteSummary">
+                  <strong>0 client</strong>
+                  <span>Distance estimee : --</span>
+                  <span>Temps estime : --</span>
+                </div>
               </div>
               <div class="tour-results-heading">
                 <h3 id="tourListTitle">Liste des clients</h3>
@@ -675,7 +707,7 @@
     <script src="tarifs.js?v=20260713a"></script>
     <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260713a"></script>
+    <script src="script.js?v=20260713b"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
