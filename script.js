@@ -185,9 +185,11 @@ let adminLogsCache = [];
 
 async function postService(parameters) {
   if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
+  const payload = { ...parameters };
+  if (currentSessionToken && !payload.token) payload.token = currentSessionToken;
   const response = await fetch(tariffConfig.endpoint, {
     method: "POST",
-    body: new URLSearchParams(parameters),
+    body: new URLSearchParams(payload),
   });
   const result = JSON.parse(await response.text());
   if (!result.ok) throw new Error(result.message || "Opération impossible.");
@@ -365,10 +367,7 @@ async function sendTarif(event) {
   tarifSendStatus.textContent = "";
 
   try {
-    const body = new URLSearchParams({ recipient, tariff: selectedTariff?.id || "" });
-    const response = await fetch(tariffConfig.endpoint, { method: "POST", body });
-    const result = JSON.parse(await response.text());
-    if (!result.ok) throw new Error(result.message || "Envoi impossible");
+    await postService({ action: "sendTariff", recipient, tariff: selectedTariff?.id || "" });
     tarifSendStatus.textContent = `${selectedTariff.name} envoyé à ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
     recordActivity("Document envoyé", `${selectedTariff.name} envoyé à ${recipient}`);

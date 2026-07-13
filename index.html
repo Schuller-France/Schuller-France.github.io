@@ -7,6 +7,11 @@
       name="description"
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="theme-color" content="#e30613" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -667,10 +672,10 @@
 
     <script src="stats.js?v=20260701f"></script>
     <script src="prenets.js"></script>
-    <script src="tarifs.js?v=20260710b"></script>
+    <script src="tarifs.js?v=20260713a"></script>
     <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260710c"></script>
+    <script src="script.js?v=20260713a"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
