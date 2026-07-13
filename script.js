@@ -646,7 +646,13 @@ function buildGoal(label, current, target, suffix) {
   };
 }
 
-function buildStatsForSector(sector, rows, sourceInfo) {
+function getFallbackStatsForSector(sector) {
+  if (localStatsData.bySector?.[sector]) return localStatsData.bySector[sector];
+  if (normalizeStatsSector(sector) === "Secteur 9" && localStatsData.default) return localStatsData.default;
+  return {};
+}
+
+function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const clientTotals = new Map();
   const departmentTotals = new Map();
   let totalRevenue = 0;
@@ -679,6 +685,12 @@ function buildStatsForSector(sector, rows, sourceInfo) {
   const goals = [];
   if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
   if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
+  const safeGoals = goals.length
+    ? goals
+    : (Array.isArray(fallbackStats.goals) ? fallbackStats.goals.map((goal) => ({
+        ...goal,
+        note: goal.note ? `${goal.note} · référence prévisionnelle` : "Référence prévisionnelle",
+      })) : []);
 
   return {
     updatedAt: sourceInfo.updatedAt || "Drive",
@@ -696,7 +708,7 @@ function buildStatsForSector(sector, rows, sourceInfo) {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8),
-    goals,
+    goals: safeGoals,
     topClients: topClients.slice(0, 8),
   };
 }
@@ -713,7 +725,7 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 
   const bySector = {};
   Object.keys(grouped).forEach((sector) => {
-    bySector[sector] = buildStatsForSector(sector, grouped[sector], sourceInfo);
+    bySector[sector] = buildStatsForSector(sector, grouped[sector], sourceInfo, getFallbackStatsForSector(sector));
   });
 
   return {
