@@ -683,7 +683,12 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const values = topClients.map((client) => client.revenue).sort((a, b) => a - b);
   const median = values.length ? values[Math.floor(values.length / 2)] : 0;
   const goals = [];
-  if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
+  const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
+  const objectiveTarget = monthlyObjective || totalObjective;
+  const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
+  const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
+  if (monthlyObjective > 0) goals.push(buildGoal(`Objectif ${sourceInfo.objectiveMonthLabel || "mois"}`, totalRevenue, monthlyObjective, "vs objectif"));
+  else if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
   if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
   const safeGoals = goals.length
     ? goals
@@ -698,10 +703,16 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
     kpis: {
       revenue: totalRevenue,
       clients: topClients.length,
+      monthlyObjective,
+      objectiveRemaining,
+      objectivePercent,
+      objectiveMonthLabel: sourceInfo.objectiveMonthLabel || "mois",
       averageClient: topClients.length ? totalRevenue / topClients.length : 0,
       medianClient: median,
       revenueNote: "CA fichier Drive",
-      clientsNote: `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
+      clientsNote: monthlyObjective > 0
+        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
+        : `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
       averageNote: `Médiane : ${formatter.format(median)}`,
     },
     salesTrend: [...departmentTotals.entries()]
@@ -744,6 +755,9 @@ async function loadDashboardStatsFromDrive() {
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
       updatedAt: result.updatedAt,
       sourceFile: result.sourceFile,
+      monthlyObjectives: result.monthlyObjectives || {},
+      objectiveMonthLabel: result.objectiveMonthLabel || "",
+      objectiveMonthKey: result.objectiveMonthKey || "",
     });
     renderDashboardSectorSwitch(currentUser);
     renderDashboard(currentUser);
@@ -802,12 +816,20 @@ function renderDashboard(user) {
 
   document.querySelector("#dashboardUpdatedAt").textContent = stats.updatedAt || "En attente";
   document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthétique de votre activité commerciale.";
+  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA réalisé";
   document.querySelector("#metricOrders").textContent = formatter.format(Number(kpis.revenue) || 0);
-  document.querySelector("#metricRevenue").textContent = formatNumber(kpis.clients);
+  const monthlyObjective = Number(kpis.monthlyObjective) || 0;
+  const objectivePercent = Number(kpis.objectivePercent) || 0;
+  const objectiveRemaining = Number(kpis.objectiveRemaining) || 0;
+  document.querySelector("#metricRevenue").previousElementSibling.textContent = monthlyObjective ? `Objectif ${kpis.objectiveMonthLabel || "mois"}` : "Objectif mois";
+  document.querySelector("#metricRevenue").textContent = monthlyObjective ? formatter.format(monthlyObjective) : "--";
   document.querySelector("#metricClients").textContent = formatter.format(Number(kpis.averageClient) || 0);
   document.querySelector("#metricOrdersNote").textContent = kpis.revenueNote || "Secteur du commercial";
   document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prévisionnel";
   document.querySelector("#metricClientsNote").textContent = kpis.averageNote || "Valeur moyenne du portefeuille";
+  document.querySelector("#metricRevenueNote").textContent = monthlyObjective
+    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
+    : (kpis.clientsNote || "Objectif mensuel non trouvé");
 
   const maxTrend = Math.max(...trend.map((item) => Number(item.value) || 0), 1);
   document.querySelector("#trendTotal").textContent = trend.length

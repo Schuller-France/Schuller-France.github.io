@@ -1,5 +1,5 @@
 window.TARIF_CONFIG = {
-  endpoint: "https://script.google.com/macros/s/AKfycbyqTCeooJOEE9dr1igyV_4db-Oi2PzIBLZo18A4XWSiiJAqMSwq7IW79MPetXKGrn73tQ/exec",
+  endpoint: "https://script.google.com/macros/s/AKfycbye6UyBhUloWNQaji5OirVspTYxkEvTq-nyeILyJ1Svb4xW2kGaYq4iwjIcGTu4sPGN2w/exec",
   tariffs: [],
   promotions: [],
   documents: {},
