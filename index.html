@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260715k" />
+    <link rel="stylesheet" href="style.css?v=20260715l" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -380,6 +380,17 @@
               </div>
             </section>
           </div>
+
+          <section class="quote-history-card" aria-labelledby="quoteHistoryTitle">
+            <div class="quote-history-heading">
+              <div>
+                <p class="step">Suivi commercial</p>
+                <h3 id="quoteHistoryTitle">Historique des devis</h3>
+              </div>
+              <input id="quoteHistorySearch" type="search" autocomplete="off" placeholder="Rechercher client, référence, statut..." />
+            </div>
+            <div class="quote-history-list" id="quoteHistoryList"></div>
+          </section>
         </section>
       </main>
 
@@ -760,7 +771,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260715k"></script>
+    <script src="script.js?v=20260715l"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

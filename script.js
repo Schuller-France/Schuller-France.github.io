@@ -39,6 +39,7 @@ const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
+const quoteHistoryStorageKey = "schullerQuoteHistory";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -131,6 +132,8 @@ const quoteNote = document.querySelector("#quoteNote");
 const addQuoteLine = document.querySelector("#addQuoteLine");
 const sendQuoteRequest = document.querySelector("#sendQuoteRequest");
 const quoteSendStatus = document.querySelector("#quoteSendStatus");
+const quoteHistorySearch = document.querySelector("#quoteHistorySearch");
+const quoteHistoryList = document.querySelector("#quoteHistoryList");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -1504,6 +1507,7 @@ function showApp(user, token = user.token || "") {
   renderHomeReminders();
   resetQuoteRequest();
   renderQuoteLines();
+  renderQuoteHistory();
   renderPrenetEmpty();
   renderNotesEmpty();
   selectedTourCodes = new Set();
@@ -1783,6 +1787,124 @@ function renderQuoteLines() {
   `).join("");
 }
 
+function quoteHistoryKey() {
+  return `${quoteHistoryStorageKey}:${currentUser?.id || "default"}`;
+}
+
+function getQuoteHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(quoteHistoryKey()) || "[]");
+  } catch (error) {
+    localStorage.removeItem(quoteHistoryKey());
+    return [];
+  }
+}
+
+function saveQuoteHistory(items) {
+  localStorage.setItem(quoteHistoryKey(), JSON.stringify(Array.isArray(items) ? items : []));
+}
+
+function quoteStatusLabel(status) {
+  return {
+    pending: "En attente",
+    relaunched: "Relancé",
+    accepted: "Validé",
+    refused: "Refusé",
+  }[status] || "En attente";
+}
+
+function quoteStatusClass(status) {
+  return {
+    pending: "is-pending",
+    relaunched: "is-relaunched",
+    accepted: "is-accepted",
+    refused: "is-refused",
+  }[status] || "is-pending";
+}
+
+function addQuoteHistoryItem(client, lines, note) {
+  const items = getQuoteHistory();
+  const now = new Date();
+  const item = {
+    id: crypto.randomUUID(),
+    date: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
+    timestamp: now.toISOString(),
+    status: "pending",
+    clientCode: client.code || "",
+    clientName: client.name || "",
+    sector: client.sector || "",
+    note: note || "",
+    lines: lines.map((line) => ({
+      ref: line.ref,
+      designation: line.designation || "",
+      udv: line.udv || "",
+      qty: line.qty,
+      comment: line.comment || "",
+    })),
+  };
+  items.unshift(item);
+  saveQuoteHistory(items.slice(0, 200));
+  renderQuoteHistory();
+}
+
+function updateQuoteHistoryStatus(id, status) {
+  const items = getQuoteHistory();
+  const item = items.find((entry) => entry.id === id);
+  if (!item) return;
+  item.status = status;
+  item.statusUpdatedAt = new Date().toISOString();
+  saveQuoteHistory(items);
+  renderQuoteHistory();
+  recordActivity("Statut devis modifié", `${item.clientName} - ${quoteStatusLabel(status)}`);
+}
+
+function deleteQuoteHistoryItem(id) {
+  saveQuoteHistory(getQuoteHistory().filter((item) => item.id !== id));
+  renderQuoteHistory();
+}
+
+function renderQuoteHistory() {
+  if (!quoteHistoryList) return;
+  const query = normalize(quoteHistorySearch?.value || "");
+  const items = getQuoteHistory().filter((item) => {
+    if (!query) return true;
+    return normalize([
+      item.date,
+      item.status,
+      quoteStatusLabel(item.status),
+      item.clientName,
+      item.clientCode,
+      item.sector,
+      item.note,
+      ...(item.lines || []).flatMap((line) => [line.ref, line.designation, line.qty, line.comment]),
+    ].join(" ")).includes(query);
+  });
+
+  quoteHistoryList.innerHTML = items.length
+    ? items.map((item) => {
+        const refs = (item.lines || []).map((line) => `${line.ref} x${line.qty}`).join(", ");
+        return `
+          <article class="quote-history-item">
+            <div class="quote-history-main">
+              <span class="quote-status-pill ${quoteStatusClass(item.status)}">${escapeHtml(quoteStatusLabel(item.status))}</span>
+              <strong>${escapeHtml(item.clientName || "Client")}</strong>
+              <small>${escapeHtml(item.date || "")} · ${escapeHtml(item.clientCode || "")} · ${escapeHtml(item.sector || "")}</small>
+              <p>${escapeHtml(refs || "Aucune référence")}</p>
+              ${item.note ? `<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
+            </div>
+            <div class="quote-history-actions">
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="pending">En attente</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="relaunched">Relancé</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="accepted">Validé</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="refused">Refusé</button>
+              <button class="quote-history-delete" type="button" data-quote-delete="${escapeHtml(item.id)}">×</button>
+            </div>
+          </article>
+        `;
+      }).join("")
+    : '<div class="dashboard-empty">Aucune demande de devis enregistrée pour le moment.</div>';
+}
+
 async function sendQuoteRequestDraft() {
   quoteSendStatus.className = "tarif-send-status";
   const validLines = quoteLineItems
@@ -1840,6 +1962,7 @@ async function sendQuoteRequestDraft() {
       note: quoteNote.value.trim(),
     });
     recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
+    addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
     quoteSendStatus.textContent = "Demande envoyée à flogilet44@gmail.com avec le fichier Excel.";
     quoteSendStatus.classList.add("is-success");
   } catch (error) {
@@ -3822,6 +3945,16 @@ clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 quoteClientSearch.addEventListener("input", (event) => renderQuoteClientSuggestions(event.target.value));
 addQuoteLine.addEventListener("click", addQuoteLineItem);
 sendQuoteRequest.addEventListener("click", sendQuoteRequestDraft);
+quoteHistorySearch?.addEventListener("input", renderQuoteHistory);
+quoteHistoryList?.addEventListener("click", (event) => {
+  const statusButton = event.target.closest("[data-quote-status]");
+  if (statusButton) {
+    updateQuoteHistoryStatus(statusButton.dataset.quoteStatus, statusButton.dataset.status);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-quote-delete]");
+  if (deleteButton) deleteQuoteHistoryItem(deleteButton.dataset.quoteDelete);
+});
 quoteLines.addEventListener("input", (event) => {
   const row = event.target.closest("[data-quote-line]");
   const field = event.target.dataset.quoteField;
