@@ -30,6 +30,7 @@ let tourMapInstance = null;
 let tourMarkersLayer = null;
 let tourRouteLayer = null;
 let tourMarkerByCode = new Map();
+let driveAutoRefreshTimer = null;
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
@@ -37,6 +38,7 @@ const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
+const driveAutoRefreshMs = 10 * 60 * 1000;
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
@@ -83,6 +85,7 @@ const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
+const objectivesTab = document.querySelector("#objectivesTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -95,6 +98,7 @@ const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
+const objectivesView = document.querySelector("#objectivesView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const historyView = document.querySelector("#historyView");
@@ -155,6 +159,7 @@ const notesHistoryTitle = document.querySelector("#notesHistoryTitle");
 const reportStartDate = document.querySelector("#reportStartDate");
 const reportEndDate = document.querySelector("#reportEndDate");
 const exportPeriodReportButton = document.querySelector("#exportPeriodReportButton");
+const sendVisitReportButton = document.querySelector("#sendVisitReportButton");
 const tourSearch = document.querySelector("#tourSearch");
 const tourMap = document.querySelector("#tourMap");
 const tourClientList = document.querySelector("#tourClientList");
@@ -210,6 +215,17 @@ const noteReminderText = document.querySelector("#noteReminderText");
 const visitNextAction = document.querySelector("#visitNextAction");
 const visitFollowupDays = document.querySelector("#visitFollowupDays");
 const visitFollowupDaysLabel = document.querySelector("#visitFollowupDaysLabel");
+const objectivesUpdatedAt = document.querySelector("#objectivesUpdatedAt");
+const objectivesMonthlyTarget = document.querySelector("#objectivesMonthlyTarget");
+const objectivesMonthLabel = document.querySelector("#objectivesMonthLabel");
+const objectivesRevenue = document.querySelector("#objectivesRevenue");
+const objectivesRemaining = document.querySelector("#objectivesRemaining");
+const objectivesPercent = document.querySelector("#objectivesPercent");
+const objectivesDailyPace = document.querySelector("#objectivesDailyPace");
+const objectivesProgressText = document.querySelector("#objectivesProgressText");
+const objectivesProgressBar = document.querySelector("#objectivesProgressBar");
+const objectivesMessage = document.querySelector("#objectivesMessage");
+const objectivesTopClients = document.querySelector("#objectivesTopClients");
 let adminLogsCache = [];
 
 async function postService(parameters) {
@@ -979,6 +995,53 @@ function renderDashboard(user) {
     : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
 
   renderHomeReminders();
+  renderObjectives(user);
+}
+
+function countBusinessDays(startDate, endDate) {
+  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  let days = 0;
+  for (let day = start; day <= end; day.setDate(day.getDate() + 1)) {
+    const weekDay = day.getDay();
+    if (weekDay !== 0 && weekDay !== 6) days += 1;
+  }
+  return days;
+}
+
+function renderObjectives(user = currentUser) {
+  if (!objectivesView || !user || user.role === "admin") return;
+  const stats = getDashboardStats(user);
+  const kpis = stats.kpis || {};
+  const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
+  const revenue = Number(kpis.revenue) || 0;
+  const target = Number(kpis.monthlyObjective) || 0;
+  const remaining = Math.max(0, target - revenue);
+  const percent = target > 0 ? (revenue / target) * 100 : 0;
+  const now = new Date();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const businessDaysLeft = Math.max(1, countBusinessDays(now, monthEnd));
+  const dailyPace = remaining / businessDaysLeft;
+  const cappedPercent = Math.min(Math.max(percent, 0), 100);
+
+  objectivesUpdatedAt.textContent = stats.updatedAt || "En attente";
+  objectivesMonthlyTarget.textContent = target ? formatter.format(target) : "--";
+  objectivesMonthLabel.textContent = kpis.objectiveMonthLabel ? `Objectif ${kpis.objectiveMonthLabel}` : "Objectif du mois";
+  objectivesRevenue.textContent = formatter.format(revenue);
+  objectivesRemaining.textContent = target ? formatter.format(remaining) : "--";
+  objectivesPercent.textContent = target ? `${percent.toFixed(1).replace(".", ",")}% atteint` : "Objectif non trouvé";
+  objectivesDailyPace.textContent = target ? `${formatter.format(dailyPace)} / jour` : "--";
+  objectivesProgressText.textContent = target ? `${percent.toFixed(1).replace(".", ",")}%` : "--";
+  objectivesProgressBar.style.width = `${cappedPercent}%`;
+  objectivesMessage.textContent = target
+    ? (remaining > 0
+      ? `Il te manque ${formatter.format(remaining)} pour atteindre l'objectif ${kpis.objectiveMonthLabel || "du mois"}. Rythme conseillé : ${formatter.format(dailyPace)} par jour ouvré restant.`
+      : `Objectif ${kpis.objectiveMonthLabel || "du mois"} atteint. Tu es en avance de ${formatter.format(revenue - target)}.`)
+    : "Objectif mensuel non trouvé dans le fichier prévisionnel.";
+
+  objectivesTopClients.innerHTML = topClients.length
+    ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
+    : '<tr><td colspan="2" class="dashboard-empty">Aucun client à afficher.</td></tr>';
 }
 
 function escapeHtml(value) {
@@ -1409,21 +1472,40 @@ function renderBacklog() {
     : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
 }
 
-async function loadBacklogItems() {
+async function loadBacklogItems(silent = false) {
   if (!backlogStatus || !refreshBacklog) return;
-  backlogStatus.textContent = "Actualisation…";
-  refreshBacklog.disabled = true;
+  if (!silent) {
+    backlogStatus.textContent = "Actualisation…";
+    refreshBacklog.disabled = true;
+  }
   try {
     const result = await postService({ action: "getReliquatsReprises", token: currentSessionToken });
     backlogItemsCache = Array.isArray(result.items) ? result.items : [];
     const updatedAt = result.updatedAt || window.RELIQUATS_DATA?.updatedAt || "Drive";
     backlogStatus.textContent = `À jour · ${updatedAt}`;
   } catch (error) {
-    backlogStatus.textContent = backlogItemsCache.length ? "Données locales" : "Drive à connecter";
+    if (!silent) backlogStatus.textContent = backlogItemsCache.length ? "Données locales" : "Drive à connecter";
   } finally {
-    refreshBacklog.disabled = false;
+    if (!silent) refreshBacklog.disabled = false;
     renderBacklog();
   }
+}
+
+function stopDriveAutoRefresh() {
+  if (driveAutoRefreshTimer) {
+    clearInterval(driveAutoRefreshTimer);
+    driveAutoRefreshTimer = null;
+  }
+}
+
+function startDriveAutoRefresh() {
+  stopDriveAutoRefresh();
+  if (!currentSessionToken || currentUser?.role === "admin") return;
+  driveAutoRefreshTimer = setInterval(() => {
+    if (document.hidden || !currentSessionToken || currentUser?.role === "admin") return;
+    loadDashboardStatsFromDrive();
+    loadBacklogItems(true);
+  }, driveAutoRefreshMs);
 }
 
 function closePasswordReset() {
@@ -1448,6 +1530,7 @@ function openPasswordReset() {
 }
 
 function showLogin() {
+  stopDriveAutoRefresh();
   currentUser = null;
   currentSessionToken = "";
   visibleClients = [];
@@ -1490,7 +1573,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, objectivesTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
@@ -1504,6 +1587,7 @@ function showApp(user, token = user.token || "") {
   renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
   loadDashboardStatsFromDrive();
+  startDriveAutoRefresh();
   renderHomeReminders();
   resetQuoteRequest();
   renderQuoteLines();
@@ -2403,6 +2487,48 @@ function exportVisitReport(clientOnly = false) {
   const scope = clientOnly && selectedNotesClient ? selectedNotesClient.code : currentUser.id;
   downloadCsv(`compte-rendu-visites-${scope}-${todayInputDate()}.csv`, rows);
   recordActivity("Compte-rendu exporté", `${notes.length} visite(s) exportée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+}
+
+async function sendVisitReport(clientOnly = false) {
+  if (!currentUser || !sendVisitReportButton) return;
+  const notes = getVisibleVisitNotes()
+    .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
+    .filter(noteMatchesReportPeriod);
+  if (!notes.length) {
+    alert(clientOnly ? "Aucune visite enregistrée pour ce client sur cette période." : "Aucune visite enregistrée à envoyer sur cette période.");
+    return;
+  }
+  sendVisitReportButton.disabled = true;
+  const previousText = sendVisitReportButton.textContent;
+  sendVisitReportButton.textContent = "Envoi…";
+  notesStatus.textContent = "Envoi du compte-rendu en cours…";
+  try {
+    const result = await postService({
+      action: "sendVisitReport",
+      token: currentSessionToken,
+      startDate: reportStartDate?.value || "",
+      endDate: reportEndDate?.value || "",
+      clientOnly: clientOnly ? "1" : "",
+      notes: JSON.stringify(notes.map((note) => ({
+        userName: note.userName || currentUser.name,
+        clientSector: note.clientSector || "",
+        clientCode: note.clientCode || "",
+        clientName: note.clientName || "",
+        date: note.date || "",
+        text: note.text || "",
+        reminderDate: note.reminderDate || "",
+        reminderText: note.reminderText || "",
+        reminderDone: Boolean(note.reminderDone),
+      }))),
+    });
+    notesStatus.textContent = result.message || "Compte-rendu envoyé.";
+    recordActivity("Compte-rendu envoyé", `${notes.length} visite(s) envoyée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+  } catch (error) {
+    notesStatus.textContent = error.message || "Envoi impossible pour le moment.";
+  } finally {
+    sendVisitReportButton.disabled = false;
+    sendVisitReportButton.textContent = previousText;
+  }
 }
 
 function finishVisit() {
@@ -3498,6 +3624,7 @@ function openWazeNextClient() {
 
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
+  const showObjectives = tabName === "objectives";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
@@ -3509,6 +3636,7 @@ function setActiveTab(tabName) {
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
+  objectivesTab.classList.toggle("is-active", showObjectives);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
@@ -3520,6 +3648,7 @@ function setActiveTab(tabName) {
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
+  objectivesView.classList.toggle("is-hidden", !showObjectives);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
@@ -3532,9 +3661,11 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", objectives: "Objectifs", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
+
+  if (showObjectives) renderObjectives(currentUser);
 
   if (showOrder) {
     requestAnimationFrame(() => clientSearch.focus());
@@ -3912,6 +4043,7 @@ clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
+objectivesTab.addEventListener("click", () => setActiveTab("objectives"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
@@ -3926,6 +4058,9 @@ refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 adminOpenTourButton.addEventListener("click", () => setActiveTab("tour"));
+document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
+  button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
+});
 refreshBacklog.addEventListener("click", loadBacklogItems);
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
@@ -3981,6 +4116,7 @@ exportVisitReportButton.addEventListener("click", () => exportVisitReport(false)
 reportStartDate.addEventListener("change", refreshNotesHistoryFromCurrentMode);
 reportEndDate.addEventListener("change", refreshNotesHistoryFromCurrentMode);
 exportPeriodReportButton.addEventListener("click", () => exportVisitReport(notesHistoryMode === "client" && Boolean(selectedNotesClient)));
+sendVisitReportButton.addEventListener("click", () => sendVisitReport(notesHistoryMode === "client" && Boolean(selectedNotesClient)));
 noteReminderEnabled.addEventListener("change", () => setReminderFieldsEnabled(noteReminderEnabled.checked));
 notesForm.addEventListener("click", (event) => {
   const templateButton = event.target.closest("[data-note-template]");

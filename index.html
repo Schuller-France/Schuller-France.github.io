@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260715l" />
+    <link rel="stylesheet" href="style.css?v=20260715m" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -104,6 +104,7 @@
 
       <nav class="app-tabs" aria-label="Navigation application">
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
+        <button class="tab-button" type="button" id="objectivesTab">Objectifs</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
@@ -159,6 +160,21 @@
           <div class="home-reminders-list" id="homeRemindersList"></div>
         </section>
 
+        <section class="panel tablet-action-panel" aria-label="Actions terrain rapides">
+          <div>
+            <p class="step">Mode terrain</p>
+            <h2>Actions rapides</h2>
+            <p>Une interface plus simple pour travailler vite sur tablette.</p>
+          </div>
+          <div class="tablet-action-grid">
+            <button type="button" data-tablet-tab="order">Nouvelle commande</button>
+            <button type="button" data-tablet-tab="notes">Prise de notes</button>
+            <button type="button" data-tablet-tab="quote">Demande de devis</button>
+            <button type="button" data-tablet-tab="tour">Tournées</button>
+            <button type="button" data-tablet-tab="backlog">Reliquats & reprise</button>
+          </div>
+        </section>
+
         <section class="dashboard-main-grid">
           <article class="panel dashboard-panel dashboard-chart-panel">
             <div class="panel-heading">
@@ -178,6 +194,67 @@
             <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
             <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
           </article>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden objectives-shell" id="objectivesView">
+        <section class="panel objectives-hero" aria-labelledby="objectivesTitle">
+          <div>
+            <p class="step">Motivation commerciale</p>
+            <h2 id="objectivesTitle">Objectifs</h2>
+            <p id="objectivesSubtitle">Ton objectif du mois, ton réalisé et le rythme à tenir.</p>
+          </div>
+          <span class="status-pill" id="objectivesUpdatedAt">En attente</span>
+        </section>
+
+        <section class="objectives-grid" aria-label="Synthèse des objectifs">
+          <article class="panel objective-card">
+            <span>Objectif du mois</span>
+            <strong id="objectivesMonthlyTarget">--</strong>
+            <small id="objectivesMonthLabel">Mois en cours</small>
+          </article>
+          <article class="panel objective-card">
+            <span>Réalisé</span>
+            <strong id="objectivesRevenue">--</strong>
+            <small>CA chargé depuis Drive</small>
+          </article>
+          <article class="panel objective-card">
+            <span>Reste à faire</span>
+            <strong id="objectivesRemaining">--</strong>
+            <small id="objectivesPercent">--</small>
+          </article>
+          <article class="panel objective-card">
+            <span>Rythme conseillé</span>
+            <strong id="objectivesDailyPace">--</strong>
+            <small>Par jour ouvré restant</small>
+          </article>
+        </section>
+
+        <section class="panel objectives-progress-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Progression</p>
+              <h2>Avancement du mois</h2>
+            </div>
+            <span class="status-pill" id="objectivesProgressText">--</span>
+          </div>
+          <div class="objectives-progress-track"><span id="objectivesProgressBar"></span></div>
+          <p class="objectives-message" id="objectivesMessage">Les objectifs apparaîtront dès que les données Drive seront chargées.</p>
+        </section>
+
+        <section class="panel objectives-clients-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Clients à pousser</p>
+              <h2>Top clients du secteur</h2>
+            </div>
+          </div>
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead><tr><th>Client</th><th>CA</th></tr></thead>
+              <tbody id="objectivesTopClients"></tbody>
+            </table>
+          </div>
         </section>
       </main>
 
@@ -499,6 +576,7 @@
                 <label for="reportStartDate">Du <input id="reportStartDate" type="date" /></label>
                 <label for="reportEndDate">Au <input id="reportEndDate" type="date" /></label>
                 <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la période</button>
+                <button class="primary-button compact" type="button" id="sendVisitReportButton">Envoyer mon compte-rendu</button>
               </div>
               <div class="notes-list" id="notesList">
                 <div class="notes-empty">Les notes du client sélectionné apparaîtront ici.</div>
@@ -771,7 +849,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260715l"></script>
+    <script src="script.js?v=20260715m"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
