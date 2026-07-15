@@ -2654,7 +2654,7 @@ h2 {
   font-weight: 800;
 }
 .backlog-table-wrap { overflow-x: auto; }
-.backlog-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+.backlog-table { width: 100%; border-collapse: collapse; min-width: 1120px; }
 .backlog-table th,
 .backlog-table td {
   padding: 15px 18px;
@@ -2671,6 +2671,12 @@ h2 {
 }
 .backlog-table td strong { display: block; color: var(--dark); }
 .backlog-table td small { display: block; margin-top: 4px; color: var(--muted); font-weight: 800; }
+.backlog-done-cell,
+.backlog-action-cell { text-align: center !important; vertical-align: middle !important; white-space: nowrap; }
+.backlog-done-check { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 950; color: var(--muted); }
+.backlog-done-check input { width: 22px; min-height: 22px; accent-color: var(--red); }
+.backlog-delete-button { background: #fff1f2; color: var(--red); border-color: #fecdd3; }
+.backlog-delete-button:hover { background: var(--red); color: #fff; }
 .backlog-badge {
   display: inline-block;
   padding: 6px 10px;

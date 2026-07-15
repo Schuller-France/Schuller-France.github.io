@@ -37,6 +37,8 @@ const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
+const backlogDoneStorageKey = "schullerBacklogDone";
+const backlogHiddenStorageKey = "schullerBacklogHidden";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -1284,8 +1286,9 @@ function isBacklogItemForCurrentUser(item) {
 
 function normalizeBacklogItem(item) {
   const client = getBacklogClientMatch(item);
+  const id = item.id || `${item.date || ""}-${item.orderNumber || item.numeroCommande || item.commande || ""}-${item.clientCode || item.client || ""}-${item.reference || item.ref || ""}-${item.product || item.produit || ""}-${item.quantity || item.quantite || ""}`;
   return {
-    id: item.id || `${item.date || ""}-${item.clientCode || item.client || ""}-${item.product || item.produit || ""}`,
+    id,
     type: normalizeBacklogType(item.type || item.nature || item.statut || ""),
     date: item.date || item.createdAt || item.jour || "",
     orderNumber: item.orderNumber || item.numeroCommande || item.commande || item.order || "",
@@ -1299,12 +1302,54 @@ function normalizeBacklogItem(item) {
   };
 }
 
+function backlogUserKey(baseKey) {
+  return `${baseKey}:${currentUser?.id || "default"}`;
+}
+
+function readBacklogState(baseKey) {
+  try {
+    return JSON.parse(localStorage.getItem(backlogUserKey(baseKey)) || "{}");
+  } catch (error) {
+    localStorage.removeItem(backlogUserKey(baseKey));
+    return {};
+  }
+}
+
+function writeBacklogState(baseKey, state) {
+  localStorage.setItem(backlogUserKey(baseKey), JSON.stringify(state || {}));
+}
+
+function isBacklogDone(id) {
+  return Boolean(readBacklogState(backlogDoneStorageKey)[id]);
+}
+
+function isBacklogHidden(id) {
+  return Boolean(readBacklogState(backlogHiddenStorageKey)[id]);
+}
+
+function setBacklogDone(id, done) {
+  const state = readBacklogState(backlogDoneStorageKey);
+  if (done) state[id] = true;
+  else delete state[id];
+  writeBacklogState(backlogDoneStorageKey, state);
+}
+
+function hideBacklogItem(id) {
+  const hidden = readBacklogState(backlogHiddenStorageKey);
+  hidden[id] = true;
+  writeBacklogState(backlogHiddenStorageKey, hidden);
+  const done = readBacklogState(backlogDoneStorageKey);
+  delete done[id];
+  writeBacklogState(backlogDoneStorageKey, done);
+}
+
 function getFilteredBacklogItems() {
   const query = normalize(backlogSearch?.value || "");
   const typeFilter = backlogTypeFilter?.value || "all";
   return backlogItemsCache
     .map(normalizeBacklogItem)
     .filter(isBacklogItemForCurrentUser)
+    .filter((item) => !isBacklogHidden(item.id))
     .filter((item) => typeFilter === "all" || item.type === typeFilter)
     .filter((item) => {
       if (!query) return true;
@@ -1326,7 +1371,7 @@ function getFilteredBacklogItems() {
 
 function renderBacklog() {
   if (!backlogBody) return;
-  const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser);
+  const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id));
   const filteredItems = getFilteredBacklogItems();
   const reliquatCount = sectorItems.filter((item) => item.type === "reliquat").length;
   const repriseCount = sectorItems.filter((item) => item.type === "reprise").length;
@@ -1335,7 +1380,7 @@ function renderBacklog() {
   backlogTotalCount.textContent = String(filteredItems.length);
 
   if (!backlogItemsCache.length) {
-    backlogBody.innerHTML = `<tr><td colspan="7" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
+    backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
     return;
   }
 
@@ -1349,9 +1394,16 @@ function renderBacklog() {
         <td><strong>${escapeHtml(item.product || "-")}</strong><small>${escapeHtml(item.reference || "")}</small></td>
         <td><strong>${escapeHtml(item.quantity || "-")}</strong></td>
         <td>${escapeHtml(item.detail || "-")}</td>
+        <td class="backlog-done-cell">
+          <label class="backlog-done-check">
+            <input type="checkbox" data-backlog-done="${escapeHtml(item.id)}" ${isBacklogDone(item.id) ? "checked" : ""} />
+            <span>Fait</span>
+          </label>
+        </td>
+        <td class="backlog-action-cell"><button class="icon-button backlog-delete-button" type="button" data-backlog-hide="${escapeHtml(item.id)}" aria-label="Masquer cette ligne">&times;</button></td>
       </tr>
     `).join("")
-    : `<tr><td colspan="7" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
+    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems() {
@@ -3754,6 +3806,18 @@ adminOpenTourButton.addEventListener("click", () => setActiveTab("tour"));
 refreshBacklog.addEventListener("click", loadBacklogItems);
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
+backlogBody.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-backlog-done]");
+  if (!checkbox) return;
+  setBacklogDone(checkbox.dataset.backlogDone, checkbox.checked);
+  renderBacklog();
+});
+backlogBody.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-backlog-hide]");
+  if (!button) return;
+  hideBacklogItem(button.dataset.backlogHide);
+  renderBacklog();
+});
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 quoteClientSearch.addEventListener("input", (event) => renderQuoteClientSuggestions(event.target.value));
 addQuoteLine.addEventListener("click", addQuoteLineItem);
