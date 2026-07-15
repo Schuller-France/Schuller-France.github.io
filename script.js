@@ -85,7 +85,6 @@ const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
-const objectivesTab = document.querySelector("#objectivesTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -98,7 +97,6 @@ const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
-const objectivesView = document.querySelector("#objectivesView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const historyView = document.querySelector("#historyView");
@@ -215,17 +213,6 @@ const noteReminderText = document.querySelector("#noteReminderText");
 const visitNextAction = document.querySelector("#visitNextAction");
 const visitFollowupDays = document.querySelector("#visitFollowupDays");
 const visitFollowupDaysLabel = document.querySelector("#visitFollowupDaysLabel");
-const objectivesUpdatedAt = document.querySelector("#objectivesUpdatedAt");
-const objectivesMonthlyTarget = document.querySelector("#objectivesMonthlyTarget");
-const objectivesMonthLabel = document.querySelector("#objectivesMonthLabel");
-const objectivesRevenue = document.querySelector("#objectivesRevenue");
-const objectivesRemaining = document.querySelector("#objectivesRemaining");
-const objectivesPercent = document.querySelector("#objectivesPercent");
-const objectivesDailyPace = document.querySelector("#objectivesDailyPace");
-const objectivesProgressText = document.querySelector("#objectivesProgressText");
-const objectivesProgressBar = document.querySelector("#objectivesProgressBar");
-const objectivesMessage = document.querySelector("#objectivesMessage");
-const objectivesTopClients = document.querySelector("#objectivesTopClients");
 let adminLogsCache = [];
 
 async function postService(parameters) {
@@ -995,53 +982,6 @@ function renderDashboard(user) {
     : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
 
   renderHomeReminders();
-  renderObjectives(user);
-}
-
-function countBusinessDays(startDate, endDate) {
-  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-  let days = 0;
-  for (let day = start; day <= end; day.setDate(day.getDate() + 1)) {
-    const weekDay = day.getDay();
-    if (weekDay !== 0 && weekDay !== 6) days += 1;
-  }
-  return days;
-}
-
-function renderObjectives(user = currentUser) {
-  if (!objectivesView || !user || user.role === "admin") return;
-  const stats = getDashboardStats(user);
-  const kpis = stats.kpis || {};
-  const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
-  const revenue = Number(kpis.revenue) || 0;
-  const target = Number(kpis.monthlyObjective) || 0;
-  const remaining = Math.max(0, target - revenue);
-  const percent = target > 0 ? (revenue / target) * 100 : 0;
-  const now = new Date();
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const businessDaysLeft = Math.max(1, countBusinessDays(now, monthEnd));
-  const dailyPace = remaining / businessDaysLeft;
-  const cappedPercent = Math.min(Math.max(percent, 0), 100);
-
-  objectivesUpdatedAt.textContent = stats.updatedAt || "En attente";
-  objectivesMonthlyTarget.textContent = target ? formatter.format(target) : "--";
-  objectivesMonthLabel.textContent = kpis.objectiveMonthLabel ? `Objectif ${kpis.objectiveMonthLabel}` : "Objectif du mois";
-  objectivesRevenue.textContent = formatter.format(revenue);
-  objectivesRemaining.textContent = target ? formatter.format(remaining) : "--";
-  objectivesPercent.textContent = target ? `${percent.toFixed(1).replace(".", ",")}% atteint` : "Objectif non trouvé";
-  objectivesDailyPace.textContent = target ? `${formatter.format(dailyPace)} / jour` : "--";
-  objectivesProgressText.textContent = target ? `${percent.toFixed(1).replace(".", ",")}%` : "--";
-  objectivesProgressBar.style.width = `${cappedPercent}%`;
-  objectivesMessage.textContent = target
-    ? (remaining > 0
-      ? `Il te manque ${formatter.format(remaining)} pour atteindre l'objectif ${kpis.objectiveMonthLabel || "du mois"}. Rythme conseillé : ${formatter.format(dailyPace)} par jour ouvré restant.`
-      : `Objectif ${kpis.objectiveMonthLabel || "du mois"} atteint. Tu es en avance de ${formatter.format(revenue - target)}.`)
-    : "Objectif mensuel non trouvé dans le fichier prévisionnel.";
-
-  objectivesTopClients.innerHTML = topClients.length
-    ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
-    : '<tr><td colspan="2" class="dashboard-empty">Aucun client à afficher.</td></tr>';
 }
 
 function escapeHtml(value) {
@@ -1573,7 +1513,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, objectivesTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
@@ -3624,7 +3564,6 @@ function openWazeNextClient() {
 
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
-  const showObjectives = tabName === "objectives";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
@@ -3636,7 +3575,6 @@ function setActiveTab(tabName) {
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
-  objectivesTab.classList.toggle("is-active", showObjectives);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
@@ -3648,7 +3586,6 @@ function setActiveTab(tabName) {
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
-  objectivesView.classList.toggle("is-hidden", !showObjectives);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
@@ -3661,11 +3598,9 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", objectives: "Objectifs", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
-
-  if (showObjectives) renderObjectives(currentUser);
 
   if (showOrder) {
     requestAnimationFrame(() => clientSearch.focus());
@@ -4043,7 +3978,6 @@ clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
-objectivesTab.addEventListener("click", () => setActiveTab("objectives"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));

@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260715m" />
+    <link rel="stylesheet" href="style.css?v=20260715n" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -104,7 +104,6 @@
 
       <nav class="app-tabs" aria-label="Navigation application">
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
-        <button class="tab-button" type="button" id="objectivesTab">Objectifs</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
@@ -194,67 +193,6 @@
             <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
             <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
           </article>
-        </section>
-      </main>
-
-      <main class="app-shell is-hidden objectives-shell" id="objectivesView">
-        <section class="panel objectives-hero" aria-labelledby="objectivesTitle">
-          <div>
-            <p class="step">Motivation commerciale</p>
-            <h2 id="objectivesTitle">Objectifs</h2>
-            <p id="objectivesSubtitle">Ton objectif du mois, ton réalisé et le rythme à tenir.</p>
-          </div>
-          <span class="status-pill" id="objectivesUpdatedAt">En attente</span>
-        </section>
-
-        <section class="objectives-grid" aria-label="Synthèse des objectifs">
-          <article class="panel objective-card">
-            <span>Objectif du mois</span>
-            <strong id="objectivesMonthlyTarget">--</strong>
-            <small id="objectivesMonthLabel">Mois en cours</small>
-          </article>
-          <article class="panel objective-card">
-            <span>Réalisé</span>
-            <strong id="objectivesRevenue">--</strong>
-            <small>CA chargé depuis Drive</small>
-          </article>
-          <article class="panel objective-card">
-            <span>Reste à faire</span>
-            <strong id="objectivesRemaining">--</strong>
-            <small id="objectivesPercent">--</small>
-          </article>
-          <article class="panel objective-card">
-            <span>Rythme conseillé</span>
-            <strong id="objectivesDailyPace">--</strong>
-            <small>Par jour ouvré restant</small>
-          </article>
-        </section>
-
-        <section class="panel objectives-progress-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="step">Progression</p>
-              <h2>Avancement du mois</h2>
-            </div>
-            <span class="status-pill" id="objectivesProgressText">--</span>
-          </div>
-          <div class="objectives-progress-track"><span id="objectivesProgressBar"></span></div>
-          <p class="objectives-message" id="objectivesMessage">Les objectifs apparaîtront dès que les données Drive seront chargées.</p>
-        </section>
-
-        <section class="panel objectives-clients-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="step">Clients à pousser</p>
-              <h2>Top clients du secteur</h2>
-            </div>
-          </div>
-          <div class="dashboard-table-wrap">
-            <table class="dashboard-table">
-              <thead><tr><th>Client</th><th>CA</th></tr></thead>
-              <tbody id="objectivesTopClients"></tbody>
-            </table>
-          </div>
         </section>
       </main>
 
@@ -849,7 +787,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260715m"></script>
+    <script src="script.js?v=20260715n"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
