@@ -8,7 +8,9 @@ let secureDataLoaded = false;
 const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
+let selectedQuoteClient = null;
 let lines = [];
+let quoteLineItems = [];
 let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
@@ -78,6 +80,7 @@ const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
+const quoteTab = document.querySelector("#quoteTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const tourTab = document.querySelector("#tourTab");
@@ -88,6 +91,7 @@ const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
+const quoteView = document.querySelector("#quoteView");
 const historyView = document.querySelector("#historyView");
 const notesView = document.querySelector("#notesView");
 const tourView = document.querySelector("#tourView");
@@ -114,6 +118,15 @@ const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
 const clearHistoryOrders = document.querySelector("#clearHistoryOrders");
+const quoteClientSearch = document.querySelector("#quoteClientSearch");
+const quoteClientSuggestions = document.querySelector("#quoteClientSuggestions");
+const quoteSelectedClient = document.querySelector("#quoteSelectedClient");
+const quoteStatus = document.querySelector("#quoteStatus");
+const quoteLines = document.querySelector("#quoteLines");
+const quoteNote = document.querySelector("#quoteNote");
+const addQuoteLine = document.querySelector("#addQuoteLine");
+const sendQuoteRequest = document.querySelector("#sendQuoteRequest");
+const quoteSendStatus = document.querySelector("#quoteSendStatus");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -684,11 +697,15 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const median = values.length ? values[Math.floor(values.length / 2)] : 0;
   const goals = [];
   const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
+  const ytdObjective = Number(sourceInfo.ytdObjectives?.[sector]) || 0;
+  const annualObjective = Number(sourceInfo.annualObjectives?.[sector]) || 0;
   const objectiveTarget = monthlyObjective || totalObjective;
   const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
   const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
   if (monthlyObjective > 0) goals.push(buildGoal(`Objectif ${sourceInfo.objectiveMonthLabel || "mois"}`, totalRevenue, monthlyObjective, "vs objectif"));
   else if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
+  if (ytdObjective > 0) goals.push(buildGoal("Objectif cumulé 2026", totalRevenue, ytdObjective, "depuis janvier"));
+  if (annualObjective > 0) goals.push(buildGoal("Objectif annuel 2026", totalRevenue, annualObjective, "année complète"));
   if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
   const safeGoals = goals.length
     ? goals
@@ -704,6 +721,8 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       revenue: totalRevenue,
       clients: topClients.length,
       monthlyObjective,
+      ytdObjective,
+      annualObjective,
       objectiveRemaining,
       objectivePercent,
       objectiveMonthLabel: sourceInfo.objectiveMonthLabel || "mois",
@@ -756,6 +775,8 @@ async function loadDashboardStatsFromDrive() {
       updatedAt: result.updatedAt,
       sourceFile: result.sourceFile,
       monthlyObjectives: result.monthlyObjectives || {},
+      ytdObjectives: result.ytdObjectives || {},
+      annualObjectives: result.annualObjectives || {},
       objectiveMonthLabel: result.objectiveMonthLabel || "",
       objectiveMonthKey: result.objectiveMonthKey || "",
     });
@@ -1320,7 +1341,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
@@ -1335,6 +1356,8 @@ function showApp(user, token = user.token || "") {
   renderDashboard(currentUser);
   loadDashboardStatsFromDrive();
   renderHomeReminders();
+  resetQuoteRequest();
+  renderQuoteLines();
   renderPrenetEmpty();
   renderNotesEmpty();
   selectedTourCodes = new Set();
@@ -1471,6 +1494,134 @@ function clearSelectedClient() {
   clientStatus.classList.remove("is-ready");
   selectedClientBox.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   updateSummary();
+}
+
+function renderQuoteClientSuggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  quoteClientSuggestions.innerHTML = "";
+
+  if (!cleanQuery) {
+    resetQuoteRequest();
+    quoteClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  const matches = visibleClients
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingCity,
+      client.billingZip,
+      client.deliveryCity,
+      client.deliveryZip,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 10);
+
+  if (!matches.length) {
+    quoteClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectQuoteClient(client));
+    quoteClientSuggestions.appendChild(button);
+  });
+
+  quoteClientSuggestions.classList.add("is-open");
+}
+
+function selectQuoteClient(client) {
+  selectedQuoteClient = client;
+  quoteClientSearch.value = client.name;
+  quoteClientSuggestions.classList.remove("is-open");
+  quoteStatus.textContent = "Client sélectionné";
+  quoteStatus.classList.add("is-ready");
+  quoteSelectedClient.innerHTML = `
+    <strong>${escapeHtml(client.name)}</strong>
+    <span>${escapeHtml(client.code)}</span>
+    <span>${escapeHtml(client.billingAddress || client.deliveryAddress || "")}</span>
+    <span>${escapeHtml(client.billingZip || client.deliveryZip || "")} ${escapeHtml(client.billingCity || client.deliveryCity || "")}</span>
+    <span>${escapeHtml(client.sector)}</span>
+  `;
+  quoteSendStatus.textContent = "";
+  recordActivity("Client devis sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
+}
+
+function resetQuoteRequest() {
+  selectedQuoteClient = null;
+  quoteStatus.textContent = "Client non sélectionné";
+  quoteStatus.classList.remove("is-ready");
+  quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+  quoteSendStatus.textContent = "";
+  quoteSendStatus.className = "tarif-send-status";
+}
+
+function addQuoteLineItem() {
+  quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  renderQuoteLines();
+}
+
+function removeQuoteLineItem(id) {
+  quoteLineItems = quoteLineItems.filter((line) => line.id !== id);
+  if (!quoteLineItems.length) addQuoteLineItem();
+  else renderQuoteLines();
+}
+
+function updateQuoteLine(id, field, value) {
+  const line = quoteLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+}
+
+function renderQuoteLines() {
+  if (!quoteLineItems.length) quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  quoteLines.innerHTML = quoteLineItems.map((line, index) => `
+    <tr data-quote-line="${escapeHtml(line.id)}">
+      <td><input type="text" value="${escapeHtml(line.ref)}" placeholder="Référence ${index + 1}" data-quote-field="ref" /></td>
+      <td><input type="number" min="1" step="1" value="${escapeHtml(line.qty)}" data-quote-field="qty" /></td>
+      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, précision..." data-quote-field="comment" /></td>
+      <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">×</button></td>
+    </tr>
+  `).join("");
+}
+
+function sendQuoteRequestDraft() {
+  quoteSendStatus.className = "tarif-send-status";
+  const validLines = quoteLineItems
+    .map((line) => ({
+      ref: String(line.ref || "").trim(),
+      qty: Math.max(1, Number(line.qty) || 1),
+      comment: String(line.comment || "").trim(),
+    }))
+    .filter((line) => line.ref);
+
+  if (!selectedQuoteClient) {
+    quoteSendStatus.textContent = "Sélectionnez d’abord le client.";
+    quoteSendStatus.classList.add("is-error");
+    quoteClientSearch.focus();
+    return;
+  }
+
+  if (!validLines.length) {
+    quoteSendStatus.textContent = "Ajoutez au moins une référence à chiffrer.";
+    quoteSendStatus.classList.add("is-error");
+    quoteLines.querySelector("input")?.focus();
+    return;
+  }
+
+  const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
+  const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
+  recordActivity("Demande de devis préparée", `${selectedQuoteClient.name} - ${refs}${more}`);
+  quoteSendStatus.textContent = "Demande prête. Donne-moi l’adresse e-mail de destination et j’active l’envoi automatique.";
+  quoteSendStatus.classList.add("is-warning");
 }
 
 function addLine() {
@@ -2999,6 +3150,7 @@ function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
+  const showQuote = tabName === "quote";
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
   const showBacklog = tabName === "backlog";
@@ -3009,6 +3161,7 @@ function setActiveTab(tabName) {
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
+  quoteTab.classList.toggle("is-active", showQuote);
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
   backlogTab.classList.toggle("is-active", showBacklog);
@@ -3019,6 +3172,7 @@ function setActiveTab(tabName) {
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
+  quoteView.classList.toggle("is-hidden", !showQuote);
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
   backlogView.classList.toggle("is-hidden", !showBacklog);
@@ -3028,7 +3182,7 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -3410,6 +3564,7 @@ document.querySelector("#generateOrderFiles").addEventListener("click", generate
 homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
+quoteTab.addEventListener("click", () => setActiveTab("quote"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
 backlogTab.addEventListener("click", () => setActiveTab("backlog"));
@@ -3425,6 +3580,20 @@ refreshBacklog.addEventListener("click", loadBacklogItems);
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
+quoteClientSearch.addEventListener("input", (event) => renderQuoteClientSuggestions(event.target.value));
+addQuoteLine.addEventListener("click", addQuoteLineItem);
+sendQuoteRequest.addEventListener("click", sendQuoteRequestDraft);
+quoteLines.addEventListener("input", (event) => {
+  const row = event.target.closest("[data-quote-line]");
+  const field = event.target.dataset.quoteField;
+  if (!row || !field) return;
+  updateQuoteLine(row.dataset.quoteLine, field, event.target.value);
+});
+quoteLines.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-quote-line]");
+  if (!button) return;
+  removeQuoteLineItem(button.dataset.removeQuoteLine);
+});
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 showAllNotesButton.addEventListener("click", renderAllNotes);
 notesForm.addEventListener("submit", saveClientNote);

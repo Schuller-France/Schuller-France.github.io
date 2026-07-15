@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260713b" />
+    <link rel="stylesheet" href="style.css?v=20260715a" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -106,6 +106,7 @@
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
+        <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="tourTab">Tournées</button>
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
@@ -326,6 +327,62 @@
             <article class="history-detail" id="historyDetail">
               <span>Sélectionnez une commande pour consulter le détail.</span>
             </article>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="quoteView">
+        <section class="panel quote-panel" aria-labelledby="quoteTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Demande commerciale</p>
+              <h2 id="quoteTitle">Demande de devis</h2>
+            </div>
+            <span class="status-pill" id="quoteStatus">Client non sélectionné</span>
+          </div>
+
+          <div class="quote-layout">
+            <section class="quote-client-card">
+              <div class="search-block">
+                <label for="quoteClientSearch">Rechercher le client</label>
+                <input id="quoteClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                <div class="suggestions" id="quoteClientSuggestions" role="listbox"></div>
+              </div>
+              <article class="selected-client" id="quoteSelectedClient" aria-live="polite">
+                <span>Aucun client choisi pour le moment.</span>
+              </article>
+            </section>
+
+            <section class="quote-lines-card">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <p class="step">Articles à chiffrer</p>
+                  <h3>Références demandées</h3>
+                </div>
+                <button class="ghost-button compact" type="button" id="addQuoteLine">Ajouter une ligne</button>
+              </div>
+              <div class="table-wrap">
+                <table class="order-table quote-table">
+                  <thead>
+                    <tr>
+                      <th>Référence</th>
+                      <th>Quantité</th>
+                      <th>Commentaire ligne</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="quoteLines"></tbody>
+                </table>
+              </div>
+              <label class="note-field" for="quoteNote">
+                Commentaire général
+                <textarea id="quoteNote" rows="4" placeholder="Ex. besoin urgent, alternative possible, chantier à venir..."></textarea>
+              </label>
+              <div class="quote-actions">
+                <button class="primary-button" type="button" id="sendQuoteRequest">Envoyer la demande de devis</button>
+                <p class="tarif-send-status" id="quoteSendStatus"></p>
+              </div>
+            </section>
           </div>
         </section>
       </main>
@@ -705,7 +762,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260713e"></script>
+    <script src="script.js?v=20260715a"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

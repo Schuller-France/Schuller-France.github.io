@@ -32,8 +32,23 @@
 .tarif-send-status.is-error { color: #b42318; }
 .tarif-send-status.is-warning { color: #9a6700; }
 
+.quote-panel { padding: 28px; }
+.quote-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(420px, 1.2fr); gap: 22px; margin-top: 22px; align-items: start; }
+.quote-client-card, .quote-lines-card { border: 1px solid #e1e5eb; border-radius: 18px; background: #fff; padding: 22px; box-shadow: 0 10px 28px rgba(28, 34, 45, .06); }
+.quote-lines-card { display: grid; gap: 18px; }
+.compact-heading { padding-bottom: 12px; border-bottom: 1px solid #eef0f3; }
+.compact-heading h3 { margin: 4px 0 0; font-size: 20px; }
+.quote-table input { width: 100%; border: 1px solid #cfd5dd; border-radius: 10px; padding: 10px 11px; }
+.quote-table input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: #e30613; }
+.quote-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: flex-end; }
+.quote-actions .tarif-send-status { flex: 1 1 260px; text-align: right; }
+
 @media (max-width: 800px) {
   .tarif-grid { grid-template-columns: 1fr; }
+  .quote-layout { grid-template-columns: 1fr; }
+  .quote-actions { justify-content: stretch; }
+  .quote-actions .primary-button { width: 100%; }
+  .quote-actions .tarif-send-status { text-align: left; }
   .tarif-form-heading { flex-direction: column; }
   .global-search { order: 3; width: 100%; max-width: none; flex-basis: 100%; }
   .global-search-results button { grid-template-columns: 1fr; }
