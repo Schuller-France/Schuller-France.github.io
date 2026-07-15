@@ -35,6 +35,8 @@ const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
 const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
+const secureDataCachePrefix = "schullerSecureDataCache:";
+const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -218,9 +220,9 @@ async function postService(parameters) {
   return result;
 }
 
-async function loadSecureAppData(token) {
-  if (secureDataLoaded && allClients.length && products.length) return;
-  const result = await postService({ action: "getAppData", token });
+function applySecureAppData(result) {
+  if (!result) return;
+  const previousEndpoint = tariffConfig.endpoint || "";
   allClients = Array.isArray(result.appData?.clients) ? result.appData.clients : [];
   products = Array.isArray(result.appData?.products) ? result.appData.products : [];
   prenetClients = Array.isArray(result.prenetData?.clients) ? result.prenetData.clients : [];
@@ -232,11 +234,60 @@ async function loadSecureAppData(token) {
   tariffConfig = {
     ...tariffConfig,
     ...(result.tariffConfig || {}),
-    endpoint: tariffConfig.endpoint,
+    endpoint: previousEndpoint,
   };
   secureDataLoaded = true;
   populateProductRefs();
   renderPromotions();
+}
+
+function secureDataCacheKey(userId) {
+  return `${secureDataCachePrefix}${userId || "default"}`;
+}
+
+function saveSecureDataCache(userId, result) {
+  if (!userId || !result?.appData) return;
+  try {
+    localStorage.setItem(secureDataCacheKey(userId), JSON.stringify({ savedAt: Date.now(), result }));
+  } catch (error) {
+    localStorage.removeItem(secureDataCacheKey(userId));
+  }
+}
+
+function restoreSecureDataCache(userId) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(secureDataCacheKey(userId)) || "null");
+    if (!cached?.result || Date.now() - Number(cached.savedAt || 0) > secureDataCacheMaxAgeMs) return false;
+    applySecureAppData(cached.result);
+    return true;
+  } catch (error) {
+    localStorage.removeItem(secureDataCacheKey(userId));
+    return false;
+  }
+}
+
+async function loadSecureAppData(token, userId = "") {
+  if (secureDataLoaded && allClients.length && products.length) return;
+  const result = await postService({ action: "getAppData", token });
+  applySecureAppData(result);
+  saveSecureDataCache(userId || currentUser?.id || "", result);
+}
+
+async function refreshSecureAppDataInBackground(token, userId) {
+  try {
+    const result = await postService({ action: "getAppData", token });
+    applySecureAppData(result);
+    saveSecureDataCache(userId || currentUser?.id || "", result);
+    if (currentUser) {
+      visibleClients = filterClientsForUser(currentUser);
+      populateProductRefs();
+      renderDashboard(currentUser);
+      renderDashboardSectorSwitch(currentUser);
+      renderPromotions();
+    }
+  } catch (error) {
+    // La copie locale permet de continuer à travailler même si Google répond lentement.
+  }
 }
 
 function clearSecureAppData() {
@@ -1378,8 +1429,13 @@ async function submitLogin() {
       password: loginPassword.value,
       remember: rememberLogin.checked ? "1" : "",
     });
-    await loadSecureAppData(result.token);
+    const cached = restoreSecureDataCache(result.user?.id || "");
+    if (!cached) {
+      loginSubmitButton.textContent = "Chargement des données…";
+      await loadSecureAppData(result.token, result.user?.id || "");
+    }
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
+    if (cached) refreshSecureAppDataInBackground(result.token, result.user?.id || "");
   } catch (error) {
     loginError.textContent = error.message || "Connexion impossible.";
     loginPassword.select();
@@ -1450,10 +1506,12 @@ async function restoreSession() {
     const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
     if (savedUser?.id) {
       rememberLogin.checked = Boolean(savedUser.remember);
-      loginError.textContent = "Reconnexion securisee...";
+      loginError.textContent = "Reconnexion sécurisée...";
       loginError.className = "login-error";
-      await loadSecureAppData(savedUser.token || "");
+      const cached = restoreSecureDataCache(savedUser.id);
+      if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
       showApp(savedUser, savedUser.token || "");
+      if (cached) refreshSecureAppDataInBackground(savedUser.token || "", savedUser.id);
       return;
     }
   } catch (error) {
