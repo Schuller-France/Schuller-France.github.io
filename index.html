@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260715d" />
+    <link rel="stylesheet" href="style.css?v=20260715e" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -354,12 +354,6 @@
             </section>
 
             <section class="quote-lines-card quote-lines-wide">
-              <div class="panel-heading compact-heading quote-heading-line">
-                <div>
-                  <h3>R&eacute;f&eacute;rences demand&eacute;es</h3>
-                </div>
-                <button class="ghost-button compact" type="button" id="addQuoteLine">Ajouter une ligne</button>
-              </div>
               <div class="table-wrap quote-table-wrap">
                 <table class="order-table quote-table">
                   <thead>
@@ -375,6 +369,7 @@
                   <tbody id="quoteLines"></tbody>
                 </table>
               </div>
+              <button class="ghost-button compact quote-add-line" type="button" id="addQuoteLine" hidden>Ajouter une ligne vide</button>
               <label class="note-field" for="quoteNote">
                 Commentaire g&eacute;n&eacute;ral
                 <textarea id="quoteNote" rows="3" placeholder="Ex. besoin urgent, alternative possible, chantier &agrave; venir..."></textarea>
@@ -763,7 +758,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260715d"></script>
+    <script src="script.js?v=20260715e"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
