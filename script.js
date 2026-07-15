@@ -697,16 +697,30 @@ function getStatsDepartment(client) {
   return zip.slice(0, 2);
 }
 
-function buildGoal(label, current, target, suffix) {
-  const diff = current - target;
-  const percent = target ? (diff / target) * 100 : 0;
+function formatSignedCurrency(value) {
+  const amount = Number(value) || 0;
+  return `${amount >= 0 ? "+" : "-"}${formatter.format(Math.abs(amount))}`;
+}
+
+function formatSignedPercent(value) {
+  const amount = Number(value) || 0;
+  return `${amount >= 0 ? "+" : "-"}${Math.abs(amount).toFixed(1).replace(".", ",")}%`;
+}
+
+function buildGoal(label, current, target, options = {}) {
+  const diff = Number(current || 0) - Number(target || 0);
+  const percent = target ? (Number(current || 0) / Number(target || 0)) * 100 : 0;
+  const remaining = Math.max(0, Number(target || 0) - Number(current || 0));
   const sign = diff >= 0 ? "+" : "";
   return {
     label,
     current,
     target,
-    format: "currency",
-    note: `${sign}${formatter.format(diff)} · ${sign}${percent.toFixed(1).replace(".", ",")}% ${suffix}`,
+    percent: typeof options.percent === "number" ? options.percent : percent,
+    format: options.format || "currency",
+    valueLabel: options.valueLabel || `${formatter.format(Number(current) || 0)} / ${formatter.format(Number(target) || 0)}`,
+    note: options.note || `${sign}${formatter.format(diff)} · ${sign}${percent.toFixed(1).replace(".", ",")}%`,
+    remaining,
   };
 }
 
@@ -753,11 +767,33 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const objectiveTarget = monthlyObjective || totalObjective;
   const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
   const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
-  if (monthlyObjective > 0) goals.push(buildGoal(`Objectif ${sourceInfo.objectiveMonthLabel || "mois"}`, totalRevenue, monthlyObjective, "vs objectif"));
-  else if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
-  if (ytdObjective > 0) goals.push(buildGoal("Objectif cumulé 2026", totalRevenue, ytdObjective, "depuis janvier"));
-  if (annualObjective > 0) goals.push(buildGoal("Objectif annuel 2026", totalRevenue, annualObjective, "année complète"));
-  if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
+  const objectiveMonthLabel = sourceInfo.objectiveMonthLabel || "mois";
+  if (monthlyObjective > 0) {
+    goals.push(buildGoal(`Objectif ${objectiveMonthLabel}`, totalRevenue, monthlyObjective, {
+      note: `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`,
+    }));
+  } else if (totalObjective > 0) {
+    goals.push(buildGoal("Objectif du fichier CA", totalRevenue, totalObjective, {
+      note: `Reste ${formatter.format(Math.max(0, totalObjective - totalRevenue))}`,
+    }));
+  }
+  if (totalPrevious > 0) {
+    const previousDiff = totalRevenue - totalPrevious;
+    const previousPercent = totalPrevious > 0 ? (previousDiff / totalPrevious) * 100 : 0;
+    goals.push(buildGoal(`${objectiveMonthLabel} vs N-1`, totalRevenue, totalPrevious, {
+      valueLabel: `N-1 : ${formatter.format(totalPrevious)}`,
+      note: `${previousDiff >= 0 ? "Avance" : "Retard"} : ${formatSignedCurrency(previousDiff)} · ${formatSignedPercent(previousPercent)}`,
+    }));
+  }
+  if (ytdObjective > 0) {
+    const ytdRemaining = Math.max(0, ytdObjective - totalRevenue);
+    const ytdProgress = ytdObjective > 0 ? Math.min((totalRevenue / ytdObjective) * 100, 100) : 0;
+    goals.push(buildGoal("Objectif cumulé janv. → mois en cours", totalRevenue, ytdObjective, {
+      percent: ytdProgress,
+      valueLabel: `Objectif : ${formatter.format(ytdObjective)}`,
+      note: `Reste à couvrir selon le CA chargé : ${formatter.format(ytdRemaining)}`,
+    }));
+  }
   const safeGoals = goals.length
     ? goals
     : (Array.isArray(fallbackStats.goals) ? fallbackStats.goals.map((goal) => ({
@@ -919,10 +955,11 @@ function renderDashboard(user) {
     ? goals.map((goal) => {
         const current = Number(goal.current) || 0;
         const target = Number(goal.target) || 0;
-        const percent = target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
+        const percent = typeof goal.percent === "number" ? Math.min(Math.max(goal.percent, 0), 100) : (target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0);
         const displayCurrent = goal.format === "currency" ? formatter.format(current) : formatNumber(current);
         const displayTarget = goal.format === "currency" ? formatter.format(target) : formatNumber(target);
-        return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(displayCurrent)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
+        const valueLabel = goal.valueLabel || `${displayCurrent} / ${displayTarget}`;
+        return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(valueLabel)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
       }).join("")
     : '<div class="dashboard-empty">Aucun objectif renseigné.</div>';
 
