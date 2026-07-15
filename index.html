@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260715c" />
+    <link rel="stylesheet" href="style.css?v=20260715d" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -30,7 +30,7 @@
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
-        <p class="login-intro">AccÃ©dez Ã  votre secteur client et prÃ©parez vos commandes terrain.</p>
+        <p class="login-intro">Accédez à votre secteur client et préparez vos commandes terrain.</p>
 
         <label for="loginId">
           Identifiant
@@ -44,18 +44,18 @@
 
         <label class="remember-login" for="rememberLogin">
           <input id="rememberLogin" type="checkbox" />
-          <span>Rester connectÃ© sur cet ordinateur</span>
+          <span>Rester connecté sur cet ordinateur</span>
         </label>
 
         <p class="login-error" id="loginError" role="alert"></p>
         <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
-        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oubliÃ© ?</button>
+        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oublié ?</button>
       </form>
 
       <section class="login-card is-hidden" id="passwordResetCard" aria-labelledby="passwordResetTitle">
-        <p class="eyebrow">AccÃ¨s sÃ©curisÃ©</p>
-        <h1 id="passwordResetTitle">RÃ©initialiser le mot de passe</h1>
-        <p class="login-intro">Recevez un code Ã  6 chiffres sur votre adresse enregistrÃ©e.</p>
+        <p class="eyebrow">Accès sécurisé</p>
+        <h1 id="passwordResetTitle">Réinitialiser le mot de passe</h1>
+        <p class="login-intro">Recevez un code à 6 chiffres sur votre adresse enregistrée.</p>
 
         <form class="password-reset-form" id="passwordResetRequestForm">
           <label for="passwordResetEmail">
@@ -67,7 +67,7 @@
 
         <form class="password-reset-form is-hidden" id="passwordResetConfirmForm">
           <label for="passwordResetCode">
-            Code reÃ§u
+            Code reçu
             <input id="passwordResetCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
           </label>
           <label for="newPassword">
@@ -82,7 +82,7 @@
         </form>
 
         <p class="reset-status" id="passwordResetStatus" role="status"></p>
-        <button class="text-button" type="button" id="backToLoginButton">Retour Ã  la connexion</button>
+        <button class="text-button" type="button" id="backToLoginButton">Retour à la connexion</button>
       </section>
     </section>
 
@@ -93,27 +93,27 @@
         </div>
         <div class="global-search" id="globalSearchBlock">
           <label for="globalSearchInput">Recherche globale</label>
-          <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Client, ville, rÃ©fÃ©rence, commande, note..." />
+          <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Client, ville, référence, commande, note..." />
           <div class="global-search-results is-hidden" id="globalSearchResults"></div>
         </div>
         <div class="header-actions">
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
-          <button class="ghost-button" type="button" id="logoutButton">DÃ©connexion</button>
+          <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
         </div>
       </header>
 
       <nav class="app-tabs" aria-label="Navigation application">
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
-        <button class="tab-button" type="button" id="historyTab">Commandes passÃ©es</button>
+        <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
-        <button class="tab-button" type="button" id="tourTab">TournÃ©es</button>
+        <button class="tab-button" type="button" id="tourTab">Tournées</button>
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
-        <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activitÃ©</button>
+        <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
       </nav>
 
       <main class="app-shell dashboard-shell" id="homeView">
@@ -121,25 +121,25 @@
           <div>
             <p class="step">Accueil</p>
             <h2 id="homeTitle">Tableau de bord commercial</h2>
-            <p id="dashboardPeriod">Vue synthÃ©tique de votre activitÃ© commerciale.</p>
+            <p id="dashboardPeriod">Vue synthétique de votre activité commerciale.</p>
             <div class="dashboard-sector-switch is-hidden" id="dashboardSectorSwitch" aria-label="Choisir le secteur du tableau de bord"></div>
           </div>
           <div class="dashboard-status">
-            <span>DonnÃ©es actualisÃ©es</span>
+            <span>Données actualisées</span>
             <strong id="dashboardUpdatedAt">En attente</strong>
           </div>
         </section>
 
         <section class="dashboard-grid" aria-label="Indicateurs principaux">
           <article class="panel metric-card">
-            <span>CA prÃ©visionnel</span>
+            <span>CA prévisionnel</span>
             <strong id="metricOrders">--</strong>
             <small id="metricOrdersNote">Secteur du commercial</small>
           </article>
           <article class="panel metric-card">
             <span>Clients actifs</span>
             <strong id="metricRevenue">--</strong>
-            <small id="metricRevenueNote">Clients avec CA prÃ©visionnel</small>
+            <small id="metricRevenueNote">Clients avec CA prévisionnel</small>
           </article>
           <article class="panel metric-card">
             <span>CA moyen / client</span>
@@ -151,7 +151,7 @@
         <section class="panel reminder-home-panel is-hidden" id="homeRemindersPanel" aria-labelledby="homeRemindersTitle">
           <div class="panel-heading">
             <div>
-              <p class="step">Ã€ ne pas oublier</p>
+              <p class="step">À ne pas oublier</p>
               <h2 id="homeRemindersTitle">Relances clients</h2>
             </div>
             <span class="status-pill" id="homeRemindersCount">0 relance</span>
@@ -162,13 +162,13 @@
         <section class="dashboard-main-grid">
           <article class="panel dashboard-panel dashboard-chart-panel">
             <div class="panel-heading">
-              <div><p class="step">Territoire</p><h2>CA par dÃ©partement</h2></div>
+              <div><p class="step">Territoire</p><h2>CA par département</h2></div>
               <span class="status-pill" id="trendTotal">--</span>
             </div>
-            <div class="sales-chart" id="salesChart" aria-label="Graphique d'Ã©volution des ventes"></div>
+            <div class="sales-chart" id="salesChart" aria-label="Graphique d'évolution des ventes"></div>
           </article>
           <article class="panel dashboard-panel">
-            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons clÃ©s</h2></div></div>
+            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons clés</h2></div></div>
             <div class="goal-list" id="goalList"></div>
           </article>
         </section>
@@ -176,7 +176,7 @@
         <section class="dashboard-ranking-grid dashboard-ranking-single">
           <article class="panel dashboard-panel">
             <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
-            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prÃ©visionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
+            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
           </article>
         </section>
       </main>
@@ -243,7 +243,7 @@
           </table>
         </div>
         <div class="order-actions">
-          <p>Une nouvelle ligne sâ€™ajoute automatiquement aprÃ¨s saisie dâ€™une rÃ©fÃ©rence valide et dâ€™une quantitÃ©.</p>
+          <p>Une nouvelle ligne s’ajoute automatiquement après saisie d’une référence valide et d’une quantité.</p>
           <button class="ghost-button compact" type="button" id="addLine">Ajouter une ligne vide</button>
         </div>
       </section>
@@ -267,7 +267,7 @@
           </div>
           <div>
             <dt>Total HT</dt>
-            <dd id="summaryTotal">0,00 â‚¬</dd>
+            <dd id="summaryTotal">0,00 €</dd>
           </div>
         </dl>
 
@@ -277,10 +277,10 @@
         </label>
 
         <button class="primary-button full" type="button" id="generateOrderFiles">
-          TÃ©lÃ©charger CSV ERP + PDF
+          Télécharger CSV ERP + PDF
         </button>
         <p class="helper-text">
-          Le CSV contient uniquement les rÃ©fÃ©rences. Le PDF contient la commande complÃ¨te.
+          Le CSV contient uniquement les références. Le PDF contient la commande complète.
         </p>
       </aside>
       </main>
@@ -297,14 +297,14 @@
 
           <div class="prenet-search-block">
             <label for="prenetClientSearch">Rechercher un client de votre secteur</label>
-            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code clientâ€¦" />
+            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code client…" />
             <div class="suggestions prenet-suggestions" id="prenetClientSuggestions" role="listbox"></div>
           </div>
 
           <article class="prenet-result" id="prenetResult" aria-live="polite">
             <div class="prenet-empty">
-              <strong>SÃ©lectionnez un client</strong>
-              <span>Ses nouveaux prix nets apparaÃ®tront ici, classÃ©s par rÃ©fÃ©rence.</span>
+              <strong>Sélectionnez un client</strong>
+              <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
             </div>
           </article>
         </section>
@@ -315,7 +315,7 @@
           <div class="panel-heading">
             <div>
               <p class="step">Historique</p>
-              <h2 id="historyTitle">Commandes passÃ©es</h2>
+              <h2 id="historyTitle">Commandes passées</h2>
             </div>
             <div class="history-actions">
               <span class="status-pill" id="historyCount">0 commande</span>
@@ -325,7 +325,7 @@
           <div class="history-layout">
             <div class="history-list" id="historyList"></div>
             <article class="history-detail" id="historyDetail">
-              <span>SÃ©lectionnez une commande pour consulter le dÃ©tail.</span>
+              <span>Sélectionnez une commande pour consulter le détail.</span>
             </article>
           </div>
         </section>
@@ -338,7 +338,7 @@
               <p class="step">Demande commerciale</p>
               <h2 id="quoteTitle">Demande de devis</h2>
             </div>
-            <span class="status-pill" id="quoteStatus">Client non sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="quoteStatus">Client non sélectionné</span>
           </div>
 
           <div class="quote-layout">
@@ -354,10 +354,9 @@
             </section>
 
             <section class="quote-lines-card quote-lines-wide">
-              <div class="panel-heading compact-heading">
+              <div class="panel-heading compact-heading quote-heading-line">
                 <div>
-                  <p class="step">Articles Ã  chiffrer</p>
-                  <h3>RÃ©fÃ©rences demandÃ©es</h3>
+                  <h3>R&eacute;f&eacute;rences demand&eacute;es</h3>
                 </div>
                 <button class="ghost-button compact" type="button" id="addQuoteLine">Ajouter une ligne</button>
               </div>
@@ -365,10 +364,10 @@
                 <table class="order-table quote-table">
                   <thead>
                     <tr>
-                      <th>RÃ©fÃ©rence</th>
-                      <th>DÃ©signation</th>
+                      <th>R&eacute;f&eacute;rence</th>
+                      <th>D&eacute;signation</th>
                       <th>UDV</th>
-                      <th>QuantitÃ©</th>
+                      <th>Quantit&eacute;</th>
                       <th>Commentaire ligne</th>
                       <th></th>
                     </tr>
@@ -377,8 +376,8 @@
                 </table>
               </div>
               <label class="note-field" for="quoteNote">
-                Commentaire gÃ©nÃ©ral
-                <textarea id="quoteNote" rows="3" placeholder="Ex. besoin urgent, alternative possible, chantier Ã  venir..."></textarea>
+                Commentaire g&eacute;n&eacute;ral
+                <textarea id="quoteNote" rows="3" placeholder="Ex. besoin urgent, alternative possible, chantier &agrave; venir..."></textarea>
               </label>
               <div class="quote-actions">
                 <button class="primary-button" type="button" id="sendQuoteRequest">Envoyer la demande de devis</button>
@@ -396,12 +395,12 @@
               <p class="step">Rendez-vous clients</p>
               <h2 id="notesTitle">Prise de notes</h2>
             </div>
-            <span class="status-pill" id="notesStatus">Aucun client sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="notesStatus">Aucun client sélectionné</span>
           </div>
 
           <div class="notes-search">
             <label for="notesClientSearch">Rechercher un client</label>
-            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code clientâ€¦" />
+            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
             <button class="primary-button compact" type="button" id="showAllNotesButton">Mes notes</button>
             <div class="suggestions notes-suggestions" id="notesClientSuggestions" role="listbox"></div>
           </div>
@@ -411,7 +410,7 @@
           <div class="notes-layout">
             <aside class="notes-editor">
               <article class="notes-selected-client" id="notesSelectedClient">
-                <strong>SÃ©lectionnez un client</strong>
+                <strong>Sélectionnez un client</strong>
                 <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
               </article>
 
@@ -420,20 +419,20 @@
                 <input id="notesDate" type="date" required />
 
                 <label for="notesText">Note du rendez-vous</label>
-                <div class="quick-note-buttons" aria-label="ModÃ¨les de notes rapides">
-                  <button type="button" data-note-template="Promo prÃ©sentÃ©e">Promo prÃ©sentÃ©e</button>
-                  <button type="button" data-note-template="Client intÃ©ressÃ©">Client intÃ©ressÃ©</button>
-                  <button type="button" data-note-template="Ã€ relancer" data-template-reminder="1">Ã€ relancer</button>
+                <div class="quick-note-buttons" aria-label="Modèles de notes rapides">
+                  <button type="button" data-note-template="Promo présentée">Promo présentée</button>
+                  <button type="button" data-note-template="Client intéressé">Client intéressé</button>
+                  <button type="button" data-note-template="À relancer" data-template-reminder="1">À relancer</button>
                   <button type="button" data-note-template="Commande probable">Commande probable</button>
-                  <button type="button" data-note-template="Devis Ã  faire">Devis Ã  faire</button>
-                  <button type="button" data-note-template="Pas intÃ©ressÃ©">Pas intÃ©ressÃ©</button>
-                  <button type="button" data-note-template="ProblÃ¨me tarif">ProblÃ¨me tarif</button>
+                  <button type="button" data-note-template="Devis à faire">Devis à faire</button>
+                  <button type="button" data-note-template="Pas intéressé">Pas intéressé</button>
+                  <button type="button" data-note-template="Problème tarif">Problème tarif</button>
                   <button type="button" data-note-template="Besoin catalogue">Besoin catalogue</button>
                 </div>
-                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits prÃ©sentÃ©s, prochaine action, objection clientâ€¦" required></textarea>
+                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
 
                 <button class="voice-note-button" type="button" id="startVoiceNote">
-                  <span aria-hidden="true">ðŸŽ™ï¸</span>
+                  <span aria-hidden="true">🎙️</span>
                   Dicter la note
                 </button>
                 <p class="voice-note-status" id="voiceNoteStatus" role="status"></p>
@@ -441,7 +440,7 @@
                 <section class="note-reminder-box">
                   <label class="note-reminder-toggle" for="noteReminderEnabled">
                     <input id="noteReminderEnabled" type="checkbox" />
-                    <span>PrÃ©voir une relance client</span>
+                    <span>Prévoir une relance client</span>
                   </label>
                   <div class="note-reminder-fields" id="noteReminderFields">
                     <label for="noteReminderDate">Date de relance</label>
@@ -475,7 +474,7 @@
 
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
-                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminÃ©</button>
+                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminé</button>
                   <button class="ghost-button compact" type="button" id="exportVisitReportButton">Exporter compte-rendu Excel</button>
                   <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
                 </div>
@@ -493,10 +492,10 @@
               <div class="notes-report-toolbar">
                 <label for="reportStartDate">Du <input id="reportStartDate" type="date" /></label>
                 <label for="reportEndDate">Au <input id="reportEndDate" type="date" /></label>
-                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la pÃ©riode</button>
+                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la période</button>
               </div>
               <div class="notes-list" id="notesList">
-                <div class="notes-empty">Les notes du client sÃ©lectionnÃ© apparaÃ®tront ici.</div>
+                <div class="notes-empty">Les notes du client sélectionné apparaîtront ici.</div>
               </div>
             </section>
           </div>
@@ -507,34 +506,34 @@
         <section class="panel tour-panel" aria-labelledby="tourTitle">
           <div class="panel-heading">
             <div>
-              <p class="step">PrÃ©paration terrain</p>
-              <h2 id="tourTitle">TournÃ©es clients</h2>
+              <p class="step">Préparation terrain</p>
+              <h2 id="tourTitle">Tournées clients</h2>
             </div>
-            <span class="status-pill" id="tourSelectionCount">0 client sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="tourSelectionCount">0 client sélectionné</span>
           </div>
 
           <div class="tour-toolbar">
             <label for="tourSearch">
               Rechercher un client
-              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postalâ€¦" />
+              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postal…" />
             </label>
             <div class="tour-actions">
               <button class="primary-button compact" type="button" id="openGoogleMapsRoute">Ouvrir dans Google Maps</button>
               <button class="ghost-button compact" type="button" id="openWazeRoute">Waze prochain client</button>
-              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tournÃ©e</button>
+              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tournée</button>
             </div>
           </div>
 
           <div class="tour-savebar">
             <label for="tourName">
-              Nom de la tournÃ©e
-              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tournÃ©e mardiâ€¦" />
+              Nom de la tournée
+              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tournée mardi…" />
             </label>
             <button class="primary-button compact" type="button" id="saveTourButton">Sauvegarder</button>
             <label for="savedTourSelect">
-              TournÃ©es enregistrÃ©es
+              Tournées enregistrées
               <select id="savedTourSelect">
-                <option value="">Aucune tournÃ©e enregistrÃ©e</option>
+                <option value="">Aucune tournée enregistrée</option>
               </select>
             </label>
             <button class="ghost-button compact" type="button" id="loadTourButton">Charger</button>
@@ -551,15 +550,15 @@
                 <small>Carte interactive</small>
               </div>
               <div class="france-map" id="tourMap" aria-label="Carte interactive des clients"></div>
-              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter Ã  la tournÃ©e. Les coordonnÃ©es exactes seront utilisÃ©es dÃ¨s qu'elles seront prÃ©sentes dans le fichier clients.</p>
+              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée. Les coordonnées exactes seront utilisées dès qu'elles seront présentes dans le fichier clients.</p>
             </section>
 
             <aside class="tour-list-panel" aria-labelledby="tourListTitle">
               <div class="tour-selected-box">
                 <div class="tour-map-heading">
                   <div>
-                    <p class="step">ItinÃ©raire</p>
-                    <h3>Clients cochÃ©s</h3>
+                    <p class="step">Itinéraire</p>
+                    <h3>Clients cochés</h3>
                   </div>
                 </div>
                 <div class="tour-selected-list" id="tourSelectedList"></div>
@@ -585,21 +584,21 @@
             <div>
               <p class="step">Suivi terrain</p>
               <h2 id="backlogTitle">Reliquats &amp; reprise</h2>
-              <p class="helper-text">Consultez les commandes en attente et les marchandises Ã  rÃ©cupÃ©rer chez les clients de votre secteur.</p>
+              <p class="helper-text">Consultez les commandes en attente et les marchandises à récupérer chez les clients de votre secteur.</p>
             </div>
-            <span class="status-pill" id="backlogStatus">Ã€ connecter au Drive</span>
+            <span class="status-pill" id="backlogStatus">À connecter au Drive</span>
           </div>
 
-          <section class="dashboard-grid backlog-metrics" aria-label="RÃ©sumÃ© reliquats et reprises">
+          <section class="dashboard-grid backlog-metrics" aria-label="Résumé reliquats et reprises">
             <article class="panel metric-card"><span>Reliquats</span><strong id="backlogRemainderCount">0</strong><small>Commandes en attente</small></article>
-            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises Ã  rÃ©cupÃ©rer</small></article>
-            <article class="panel metric-card"><span>Total affichÃ©</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
+            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises à récupérer</small></article>
+            <article class="panel metric-card"><span>Total affiché</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
           </section>
 
           <div class="backlog-toolbar">
             <label for="backlogSearch">
               Rechercher
-              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, rÃ©fÃ©rence, villeâ€¦" />
+              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, référence, ville…" />
             </label>
             <label for="backlogTypeFilter">
               Type
@@ -618,10 +617,10 @@
                 <tr>
                   <th>Date</th>
                   <th>Type</th>
-                  <th>NÂ° commande</th>
+                  <th>N° commande</th>
                   <th>Client</th>
                   <th>Produit</th>
-                  <th>QuantitÃ©</th>
+                  <th>Quantité</th>
                   <th>Commentaire</th>
                 </tr>
               </thead>
@@ -636,7 +635,7 @@
           <div class="panel-heading">
             <div>
               <p class="step">Documents commerciaux</p>
-              <h2 id="tarifTitle">Tarifs Ã  envoyer</h2>
+              <h2 id="tarifTitle">Tarifs à envoyer</h2>
             </div>
             <span class="status-pill">Envoi par e-mail</span>
           </div>
@@ -647,17 +646,17 @@
               <div class="tarif-card-copy">
                 <span>Tarif client</span>
                 <h3>Tarif 50 + 10</h3>
-                <p>Tarif NET applicable Ã  partir du 1er juillet 2026.</p>
+                <p>Tarif NET applicable à partir du 1er juillet 2026.</p>
               </div>
               <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
             </article>
 
             <article class="tarif-card">
-              <div class="tarif-icon" aria-hidden="true">â‚¬</div>
+              <div class="tarif-icon" aria-hidden="true">€</div>
               <div class="tarif-card-copy">
                 <span>Tarif client</span>
                 <h3>Tarif de base</h3>
-                <p>Tarif de base applicable Ã  partir du 1er juillet 2026.</p>
+                <p>Tarif de base applicable à partir du 1er juillet 2026.</p>
               </div>
               <button class="primary-button" type="button" id="selectTarifBase">Envoyer ce tarif</button>
             </article>
@@ -674,14 +673,14 @@
 
             <form class="tarif-send-form is-hidden" id="tarifSendForm">
               <div class="tarif-form-heading">
-                <div><span>Document sÃ©lectionnÃ©</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
-                <small>ExpÃ©diteur : Schuller â€“ Ne pas rÃ©pondre</small>
+                <div><span>Document sélectionné</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
+                <small>Expéditeur : Schuller – Ne pas répondre</small>
               </div>
               <label for="tarifRecipient">Adresse e-mail du client</label>
               <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
               <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
               <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
-              <p class="helper-text">Le client recevra le fichier en piÃ¨ce jointe avec la mention Â« Merci de ne pas rÃ©pondre Ã  ce message Â».</p>
+              <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
             </form>
           </div>
         </section>
@@ -694,13 +693,13 @@
               <p class="step">Supports commerciaux</p>
               <h2 id="promotionTitle">Promotions</h2>
             </div>
-            <span class="status-pill">AperÃ§u tablette + envoi e-mail</span>
+            <span class="status-pill">Aperçu tablette + envoi e-mail</span>
           </div>
 
           <div class="promotion-toolbar">
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
-            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sÃ©lectionnÃ©es</button>
+            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
 
@@ -713,15 +712,15 @@
           <strong id="promotionModalTitle">Promotion</strong>
           <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
         </div>
-        <iframe id="promotionPreviewFrame" title="AperÃ§u promotion"></iframe>
+        <iframe id="promotionPreviewFrame" title="Aperçu promotion"></iframe>
       </div>
 
       <main class="app-shell admin-shell is-hidden" id="adminView">
         <section class="panel admin-hero">
           <div>
             <p class="step">Administration</p>
-            <h2>Dashboard gÃ©rant</h2>
-            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoyÃ©s.</p>
+            <h2>Dashboard gérant</h2>
+            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoyés.</p>
           </div>
           <div class="admin-actions">
             <label for="adminScopeFilter">
@@ -730,32 +729,32 @@
                 <option value="all">Tous les commerciaux</option>
               </select>
             </label>
-            <button class="primary-button" type="button" id="adminOpenTourButton">Ouvrir la carte complÃ¨te</button>
+            <button class="primary-button" type="button" id="adminOpenTourButton">Ouvrir la carte complète</button>
             <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
-            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre Ã  zÃ©ro l'affichage</button>
+            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre à zéro l'affichage</button>
           </div>
         </section>
-        <section class="dashboard-grid admin-metrics" aria-label="RÃ©sumÃ© de l'activitÃ©">
-          <article class="panel metric-card"><span>ActivitÃ©s affichÃ©es</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sÃ©lectionnÃ©</small></article>
-          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes gÃ©nÃ©rÃ©es</small></article>
-          <article class="panel metric-card"><span>Documents envoyÃ©s</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
-          <article class="panel metric-card"><span>Clients consultÃ©s</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
-          <article class="panel metric-card"><span>Notes ajoutÃ©es</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
-          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminÃ©es</small></article>
+        <section class="dashboard-grid admin-metrics" aria-label="Résumé de l'activité">
+          <article class="panel metric-card"><span>Activités affichées</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sélectionné</small></article>
+          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes générées</small></article>
+          <article class="panel metric-card"><span>Documents envoyés</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
+          <article class="panel metric-card"><span>Clients consultés</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
+          <article class="panel metric-card"><span>Notes ajoutées</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
+          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminées</small></article>
         </section>
         <section class="admin-dashboard-grid">
           <article class="panel admin-feed-panel">
-            <div class="panel-heading"><div><p class="step">Suivi</p><h2>ActivitÃ© rÃ©cente</h2></div><span class="status-pill" id="adminLogStatus">Actualisationâ€¦</span></div>
+            <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activité récente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
             <div id="adminActivityFeed" class="admin-activity-feed"></div>
           </article>
           <aside class="panel admin-summary-panel">
-            <div class="panel-heading"><div><p class="step">SynthÃ¨se</p><h2>Par type</h2></div></div>
+            <div class="panel-heading"><div><p class="step">Synthèse</p><h2>Par type</h2></div></div>
             <div id="adminTypeSummary" class="admin-type-summary"></div>
           </aside>
         </section>
         <section class="panel admin-log-panel">
-          <div class="panel-heading"><div><p class="step">DÃ©tail</p><h2>Table complÃ¨te</h2></div></div>
-          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>DÃ©tail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
+          <div class="panel-heading"><div><p class="step">Détail</p><h2>Table complète</h2></div></div>
+          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>Détail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
         </section>
       </main>
     </div>
@@ -764,7 +763,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260715c"></script>
+    <script src="script.js?v=20260715d"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -774,4 +773,3 @@
     </script>
   </body>
 </html>
-

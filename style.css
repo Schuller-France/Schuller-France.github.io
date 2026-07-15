@@ -38,7 +38,8 @@
 .quote-client-wide { display: grid; grid-template-columns: minmax(360px, .7fr) minmax(420px, 1fr); gap: 18px; align-items: end; }
 .quote-lines-card { display: grid; gap: 18px; }
 .compact-heading { padding-bottom: 12px; border-bottom: 1px solid #eef0f3; }
-.compact-heading h3 { margin: 4px 0 0; font-size: 20px; }
+.compact-heading h3 { margin: 4px 0 0; font-size: 22px; }
+.quote-heading-line { align-items: center; }
 .quote-table-wrap { overflow-x: auto; }
 .quote-table { min-width: 1420px; table-layout: fixed; }
 .quote-table th:nth-child(1), .quote-table td:nth-child(1) { width: 18%; }

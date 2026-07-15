@@ -1,4 +1,4 @@
-﻿let allClients = [];
+let allClients = [];
 let products = [];
 let prenetClients = [];
 let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
@@ -214,7 +214,7 @@ async function postService(parameters) {
     body: new URLSearchParams(payload),
   });
   const result = JSON.parse(await response.text());
-  if (!result.ok) throw new Error(result.message || "OpÃ©ration impossible.");
+  if (!result.ok) throw new Error(result.message || "Opération impossible.");
   return result;
 }
 
@@ -268,16 +268,16 @@ function toggleDisplayMode() {
 
 async function loadAdminLogs() {
   if (currentUser?.role !== "admin") return;
-  adminLogStatus.textContent = "Actualisationâ€¦";
+  adminLogStatus.textContent = "Actualisation…";
   refreshAdminLogs.disabled = true;
   try {
     const result = await postService({ action: "getAdminLogs", token: currentSessionToken });
     adminLogsCache = (result.logs || []).filter((log) => log.userId !== "admin");
     renderAdminScopeOptions(adminLogsCache);
     renderAdminDashboard();
-    adminLogStatus.textContent = "Ã€ jour";
+    adminLogStatus.textContent = "À jour";
   } catch (error) {
-    adminLogStatus.textContent = "Erreur dâ€™actualisation";
+    adminLogStatus.textContent = "Erreur d’actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
   } finally {
@@ -320,7 +320,7 @@ function parseFrenchDateTime(value = "") {
 function resetAdminLogDisplay() {
   localStorage.setItem(adminResetKey, String(Date.now()));
   renderAdminDashboard();
-  adminLogStatus.textContent = "Affichage remis Ã  zÃ©ro";
+  adminLogStatus.textContent = "Affichage remis à zéro";
 }
 
 function adminActionClass(type = "") {
@@ -335,7 +335,7 @@ function adminActionClass(type = "") {
 function renderAdminDashboard() {
   const logs = getFilteredAdminLogs();
   const counts = logs.reduce((result, log) => {
-    const type = log.type || "ActivitÃ©";
+    const type = log.type || "Activité";
     result[type] = (result[type] || 0) + 1;
     return result;
   }, {});
@@ -353,29 +353,29 @@ function renderAdminDashboard() {
         <span class="admin-action-badge ${adminActionClass(type)}">${escapeHtml(type)}</span>
         <strong>${count}</strong>
       </div>`).join("")
-    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
 
   adminActivityFeed.innerHTML = logs.length
     ? logs.slice(0, 40).map((log) => `
       <article class="admin-feed-item">
         <div class="admin-feed-top">
-          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span>
+          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span>
           <small>${escapeHtml(log.date || "-")}</small>
         </div>
         <strong>${escapeHtml(log.userName || log.userId || "-")}</strong>
         <p>${escapeHtml(log.detail || "-")}</p>
         <small>${escapeHtml(log.sectors || "-")}</small>
       </article>`).join("")
-    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
 
   adminLogBody.innerHTML = logs.length ? logs.map((log) => `
     <tr>
       <td>${escapeHtml(log.date || "-")}</td>
       <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
       <td>${escapeHtml(log.sectors || "-")}</td>
-      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span></td>
+      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
-    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activitÃ© enregistrÃ©e pour ce filtre.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
 }
 
 function resetTarifForm() {
@@ -394,7 +394,7 @@ function openTarifForm(tariffId) {
   tarifSendForm.classList.remove("is-hidden");
   tarifSendStatus.textContent = tariffConfig.endpoint
     ? ""
-    : "Lâ€™envoi sera disponible aprÃ¨s lâ€™autorisation Google de lâ€™adresse expÃ©ditrice.";
+    : "L’envoi sera disponible après l’autorisation Google de l’adresse expéditrice.";
   requestAnimationFrame(() => tarifRecipient.focus());
 }
 
@@ -411,23 +411,23 @@ async function sendTarif(event) {
   }
 
   if (!tariffConfig.endpoint) {
-    tarifSendStatus.textContent = "Lâ€™adresse dâ€™envoi doit dâ€™abord Ãªtre autorisÃ©e par Google.";
+    tarifSendStatus.textContent = "L’adresse d’envoi doit d’abord être autorisée par Google.";
     tarifSendStatus.classList.add("is-warning");
     return;
   }
 
   sendTarifButton.disabled = true;
-  sendTarifButton.textContent = "Envoi en coursâ€¦";
+  sendTarifButton.textContent = "Envoi en cours…";
   tarifSendStatus.textContent = "";
 
   try {
     await postService({ action: "sendTariff", recipient, tariff: selectedTariff?.id || "" });
-    tarifSendStatus.textContent = `${selectedTariff.name} envoyÃ© Ã  ${recipient}.`;
+    tarifSendStatus.textContent = `${selectedTariff.name} envoyé à ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
-    recordActivity("Document envoyÃ©", `${selectedTariff.name} envoyÃ© Ã  ${recipient}`);
+    recordActivity("Document envoyé", `${selectedTariff.name} envoyé à ${recipient}`);
     tarifRecipient.value = "";
   } catch (error) {
-    tarifSendStatus.textContent = "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. RÃ©essayez dans quelques instants.";
+    tarifSendStatus.textContent = "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
     tarifSendStatus.classList.add("is-error");
   } finally {
     sendTarifButton.disabled = false;
@@ -450,7 +450,7 @@ function renderPromotions() {
   if (!promotions.length) {
     promotionGrid.innerHTML = `
       <div class="promotion-empty">
-        <strong>Aucune promotion configurÃ©e pour le moment.</strong>
+        <strong>Aucune promotion configurée pour le moment.</strong>
         <span>Ajoute les PDF dans le Drive, puis indique leurs fichiers dans la configuration pour les afficher ici.</span>
       </div>`;
     return;
@@ -460,7 +460,7 @@ function renderPromotions() {
     <article class="promotion-card">
       <label class="promotion-check">
         <input type="checkbox" value="${escapeHtml(promotion.id)}" />
-        <span>SÃ©lectionner</span>
+        <span>Sélectionner</span>
       </label>
       <div class="promotion-preview-thumb">
         <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
@@ -468,10 +468,10 @@ function renderPromotions() {
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
-        <p>${escapeHtml(promotion.description || "PDF promotionnel prÃªt Ã  prÃ©senter ou envoyer.")}</p>
+        <p>${escapeHtml(promotion.description || "PDF promotionnel prêt à présenter ou envoyer.")}</p>
       </div>
       <div class="promotion-card-actions">
-        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">AperÃ§u plein Ã©cran</button>
+        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">Aperçu plein écran</button>
         <button class="primary-button compact" type="button" data-send-promotion="${escapeHtml(promotion.id)}">Envoyer</button>
       </div>
     </article>`).join("");
@@ -488,7 +488,7 @@ function openPromotionPreview(promotionId) {
   promotionModalTitle.textContent = promotion.name;
   promotionPreviewFrame.src = drivePreviewUrl(promotion.driveFileId);
   promotionModal.classList.remove("is-hidden");
-  recordActivity("Promotion consultÃ©e", promotion.name);
+  recordActivity("Promotion consultée", promotion.name);
 }
 
 function closePromotionPreview() {
@@ -507,22 +507,22 @@ async function sendPromotions(forcedId = "") {
     return;
   }
   if (!ids.length) {
-    promotionSendStatus.textContent = "SÃ©lectionnez au moins une promotion.";
+    promotionSendStatus.textContent = "Sélectionnez au moins une promotion.";
     promotionSendStatus.classList.add("is-error");
     return;
   }
 
   sendSelectedPromotions.disabled = true;
-  promotionSendStatus.textContent = "Envoi en coursâ€¦";
+  promotionSendStatus.textContent = "Envoi en cours…";
   try {
     await postService({ action: "sendDocuments", recipient, documents: ids.join(",") });
     const names = getPromotions().filter((item) => ids.includes(item.id)).map((item) => item.name).join(", ");
-    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyÃ©e${ids.length > 1 ? "s" : ""} Ã  ${recipient}.`;
+    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyée${ids.length > 1 ? "s" : ""} à ${recipient}.`;
     promotionSendStatus.classList.add("is-success");
-    recordActivity("Promotion envoyÃ©e", `${names} envoyÃ© Ã  ${recipient}`);
+    recordActivity("Promotion envoyée", `${names} envoyé à ${recipient}`);
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
   } catch (error) {
-    promotionSendStatus.textContent = error.message || "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. VÃ©rifiez que les promotions sont bien activÃ©es cÃ´tÃ© Drive.";
+    promotionSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
     promotionSendStatus.classList.add("is-error");
   } finally {
     sendSelectedPromotions.disabled = false;
@@ -547,8 +547,8 @@ function renderPrenetEmpty() {
   prenetSector.textContent = currentUser?.sectors?.join(" + ") || currentUser?.sector || "Secteur";
   prenetResult.innerHTML = `
     <div class="prenet-empty">
-      <strong>SÃ©lectionnez un client</strong>
-      <span>Ses nouveaux prix nets apparaÃ®tront ici, classÃ©s par rÃ©fÃ©rence.</span>
+      <strong>Sélectionnez un client</strong>
+      <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
     </div>`;
 }
 
@@ -588,11 +588,11 @@ function renderPrenetTable(title, entries, statusClass) {
     <section class="prenet-group">
       <div class="prenet-group-heading">
         <h3>${escapeHtml(title)}</h3>
-        <span class="prenet-count">${entries.length} rÃ©fÃ©rence${entries.length > 1 ? "s" : ""}</span>
+        <span class="prenet-count">${entries.length} référence${entries.length > 1 ? "s" : ""}</span>
       </div>
       <div class="prenet-table-wrap">
         <table class="prenet-table">
-          <thead><tr><th>RÃ©fÃ©rence</th><th>QuantitÃ©</th><th>Prix net</th><th>Statut</th></tr></thead>
+          <thead><tr><th>Référence</th><th>Quantité</th><th>Prix net</th><th>Statut</th></tr></thead>
           <tbody>${entries.map((entry) => `
             <tr>
               <td><strong>${escapeHtml(entry.ref || "-")}</strong>${entry.designation ? `<small>${escapeHtml(entry.designation)}</small>` : ""}</td>
@@ -606,17 +606,17 @@ function renderPrenetTable(title, entries, statusClass) {
 }
 
 function selectPrenetClient(client) {
-  prenetClientSearch.value = `${client.name || ""}${client.code ? ` Â· ${client.code}` : ""}`;
+  prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
   const entries = Array.isArray(client.entries) ? [...client.entries] : [];
   entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
   const newEntries = entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
-  recordActivity("Prix nets consultÃ©s", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} rÃ©fÃ©rence(s)`);
+  recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
 
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
       <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
-      <div class="prenet-update"><span>Mise Ã  jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
+      <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
     ${entries.length
       ? renderPrenetTable("Nouveaux prix nets", newEntries, "is-new")
@@ -655,7 +655,7 @@ function buildGoal(label, current, target, suffix) {
     current,
     target,
     format: "currency",
-    note: `${sign}${formatter.format(diff)} Â· ${sign}${percent.toFixed(1).replace(".", ",")}% ${suffix}`,
+    note: `${sign}${formatter.format(diff)} · ${sign}${percent.toFixed(1).replace(".", ",")}% ${suffix}`,
   };
 }
 
@@ -704,19 +704,19 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
   if (monthlyObjective > 0) goals.push(buildGoal(`Objectif ${sourceInfo.objectiveMonthLabel || "mois"}`, totalRevenue, monthlyObjective, "vs objectif"));
   else if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
-  if (ytdObjective > 0) goals.push(buildGoal("Objectif cumulÃ© 2026", totalRevenue, ytdObjective, "depuis janvier"));
-  if (annualObjective > 0) goals.push(buildGoal("Objectif annuel 2026", totalRevenue, annualObjective, "annÃ©e complÃ¨te"));
+  if (ytdObjective > 0) goals.push(buildGoal("Objectif cumulé 2026", totalRevenue, ytdObjective, "depuis janvier"));
+  if (annualObjective > 0) goals.push(buildGoal("Objectif annuel 2026", totalRevenue, annualObjective, "année complète"));
   if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
   const safeGoals = goals.length
     ? goals
     : (Array.isArray(fallbackStats.goals) ? fallbackStats.goals.map((goal) => ({
         ...goal,
-        note: goal.note ? `${goal.note} Â· rÃ©fÃ©rence prÃ©visionnelle` : "RÃ©fÃ©rence prÃ©visionnelle",
+        note: goal.note ? `${goal.note} · référence prévisionnelle` : "Référence prévisionnelle",
       })) : []);
 
   return {
     updatedAt: sourceInfo.updatedAt || "Drive",
-    periodLabel: `CA depuis le dÃ©but du mois Â· ${sector} Â· ${sourceInfo.sourceFile || "fichier Drive"}`,
+    periodLabel: `CA depuis le début du mois · ${sector} · ${sourceInfo.sourceFile || "fichier Drive"}`,
     kpis: {
       revenue: totalRevenue,
       clients: topClients.length,
@@ -730,9 +730,9 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       medianClient: median,
       revenueNote: "CA fichier Drive",
       clientsNote: monthlyObjective > 0
-        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
+        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
         : `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
-      averageNote: `MÃ©diane : ${formatter.format(median)}`,
+      averageNote: `Médiane : ${formatter.format(median)}`,
     },
     salesTrend: [...departmentTotals.entries()]
       .map(([label, value]) => ({ label, value }))
@@ -768,7 +768,7 @@ async function loadDashboardStatsFromDrive() {
   if (!currentSessionToken || dashboardStatsLoading || currentUser?.role === "admin") return;
   dashboardStatsLoading = true;
   const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
-  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Driveâ€¦";
+  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -783,7 +783,7 @@ async function loadDashboardStatsFromDrive() {
     renderDashboardSectorSwitch(currentUser);
     renderDashboard(currentUser);
   } catch (error) {
-    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "DonnÃ©es locales";
+    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
   } finally {
     dashboardStatsLoading = false;
   }
@@ -795,8 +795,8 @@ function getDashboardStats(user) {
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
   return {
-    updatedAt: "Ã€ venir",
-    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichÃ©es dÃ¨s leur import.`,
+    updatedAt: "À venir",
+    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichées dès leur import.`,
     kpis: { revenue: 0, clients: visibleClients.length, averageClient: 0 },
     salesTrend: [],
     goals: [],
@@ -836,8 +836,8 @@ function renderDashboard(user) {
   const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
 
   document.querySelector("#dashboardUpdatedAt").textContent = stats.updatedAt || "En attente";
-  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthÃ©tique de votre activitÃ© commerciale.";
-  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA rÃ©alisÃ©";
+  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthétique de votre activité commerciale.";
+  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA réalisé";
   document.querySelector("#metricOrders").textContent = formatter.format(Number(kpis.revenue) || 0);
   const monthlyObjective = Number(kpis.monthlyObjective) || 0;
   const objectivePercent = Number(kpis.objectivePercent) || 0;
@@ -846,23 +846,23 @@ function renderDashboard(user) {
   document.querySelector("#metricRevenue").textContent = monthlyObjective ? formatter.format(monthlyObjective) : "--";
   document.querySelector("#metricClients").textContent = formatter.format(Number(kpis.averageClient) || 0);
   document.querySelector("#metricOrdersNote").textContent = kpis.revenueNote || "Secteur du commercial";
-  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prÃ©visionnel";
+  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prévisionnel";
   document.querySelector("#metricClientsNote").textContent = kpis.averageNote || "Valeur moyenne du portefeuille";
   document.querySelector("#metricRevenueNote").textContent = monthlyObjective
-    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
-    : (kpis.clientsNote || "Objectif mensuel non trouvÃ©");
+    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
+    : (kpis.clientsNote || "Objectif mensuel non trouvé");
 
   const maxTrend = Math.max(...trend.map((item) => Number(item.value) || 0), 1);
   document.querySelector("#trendTotal").textContent = trend.length
     ? formatter.format(trend.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
-    : "Aucune donnÃ©e";
+    : "Aucune donnée";
   document.querySelector("#salesChart").innerHTML = trend.length
     ? trend.map((item) => {
         const value = Number(item.value) || 0;
         const height = Math.max((value / maxTrend) * 100, value > 0 ? 6 : 0);
         return `<div class="chart-column"><span class="chart-value">${escapeHtml(formatter.format(value))}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(item.label || "-")}</strong></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucune donnÃ©e gÃ©ographique.</div>';
+    : '<div class="dashboard-empty">Aucune donnée géographique.</div>';
 
   document.querySelector("#goalList").innerHTML = goals.length
     ? goals.map((goal) => {
@@ -873,11 +873,11 @@ function renderDashboard(user) {
         const displayTarget = goal.format === "currency" ? formatter.format(target) : formatNumber(target);
         return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(displayCurrent)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucun objectif renseignÃ©.</div>';
+    : '<div class="dashboard-empty">Aucun objectif renseigné.</div>';
 
   document.querySelector("#topClientsBody").innerHTML = topClients.length
     ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
-    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnÃ©e client.</td></tr>';
+    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
 
   renderHomeReminders();
 }
@@ -1241,7 +1241,7 @@ function renderBacklog() {
   backlogTotalCount.textContent = String(filteredItems.length);
 
   if (!backlogItemsCache.length) {
-    backlogBody.innerHTML = `<tr><td colspan="7" class="backlog-empty">Aucune donnÃ©e chargÃ©e pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
+    backlogBody.innerHTML = `<tr><td colspan="7" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
     return;
   }
 
@@ -1257,20 +1257,20 @@ function renderBacklog() {
         <td>${escapeHtml(item.detail || "-")}</td>
       </tr>
     `).join("")
-    : `<tr><td colspan="7" class="backlog-empty">Aucun reliquat ou reprise trouvÃ© avec ce filtre.</td></tr>`;
+    : `<tr><td colspan="7" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems() {
   if (!backlogStatus || !refreshBacklog) return;
-  backlogStatus.textContent = "Actualisationâ€¦";
+  backlogStatus.textContent = "Actualisation…";
   refreshBacklog.disabled = true;
   try {
     const result = await postService({ action: "getReliquatsReprises", token: currentSessionToken });
     backlogItemsCache = Array.isArray(result.items) ? result.items : [];
     const updatedAt = result.updatedAt || window.RELIQUATS_DATA?.updatedAt || "Drive";
-    backlogStatus.textContent = `Ã€ jour Â· ${updatedAt}`;
+    backlogStatus.textContent = `À jour · ${updatedAt}`;
   } catch (error) {
-    backlogStatus.textContent = backlogItemsCache.length ? "DonnÃ©es locales" : "Drive Ã  connecter";
+    backlogStatus.textContent = backlogItemsCache.length ? "Données locales" : "Drive à connecter";
   } finally {
     refreshBacklog.disabled = false;
     renderBacklog();
@@ -1370,7 +1370,7 @@ async function submitLogin() {
   loginError.textContent = "";
   loginError.className = "login-error";
   loginSubmitButton.disabled = true;
-  loginSubmitButton.textContent = "Connexionâ€¦";
+  loginSubmitButton.textContent = "Connexion…";
   try {
     const result = await postService({
       action: "login",
@@ -1394,7 +1394,7 @@ async function requestPasswordReset(event) {
   passwordResetStatus.textContent = "";
   passwordResetStatus.className = "reset-status";
   requestResetButton.disabled = true;
-  requestResetButton.textContent = "Envoi en coursâ€¦";
+  requestResetButton.textContent = "Envoi en cours…";
   try {
     const result = await postService({ action: "requestReset", email: passwordResetEmail.value.trim() });
     passwordResetStatus.textContent = result.message;
@@ -1403,7 +1403,7 @@ async function requestPasswordReset(event) {
     passwordResetConfirmForm.classList.remove("is-hidden");
     requestAnimationFrame(() => passwordResetCode.focus());
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "La demande nâ€™a pas pu Ãªtre envoyÃ©e.";
+    passwordResetStatus.textContent = error.message || "La demande n’a pas pu être envoyée.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     requestResetButton.disabled = false;
@@ -1423,7 +1423,7 @@ async function confirmPasswordReset(event) {
   }
 
   confirmResetButton.disabled = true;
-  confirmResetButton.textContent = "Modificationâ€¦";
+  confirmResetButton.textContent = "Modification…";
   try {
     const result = await postService({
       action: "confirmReset",
@@ -1433,11 +1433,11 @@ async function confirmPasswordReset(event) {
     });
     loginId.value = result.identifier || passwordResetEmail.value.trim();
     closePasswordReset();
-    loginError.textContent = "Mot de passe modifiÃ©. Vous pouvez vous connecter.";
+    loginError.textContent = "Mot de passe modifié. Vous pouvez vous connecter.";
     loginError.classList.add("is-success");
     loginPassword.focus();
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "Le mot de passe nâ€™a pas pu Ãªtre modifiÃ©.";
+    passwordResetStatus.textContent = error.message || "Le mot de passe n’a pas pu être modifié.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     confirmResetButton.disabled = false;
@@ -1471,7 +1471,7 @@ function selectClient(client) {
   selectedClient = client;
   clientSearch.value = client.name;
   clientSuggestions.classList.remove("is-open");
-  recordActivity("Client sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
   clientStatus.textContent = "Client selectionne";
   clientStatus.classList.add("is-ready");
   selectedClientBox.innerHTML = `
@@ -1542,7 +1542,7 @@ function selectQuoteClient(client) {
   selectedQuoteClient = client;
   quoteClientSearch.value = client.name;
   quoteClientSuggestions.classList.remove("is-open");
-  quoteStatus.textContent = "Client sÃ©lectionnÃ©";
+  quoteStatus.textContent = "Client sélectionné";
   quoteStatus.classList.add("is-ready");
   quoteSelectedClient.innerHTML = `
     <strong>${escapeHtml(client.name)}</strong>
@@ -1552,12 +1552,12 @@ function selectQuoteClient(client) {
     <span>${escapeHtml(client.sector)}</span>
   `;
   quoteSendStatus.textContent = "";
-  recordActivity("Client devis sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client devis sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
 }
 
 function resetQuoteRequest() {
   selectedQuoteClient = null;
-  quoteStatus.textContent = "Client non sÃ©lectionnÃ©";
+  quoteStatus.textContent = "Client non sélectionné";
   quoteStatus.classList.remove("is-ready");
   quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   quoteSendStatus.textContent = "";
@@ -1588,10 +1588,7 @@ function applyQuoteReference(id, value) {
   line.ref = product ? product.ref : value;
   if (product) {
     line.qty = defaultQuantityForProduct(product);
-    recordActivity("RÃ©fÃ©rence devis consultÃ©e", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
-    if (quoteLineItems[quoteLineItems.length - 1]?.id === id) {
-      quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
-    }
+    recordActivity("Référence devis consultée", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
   }
   renderQuoteLines();
 }
@@ -1610,7 +1607,7 @@ function renderQuoteLines() {
       })()}
       <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-quote-field="qty" aria-label="Quantité" /></td>
       <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, précision..." data-quote-field="comment" /></td>
-      <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">×</button></td>
+      <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
     </tr>
   `).join("");
 }
@@ -1626,14 +1623,14 @@ function sendQuoteRequestDraft() {
     .filter((line) => line.ref);
 
   if (!selectedQuoteClient) {
-    quoteSendStatus.textContent = "SÃ©lectionnez dâ€™abord le client.";
+    quoteSendStatus.textContent = "Sélectionnez d’abord le client.";
     quoteSendStatus.classList.add("is-error");
     quoteClientSearch.focus();
     return;
   }
 
   if (!validLines.length) {
-    quoteSendStatus.textContent = "Ajoutez au moins une rÃ©fÃ©rence Ã  chiffrer.";
+    quoteSendStatus.textContent = "Ajoutez au moins une référence à chiffrer.";
     quoteSendStatus.classList.add("is-error");
     quoteLines.querySelector("input")?.focus();
     return;
@@ -1641,8 +1638,8 @@ function sendQuoteRequestDraft() {
 
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
-  recordActivity("Demande de devis prÃ©parÃ©e", `${selectedQuoteClient.name} - ${refs}${more}`);
-  quoteSendStatus.textContent = "Demande prÃªte. Donne-moi lâ€™adresse e-mail de destination et jâ€™active lâ€™envoi automatique.";
+  recordActivity("Demande de devis préparée", `${selectedQuoteClient.name} - ${refs}${more}`);
+  quoteSendStatus.textContent = "Demande prête. Donne-moi l’adresse e-mail de destination et j’active l’envoi automatique.";
   quoteSendStatus.classList.add("is-warning");
 }
 
@@ -1681,7 +1678,7 @@ function setLineReference(id, ref) {
     };
   });
   const product = findProduct(ref);
-  if (product) recordActivity("RÃ©fÃ©rence consultÃ©e", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
+  if (product) recordActivity("Référence consultée", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderLines();
 }
 
@@ -1894,7 +1891,7 @@ function storeOrder(order) {
   saveStoredOrders(orders);
   const refs = order.lines.slice(0, 8).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = order.lines.length > 8 ? ` + ${order.lines.length - 8} autre(s)` : "";
-  recordActivity("Commande enregistrÃ©e", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
+  recordActivity("Commande enregistrée", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
   activeHistoryOrderId = order.id;
   renderOrderHistory();
 }
@@ -1921,8 +1918,8 @@ function renderOrderHistory() {
   historyList.innerHTML = "";
 
   if (!orders.length) {
-    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrÃ©e</div>';
-    historyDetail.innerHTML = "<span>Les commandes gÃ©nÃ©rÃ©es apparaÃ®tront ici.</span>";
+    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrée</div>';
+    historyDetail.innerHTML = "<span>Les commandes générées apparaîtront ici.</span>";
     return;
   }
 
@@ -1945,7 +1942,7 @@ function renderOrderHistory() {
         <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
       </span>
       <span class="history-item-total">${formatter.format(order.total)}</span>
-      <span class="history-delete" title="Effacer cette commande">Ã—</span>
+      <span class="history-delete" title="Effacer cette commande">×</span>
     `;
     button.addEventListener("click", () => {
       activeHistoryOrderId = order.id;
@@ -1989,9 +1986,9 @@ function renderOrderDetail(order) {
     <table class="history-table">
       <thead>
         <tr>
-          <th>RÃ©f.</th>
-          <th>DÃ©signation</th>
-          <th>QtÃ©</th>
+          <th>Réf.</th>
+          <th>Désignation</th>
+          <th>Qté</th>
           <th>Prix U.</th>
           <th>Total</th>
         </tr>
@@ -2055,11 +2052,11 @@ function exportVisitReport(clientOnly = false) {
     .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
     .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrÃ©e pour ce client sur cette pÃ©riode." : "Aucune visite enregistrÃ©e Ã  exporter sur cette pÃ©riode.");
+    alert(clientOnly ? "Aucune visite enregistrée pour ce client sur cette période." : "Aucune visite enregistrée à exporter sur cette période.");
     return;
   }
   const rows = [
-    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prÃ©vue", "Motif relance", "Relance faite"],
+    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prévue", "Motif relance", "Relance faite"],
     ...notes.map((note) => [
       note.userName || currentUser.name,
       note.clientSector || "",
@@ -2074,19 +2071,19 @@ function exportVisitReport(clientOnly = false) {
   ];
   const scope = clientOnly && selectedNotesClient ? selectedNotesClient.code : currentUser.id;
   downloadCsv(`compte-rendu-visites-${scope}-${todayInputDate()}.csv`, rows);
-  recordActivity("Compte-rendu exportÃ©", `${notes.length} visite(s) exportÃ©e(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+  recordActivity("Compte-rendu exporté", `${notes.length} visite(s) exportée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
 }
 
 function finishVisit() {
   if (!selectedNotesClient) {
-    notesStatus.textContent = "SÃ©lectionnez un client avant de terminer le rendez-vous.";
+    notesStatus.textContent = "Sélectionnez un client avant de terminer le rendez-vous.";
     notesClientSearch.focus();
     return;
   }
   if (!notesText.value.trim()) {
-    notesText.value = "Rendez-vous terminÃ©";
+    notesText.value = "Rendez-vous terminé";
   }
-  recordActivity("Rendez-vous terminÃ©", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+  recordActivity("Rendez-vous terminé", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   notesForm.requestSubmit();
 }
 
@@ -2194,7 +2191,7 @@ function renderHomeReminders() {
   homeRemindersList.innerHTML = reminders
     .map((note) => {
       const status = reminderStatus(note);
-      const label = status === "late" ? "En retard" : "Aujourdâ€™hui";
+      const label = status === "late" ? "En retard" : "Aujourd’hui";
       return `
         <article class="home-reminder-card ${status}">
           <div>
@@ -2267,16 +2264,16 @@ function renderNotesReminderInbox() {
   notesReminderFocus.innerHTML = `
     <div class="notes-reminder-inbox-header">
       <div>
-        <span class="reminder-pill">${reminders.length} Ã  traiter</span>
+        <span class="reminder-pill">${reminders.length} à traiter</span>
         <strong>Relances clients</strong>
-        <small>Voici les clients Ã  rappeler aujourdâ€™hui ou en retard.</small>
+        <small>Voici les clients à rappeler aujourd’hui ou en retard.</small>
       </div>
     </div>
     <div class="notes-reminder-inbox-list">
       ${reminders.map((note) => `
         <article class="home-reminder-card ${reminderStatus(note)}">
           <div>
-            <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Aujourdâ€™hui"}</span>
+            <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Aujourd’hui"}</span>
             <strong>${escapeHtml(note.clientName)}</strong>
             <small>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</small>
           </div>
@@ -2364,7 +2361,7 @@ function selectNotesClient(client) {
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   renderClientNotes();
-  recordActivity("Client consultÃ© en notes", `${client.name} (${client.code})`);
+  recordActivity("Client consulté en notes", `${client.name} (${client.code})`);
   requestAnimationFrame(() => notesText.focus());
 }
 
@@ -2373,11 +2370,11 @@ function renderNotesEmpty(message = "Recherchez un client pour afficher ses note
   editingNoteId = null;
   notesHistoryMode = "client";
   hideReminderFocus();
-  notesStatus.textContent = "Aucun client sÃ©lectionnÃ©";
+  notesStatus.textContent = "Aucun client sélectionné";
   notesCount.textContent = "0 note";
   notesHistoryTitle.textContent = "Notes du client";
   notesSelectedClient.innerHTML = `
-    <strong>SÃ©lectionnez un client</strong>
+    <strong>Sélectionnez un client</strong>
     <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
   `;
   notesList.innerHTML = `<div class="notes-empty">${escapeHtml(message)}</div>`;
@@ -2404,8 +2401,8 @@ function renderAllNotes() {
   if (!notes.length) {
     notesList.innerHTML = `
       <div class="notes-empty">
-        <strong>Aucune note trouvÃ©e.</strong>
-        <span>Modifiez la pÃ©riode ou sÃ©lectionnez un client pour ajouter une nouvelle note.</span>
+        <strong>Aucune note trouvée.</strong>
+        <span>Modifiez la période ou sélectionnez un client pour ajouter une nouvelle note.</span>
       </div>
     `;
     return;
@@ -2421,14 +2418,14 @@ function renderAllNotes() {
         </div>
         <div class="note-actions">
           <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
+          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
         </div>
       </div>
       <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
       ${note.reminderDate ? `
         <div class="note-reminder ${reminderStatus(note)}">
           <div>
-            <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
+            <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
             <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
           </div>
           ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
@@ -2453,7 +2450,7 @@ function renderClientNotes() {
     notesList.innerHTML = `
       <div class="notes-empty">
         <strong>Aucune note pour ce client.</strong>
-        <span>Ajoutez le compte-rendu du rendez-vous Ã  gauche.</span>
+        <span>Ajoutez le compte-rendu du rendez-vous à gauche.</span>
       </div>
     `;
     return;
@@ -2465,18 +2462,18 @@ function renderClientNotes() {
         <div class="note-card-header">
           <div>
             <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
-            <small>AjoutÃ©e le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
+            <small>Ajoutée le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
           </div>
           <div class="note-actions">
             <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
+            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
           </div>
         </div>
         <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
         ${note.reminderDate ? `
           <div class="note-reminder ${reminderStatus(note)}">
             <div>
-              <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
+              <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
               <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
             </div>
             ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
@@ -2490,7 +2487,7 @@ function renderClientNotes() {
 function saveClientNote(event) {
   event.preventDefault();
   if (!currentUser || !selectedNotesClient) {
-    notesStatus.textContent = "SÃ©lectionnez un client avant dâ€™enregistrer.";
+    notesStatus.textContent = "Sélectionnez un client avant d’enregistrer.";
     requestAnimationFrame(() => notesClientSearch.focus());
     return;
   }
@@ -2518,7 +2515,7 @@ function saveClientNote(event) {
         reminderDoneAt: noteReminderEnabled.checked && !reminderChanged ? (notes[index].reminderDoneAt || "") : "",
         updatedAt: now,
       };
-      recordActivity("Note client modifiÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+      recordActivity("Note client modifiée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
     }
   } else {
     notes.push({
@@ -2537,7 +2534,7 @@ function saveClientNote(event) {
       createdAt: now,
       updatedAt: now,
     });
-    recordActivity("Note client ajoutÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
+    recordActivity("Note client ajoutée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
   }
 
   saveStoredNotes(notes);
@@ -2605,7 +2602,7 @@ function deleteClientNote(noteId) {
   if (!confirm(`Supprimer la note du ${formatNoteDate(note.date)} pour ${selectedNotesClient.name} ?`)) return;
   saveStoredNotes(getStoredNotes().filter((item) => item.id !== noteId));
   if (editingNoteId === noteId) cancelNoteEdit();
-  recordActivity("Note client supprimÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
+  recordActivity("Note client supprimée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
   renderClientNotes();
   if (wasAllNotes) renderAllNotes();
   renderHomeReminders();
@@ -2616,7 +2613,7 @@ function setupVoiceNotes() {
   if (!SpeechRecognition) {
     startVoiceNote.disabled = true;
     startVoiceNote.classList.add("is-disabled");
-    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
     return;
   }
 
@@ -2628,8 +2625,8 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("start", () => {
     voiceNoteListening = true;
     startVoiceNote.classList.add("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸ”´</span> ArrÃªter la dictÃ©e';
-    voiceNoteStatus.textContent = "Jâ€™Ã©couteâ€¦ parlez clairement, le texte sâ€™ajoute Ã  la note.";
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🔴</span> Arrêter la dictée';
+    voiceNoteStatus.textContent = "J’écoute… parlez clairement, le texte s’ajoute à la note.";
   });
 
   voiceRecognition.addEventListener("result", (event) => {
@@ -2649,41 +2646,41 @@ function setupVoiceNotes() {
       notesText.value = `${notesText.value.trimEnd()}${separator}${finalText.trim()}`;
       notesText.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "Jâ€™Ã©couteâ€¦";
+    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "J’écoute…";
   });
 
   voiceRecognition.addEventListener("end", () => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
     if (voiceNoteStatus.textContent.startsWith("En cours")) {
-      voiceNoteStatus.textContent = "DictÃ©e terminÃ©e. Relisez puis enregistrez la note.";
+      voiceNoteStatus.textContent = "Dictée terminée. Relisez puis enregistrez la note.";
     } else if (!voiceNoteStatus.textContent.includes("non disponible")) {
-      voiceNoteStatus.textContent = "DictÃ©e arrÃªtÃ©e. Vous pouvez relire puis enregistrer.";
+      voiceNoteStatus.textContent = "Dictée arrêtée. Vous pouvez relire puis enregistrer.";
     }
   });
 
   voiceRecognition.addEventListener("error", (event) => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
     const messages = {
-      "not-allowed": "Micro refusÃ©. Autorisez le micro dans Chrome pour utiliser la dictÃ©e.",
-      "no-speech": "Je nâ€™ai pas entendu de voix. RÃ©essayez en parlant plus prÃ¨s de la tablette.",
-      "audio-capture": "Aucun micro dÃ©tectÃ© sur cet appareil.",
-      network: "La dictÃ©e vocale a besoin dâ€™une connexion internet.",
+      "not-allowed": "Micro refusé. Autorisez le micro dans Chrome pour utiliser la dictée.",
+      "no-speech": "Je n’ai pas entendu de voix. Réessayez en parlant plus près de la tablette.",
+      "audio-capture": "Aucun micro détecté sur cet appareil.",
+      network: "La dictée vocale a besoin d’une connexion internet.",
     };
-    voiceNoteStatus.textContent = messages[event.error] || "La dictÃ©e vocale sâ€™est arrÃªtÃ©e. RÃ©essayez.";
+    voiceNoteStatus.textContent = messages[event.error] || "La dictée vocale s’est arrêtée. Réessayez.";
   });
 }
 
 function toggleVoiceNote() {
   if (!voiceRecognition) {
-    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
     return;
   }
   if (!selectedNotesClient) {
-    voiceNoteStatus.textContent = "SÃ©lectionnez dâ€™abord un client avant de dicter une note.";
+    voiceNoteStatus.textContent = "Sélectionnez d’abord un client avant de dicter une note.";
     notesClientSearch.focus();
     return;
   }
@@ -2693,9 +2690,9 @@ function toggleVoiceNote() {
   }
   try {
     voiceRecognition.start();
-    recordActivity("DictÃ©e vocale lancÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+    recordActivity("Dictée vocale lancée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   } catch {
-    voiceNoteStatus.textContent = "La dictÃ©e est dÃ©jÃ  en cours.";
+    voiceNoteStatus.textContent = "La dictée est déjà en cours.";
   }
 }
 
@@ -2861,7 +2858,7 @@ function formatDuration(minutes) {
 function initTourMap() {
   if (!tourMap) return false;
   if (!window.L) {
-    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. VÃ©rifiez la connexion internet puis rechargez la page.</div>`;
+    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. Vérifiez la connexion internet puis rechargez la page.</div>`;
     return false;
   }
   if (tourMapInstance) return true;
@@ -2901,8 +2898,8 @@ function renderInteractiveTourMap(clients) {
     marker.bindPopup(`
       <strong>${escapeHtml(client.name)}</strong><br>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
-      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</small><br>
-      <small>Position GPS vÃ©rifiÃ©e</small>
+      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</small><br>
+      <small>Position GPS vérifiée</small>
     `);
     marker.on("click", () => toggleTourClient(client.code));
     tourMarkerByCode.set(client.code, marker);
@@ -2967,8 +2964,8 @@ function renderSavedTours() {
   if (!savedTourSelect) return;
   const tours = getCurrentUserSavedTours();
   savedTourSelect.innerHTML = tours.length
-    ? `<option value="">Choisir une tournÃ©e</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
-    : `<option value="">Aucune tournÃ©e enregistrÃ©e</option>`;
+    ? `<option value="">Choisir une tournée</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
+    : `<option value="">Aucune tournée enregistrée</option>`;
   loadTourButton.disabled = tours.length === 0;
   deleteTourButton.disabled = tours.length === 0;
 }
@@ -2976,12 +2973,12 @@ function renderSavedTours() {
 function saveCurrentTour() {
   const codes = Array.from(selectedTourCodes);
   if (!codes.length) {
-    alert("SÃ©lectionnez au moins un client avant de sauvegarder une tournÃ©e.");
+    alert("Sélectionnez au moins un client avant de sauvegarder une tournée.");
     return;
   }
   const name = tourName.value.trim();
   if (!name) {
-    alert("Donnez un nom Ã  la tournÃ©e avant de la sauvegarder.");
+    alert("Donnez un nom à la tournée avant de la sauvegarder.");
     tourName.focus();
     return;
   }
@@ -2999,7 +2996,7 @@ function saveCurrentTour() {
   saveCurrentUserTours(tours.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })));
   renderSavedTours();
   savedTourSelect.value = payload.id;
-  recordActivity("TournÃ©e sauvegardÃ©e", `${payload.name} - ${payload.codes.length} client(s)`);
+  recordActivity("Tournée sauvegardée", `${payload.name} - ${payload.codes.length} client(s)`);
 }
 
 function loadSavedTour() {
@@ -3010,7 +3007,7 @@ function loadSavedTour() {
   selectedTourCodes = new Set(tour.codes.filter((code) => allowedCodes.has(code)));
   tourName.value = tour.name;
   renderTourPlanner();
-  recordActivity("TournÃ©e chargÃ©e", `${tour.name} - ${selectedTourCodes.size} client(s)`);
+  recordActivity("Tournée chargée", `${tour.name} - ${selectedTourCodes.size} client(s)`);
 }
 
 function deleteSavedTour() {
@@ -3018,11 +3015,11 @@ function deleteSavedTour() {
   const tours = getCurrentUserSavedTours();
   const tour = tours.find((item) => item.id === id);
   if (!tour) return;
-  if (!confirm(`Supprimer la tournÃ©e "${tour.name}" ?`)) return;
+  if (!confirm(`Supprimer la tournée "${tour.name}" ?`)) return;
   saveCurrentUserTours(tours.filter((item) => item.id !== id));
   savedTourSelect.value = "";
   renderSavedTours();
-  recordActivity("TournÃ©e supprimÃ©e", tour.name);
+  recordActivity("Tournée supprimée", tour.name);
 }
 
 function focusTourClientOnMap(code) {
@@ -3096,8 +3093,8 @@ function renderTourPlanner() {
   if (tourMapTitle) {
     tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
   }
-  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sÃ©lectionnÃ©${selectedCount > 1 ? "s" : ""}`;
-  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} Â· ${mappedCount} sur la carte`;
+  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} · ${mappedCount} sur la carte`;
   openGoogleMapsRoute.disabled = selectedCount === 0;
   openWazeRoute.disabled = selectedCount === 0;
   clearTourSelection.disabled = selectedCount === 0;
@@ -3106,11 +3103,11 @@ function renderTourPlanner() {
     ? selectedClients.map((client, index) => `
         <article class="tour-route-item">
           <strong>${index + 1}. ${escapeHtml(client.name)}</strong>
-          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</span>
-          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">Ã—</button>
+          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</span>
+          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">×</button>
         </article>
       `).join("")
-    : `<div class="tour-empty">Cochez les clients Ã  visiter. Ils apparaÃ®tront ici dans l'ordre de sÃ©lection.</div>`;
+    : `<div class="tour-empty">Cochez les clients à visiter. Ils apparaîtront ici dans l'ordre de sélection.</div>`;
 
   tourClientList.innerHTML = filteredClients.length
     ? filteredClients.map((client) => {
@@ -3126,11 +3123,11 @@ function renderTourPlanner() {
                 <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
               </span>
             </label>
-            <em>${escapeHtml(address || "Adresse incomplÃ¨te")}${hasGps ? "" : " Â· GPS Ã  corriger"}</em>
+            <em>${escapeHtml(address || "Adresse incomplète")}${hasGps ? "" : " · GPS à corriger"}</em>
           </article>
         `;
       }).join("")
-    : `<div class="tour-empty">Aucun client trouvÃ©. Effacez la recherche pour revenir Ã  la liste complÃ¨te.</div>`;
+    : `<div class="tour-empty">Aucun client trouvé. Effacez la recherche pour revenir à la liste complète.</div>`;
 
   renderInteractiveTourMap(filteredClients);
   renderSavedTours();
@@ -3156,7 +3153,7 @@ function openGoogleRoute() {
   const destination = addresses[addresses.length - 1];
   const waypoints = addresses.slice(0, -1).join("|");
   const url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`;
-  recordActivity("TournÃ©e Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
+  recordActivity("Tournée Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -3164,7 +3161,7 @@ function openWazeNextClient() {
   const client = getSelectedTourClients().find((item) => getClientRouteAddress(item));
   if (!client) return;
   const url = `https://waze.com/ul?q=${encodeURIComponent(getClientRouteAddress(client))}&navigate=yes`;
-  recordActivity("TournÃ©e Waze ouverte", `${client.name} (${client.code})`);
+  recordActivity("Tournée Waze ouverte", `${client.name} (${client.code})`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -3204,8 +3201,8 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passÃ©es", quote: "Demande de devis", notes: "Prise de notes", tour: "TournÃ©es", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
-    recordActivity("Onglet consultÃ©", names[tabName] || tabName);
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
   if (showOrder) {
@@ -3266,7 +3263,7 @@ function downloadCsv(filename, rows) {
 }
 
 function buildErpCsvRows(validLines) {
-  const rows = ["RÃ©fÃ©rence (SKU)"];
+  const rows = ["Référence (SKU)"];
   validLines.forEach((line) => {
     rows.push(line.product.ref);
   });
@@ -3284,9 +3281,9 @@ function pdfText(value) {
     .toString()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[â€™]/g, "'")
-    .replace(/[â‚¬]/g, "EUR")
-    .replace(/[Â°]/g, "o")
+    .replace(/[’]/g, "'")
+    .replace(/[€]/g, "EUR")
+    .replace(/[°]/g, "o")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -3381,7 +3378,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
     fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
     strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
-    textAt(pageWidth - 190, pageHeight - 47, 8.5, `NÂ° ${orderNumber}`, { bold: true });
+    textAt(pageWidth - 190, pageHeight - 47, 8.5, `N° ${orderNumber}`, { bold: true });
     textAt(pageWidth - 190, pageHeight - 66, 8.5, `Date : ${orderDate}`);
     hline(margin, pageWidth - margin, pageHeight - 82, "#E30613");
     y = pageHeight - 104;
@@ -3425,11 +3422,11 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   function drawTableHeader() {
     fillRect(margin, y - 4, pageWidth - margin * 2, 21, "#E30613");
     setColor("#FFFFFF");
-    textAt(margin + 6, y + 3, 7.5, "RÃ©f.", { bold: true });
+    textAt(margin + 6, y + 3, 7.5, "Réf.", { bold: true });
     textAt(88, y + 3, 7.5, "Gencod", { bold: true });
-    textAt(172, y + 3, 7.5, "DÃ©signation", { bold: true });
+    textAt(172, y + 3, 7.5, "Désignation", { bold: true });
     textAt(382, y + 3, 7.5, "UDV", { bold: true });
-    textAt(417, y + 3, 7.5, "QtÃ©", { bold: true });
+    textAt(417, y + 3, 7.5, "Qté", { bold: true });
     textAt(456, y + 3, 7.5, "Prix U.", { bold: true });
     textAt(515, y + 3, 7.5, "Total", { bold: true });
     setColor("#1E1E22");
@@ -3458,7 +3455,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
 
   addPage();
   drawInfoBoxes();
-  textLine(margin, 12, "Produits commandÃ©s", { bold: true, lineHeight: 17 });
+  textLine(margin, 12, "Produits commandés", { bold: true, lineHeight: 17 });
   drawTableHeader();
   validLines.forEach((line, index) => drawProductRow(line, index));
 
@@ -3468,7 +3465,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   fillRect(recapX, y - 55, 174, 66, "#F5F5F5");
   strokeRect(recapX, y - 55, 174, 66);
   fillRect(recapX, y - 55, 4, 66, "#E30613");
-  textAt(recapX + 14, y - 6, 9, "RÃ©capitulatif", { bold: true });
+  textAt(recapX + 14, y - 6, 9, "Récapitulatif", { bold: true });
   textAt(recapX + 14, y - 25, 8, "Total HT");
   textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
   textAt(recapX + 14, y - 42, 8, "Total TTC");
@@ -3484,8 +3481,8 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     y -= 48;
   }
 
-  textAt(margin, 74, 7, "Tous nos prix sont indiquÃ©s en Euros. Prix nets valables uniquement pour cette commande.");
-  textAt(margin, 64, 7, "Document gÃ©nÃ©rÃ© automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
+  textAt(margin, 74, 7, "Tous nos prix sont indiqués en Euros. Prix nets valables uniquement pour cette commande.");
+  textAt(margin, 64, 7, "Document généré automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
   setColor("#1E1E22");
 
   addPage();
