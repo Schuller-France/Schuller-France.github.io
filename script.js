@@ -1581,11 +1581,33 @@ function updateQuoteLine(id, field, value) {
   line[field] = value;
 }
 
+function applyQuoteReference(id, value) {
+  const line = quoteLineItems.find((item) => item.id === id);
+  if (!line) return;
+  const product = findProduct(value);
+  line.ref = product ? product.ref : value;
+  if (product) {
+    line.qty = defaultQuantityForProduct(product);
+    recordActivity("Référence devis consultée", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
+  }
+  renderQuoteLines();
+}
+
 function renderQuoteLines() {
   if (!quoteLineItems.length) quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
   quoteLines.innerHTML = quoteLineItems.map((line, index) => `
     <tr data-quote-line="${escapeHtml(line.id)}">
-      <td><input type="text" value="${escapeHtml(line.ref)}" placeholder="Référence ${index + 1}" data-quote-field="ref" /></td>
+      ${(() => {
+        const product = findProduct(line.ref);
+        return `<td class="quote-ref-cell">
+          <input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-quote-field="ref" />
+          <div class="quote-product-preview ${product ? "" : "is-muted"}">
+            ${product
+              ? `<strong>${escapeHtml(product.name)}</strong><span>Gencod ${escapeHtml(product.gencod || "-")} · UDV ${escapeHtml(product.udv || "1")}</span>`
+              : "<span>Le nom du produit apparaîtra ici après saisie de la référence.</span>"}
+          </div>
+        </td>`;
+      })()}
       <td><input type="number" min="1" step="1" value="${escapeHtml(line.qty)}" data-quote-field="qty" /></td>
       <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, précision..." data-quote-field="comment" /></td>
       <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">×</button></td>
@@ -3588,6 +3610,11 @@ quoteLines.addEventListener("input", (event) => {
   const field = event.target.dataset.quoteField;
   if (!row || !field) return;
   updateQuoteLine(row.dataset.quoteLine, field, event.target.value);
+});
+quoteLines.addEventListener("change", (event) => {
+  const row = event.target.closest("[data-quote-line]");
+  if (!row || event.target.dataset.quoteField !== "ref") return;
+  applyQuoteReference(row.dataset.quoteLine, event.target.value);
 });
 quoteLines.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-quote-line]");
