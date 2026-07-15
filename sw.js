@@ -1,9 +1,9 @@
-const CACHE_NAME = "schuller-france-app-v20260715f";
+const CACHE_NAME = "schuller-france-app-v20260715g";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260715f",
-  "./script.js?v=20260715f",
+  "./style.css?v=20260715g",
+  "./script.js?v=20260715g",
   "./tarifs.js?v=20260713c",
   "./manifest.webmanifest",
   "./assets/schuller-logo.png",

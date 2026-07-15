@@ -53,7 +53,7 @@
 .quote-name-cell { font-size: 18px; font-weight: 800; color: #171a21; }
 .quote-udv-cell { font-size: 20px; font-weight: 800; color: #343b48; }
 .quote-qty-cell input { text-align: center; font-size: 26px; }
-.quote-add-line { margin: 14px 0 18px auto; }
+.quote-add-line { margin: 14px 0 18px auto; display: flex; }
 .quote-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: flex-end; }
 .quote-actions .tarif-send-status { flex: 1 1 260px; text-align: right; }
 

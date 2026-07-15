@@ -1569,6 +1569,24 @@ function addQuoteLineItem() {
   renderQuoteLines();
 }
 
+function isQuoteLineEmpty(line) {
+  return !String(line?.ref || "").trim() && !String(line?.comment || "").trim();
+}
+
+function ensureQuoteTrailingBlankLine() {
+  if (!quoteLineItems.length) {
+    quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+    return;
+  }
+  while (quoteLineItems.length > 1 && isQuoteLineEmpty(quoteLineItems[quoteLineItems.length - 1]) && isQuoteLineEmpty(quoteLineItems[quoteLineItems.length - 2])) {
+    quoteLineItems.pop();
+  }
+  const lastLine = quoteLineItems[quoteLineItems.length - 1];
+  if (String(lastLine.ref || "").trim()) {
+    quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  }
+}
+
 function removeQuoteLineItem(id) {
   quoteLineItems = quoteLineItems.filter((line) => line.id !== id);
   if (!quoteLineItems.length) addQuoteLineItem();
@@ -1594,7 +1612,7 @@ function applyQuoteReference(id, value) {
 }
 
 function renderQuoteLines() {
-  if (!quoteLineItems.length) quoteLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  ensureQuoteTrailingBlankLine();
   quoteLines.innerHTML = quoteLineItems.map((line, index) => `
     <tr data-quote-line="${escapeHtml(line.id)}">
       ${(() => {
