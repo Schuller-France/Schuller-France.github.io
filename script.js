@@ -784,6 +784,12 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       valueLabel: `N-1 : ${formatter.format(totalPrevious)}`,
       note: `${previousDiff >= 0 ? "Avance" : "Retard"} : ${formatSignedCurrency(previousDiff)} · ${formatSignedPercent(previousPercent)}`,
     }));
+  } else {
+    goals.push(buildGoal(`${objectiveMonthLabel} vs N-1`, 0, 0, {
+      percent: 0,
+      valueLabel: "Donnée N-1 absente",
+      note: "Le fichier CA actualisé ne contient pas de colonne N-1 / 2025 exploitable.",
+    }));
   }
   if (ytdObjective > 0) {
     const ytdRemaining = Math.max(0, ytdObjective - totalRevenue);
