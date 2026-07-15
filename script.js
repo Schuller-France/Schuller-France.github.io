@@ -1612,14 +1612,20 @@ function renderQuoteLines() {
   `).join("");
 }
 
-function sendQuoteRequestDraft() {
+async function sendQuoteRequestDraft() {
   quoteSendStatus.className = "tarif-send-status";
   const validLines = quoteLineItems
-    .map((line) => ({
-      ref: String(line.ref || "").trim(),
-      qty: Math.max(1, Number(line.qty) || 1),
-      comment: String(line.comment || "").trim(),
-    }))
+    .map((line) => {
+      const ref = String(line.ref || "").trim();
+      const product = findProduct(ref);
+      return {
+        ref,
+        designation: product?.name || "",
+        udv: product?.udv || "",
+        qty: Math.max(1, Number(line.qty) || 1),
+        comment: String(line.comment || "").trim(),
+      };
+    })
     .filter((line) => line.ref);
 
   if (!selectedQuoteClient) {
@@ -1638,9 +1644,40 @@ function sendQuoteRequestDraft() {
 
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
-  recordActivity("Demande de devis préparée", `${selectedQuoteClient.name} - ${refs}${more}`);
-  quoteSendStatus.textContent = "Demande prête. Donne-moi l’adresse e-mail de destination et j’active l’envoi automatique.";
-  quoteSendStatus.classList.add("is-warning");
+  if (!tariffConfig.endpoint) {
+    quoteSendStatus.textContent = "L’envoi doit d’abord être autorisé côté Google.";
+    quoteSendStatus.classList.add("is-warning");
+    return;
+  }
+
+  sendQuoteRequest.disabled = true;
+  sendQuoteRequest.textContent = "Envoi en cours…";
+  quoteSendStatus.textContent = "";
+
+  try {
+    await postService({
+      action: "sendQuoteRequest",
+      client: JSON.stringify({
+        code: selectedQuoteClient.code || "",
+        name: selectedQuoteClient.name || "",
+        sector: selectedQuoteClient.sector || "",
+        address: selectedQuoteClient.billingAddress || selectedQuoteClient.deliveryAddress || "",
+        zip: selectedQuoteClient.billingZip || selectedQuoteClient.deliveryZip || "",
+        city: selectedQuoteClient.billingCity || selectedQuoteClient.deliveryCity || "",
+      }),
+      lines: JSON.stringify(validLines),
+      note: quoteNote.value.trim(),
+    });
+    recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
+    quoteSendStatus.textContent = "Demande envoyée à flogilet44@gmail.com avec le fichier Excel.";
+    quoteSendStatus.classList.add("is-success");
+  } catch (error) {
+    quoteSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
+    quoteSendStatus.classList.add("is-error");
+  } finally {
+    sendQuoteRequest.disabled = false;
+    sendQuoteRequest.textContent = "Envoyer la demande de devis";
+  }
 }
 
 function addLine() {
