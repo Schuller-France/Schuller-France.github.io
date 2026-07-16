@@ -334,8 +334,8 @@ button {
   background-image: url("assets/login-background.jpg");
   background-position: center;
   background-size: cover;
-  opacity: 0.22;
-  filter: saturate(0.95) contrast(0.95);
+  opacity: 0.58;
+  filter: saturate(1.05) contrast(1.02);
 }
 
 .login-view::after {
@@ -345,7 +345,7 @@ button {
   z-index: -1;
   background:
     radial-gradient(circle at 85% 22%, rgba(227, 6, 19, 0.10), transparent 300px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(244, 244, 245, 0.90));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(244, 244, 245, 0.66));
 }
 
 .login-logo {
