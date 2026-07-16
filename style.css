@@ -315,13 +315,37 @@ button {
 
 .login-view {
   position: relative;
+  isolation: isolate;
   display: grid;
   min-height: 100vh;
+  overflow: hidden;
   place-items: center;
   padding: 32px;
   background:
     radial-gradient(circle at 85% 22%, rgba(227, 6, 19, 0.08), transparent 280px),
     linear-gradient(135deg, #ffffff 0%, #f3f3f5 100%);
+}
+
+.login-view::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: url("assets/login-background.jpg");
+  background-position: center;
+  background-size: cover;
+  opacity: 0.22;
+  filter: saturate(0.95) contrast(0.95);
+}
+
+.login-view::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 85% 22%, rgba(227, 6, 19, 0.10), transparent 300px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(244, 244, 245, 0.90));
 }
 
 .login-logo {

@@ -1,13 +1,14 @@
-const CACHE_NAME = "schuller-france-app-v20260716c";
+const CACHE_NAME = "schuller-france-app-v20260716d";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260716c",
-  "./script.js?v=20260716c",
+  "./style.css?v=20260716d",
+  "./script.js?v=20260716d",
   "./tarifs.js?v=20260713c",
   "./manifest.webmanifest",
   "./assets/schuller-logo.png",
-  "./assets/schuller-app-icon.svg"
+  "./assets/schuller-app-icon.svg",
+  "./assets/login-background.jpg"
 ];
 
 self.addEventListener("install", (event) => {
