@@ -1256,8 +1256,18 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminTab, tourTab);
     return;
   }
-  appTabs.insertBefore(tourTab, prenetTab);
-  appTabs.insertBefore(backlogTab, prenetTab);
+  [
+    homeTab,
+    orderTab,
+    historyTab,
+    quoteTab,
+    notesTab,
+    promotionTab,
+    tarifTab,
+    tourTab,
+    prenetTab,
+    backlogTab,
+  ].forEach((tab) => appTabs.appendChild(tab));
   appTabs.appendChild(adminTab);
 }
 

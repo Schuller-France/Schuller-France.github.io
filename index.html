@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260716b" />
+    <link rel="stylesheet" href="style.css?v=20260716c" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -108,11 +108,11 @@
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
-        <button class="tab-button" type="button" id="tourTab">Tournées</button>
-        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
-        <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
-        <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
+        <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
+        <button class="tab-button" type="button" id="tourTab">Tournées</button>
+        <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
+        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
       </nav>
 
@@ -787,7 +787,7 @@
 
     <script src="tarifs.js?v=20260713c"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260716b"></script>
+    <script src="script.js?v=20260716c"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
