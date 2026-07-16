@@ -3180,18 +3180,57 @@ h2 {
   grid-template-columns: 1fr;
 }
 
+.tablet-mode .tour-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.tablet-mode .tour-panel > .panel-heading {
+  order: 1;
+}
+
+.tablet-mode .tour-toolbar {
+  order: 2;
+}
+
+.tablet-mode .tour-layout {
+  order: 3;
+}
+
+.tablet-mode .tour-savebar {
+  order: 4;
+}
+
+.tablet-mode .tour-list-panel {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tablet-mode .tour-results-heading {
+  order: 1;
+}
+
+.tablet-mode .tour-client-list {
+  order: 2;
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.tablet-mode .tour-selected-box {
+  order: 3;
+  margin-top: 16px;
+}
+
 .tablet-mode .tour-map-card,
 .tablet-mode .tour-list-panel {
   padding: 16px;
 }
 
 .tablet-mode .france-map {
-  min-height: 430px;
+  min-height: 360px;
   border-radius: 20px;
-}
-
-.tablet-mode .tour-client-list {
-  max-height: none;
 }
 
 .tablet-mode .tour-client-card {
