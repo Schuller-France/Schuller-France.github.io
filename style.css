@@ -76,11 +76,139 @@
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
 
+.tablet-mode .quote-panel {
+  padding: 16px;
+}
+
+.tablet-mode .quote-layout {
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.tablet-mode .quote-client-card,
+.tablet-mode .quote-lines-card,
+.tablet-mode .quote-history-card {
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.tablet-mode .quote-client-wide {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.tablet-mode .quote-table-wrap {
+  overflow: visible;
+}
+
+.tablet-mode .quote-table,
+.quote-table.is-compact {
+  min-width: 0;
+  width: 100%;
+}
+
+.tablet-mode .quote-table thead {
+  display: none;
+}
+
+.tablet-mode .quote-table,
+.tablet-mode .quote-table tbody,
+.tablet-mode .quote-table tr,
+.tablet-mode .quote-table td {
+  display: block;
+}
+
+.tablet-mode .quote-table tbody {
+  display: grid;
+  gap: 14px;
+}
+
+.tablet-mode .quote-table tr {
+  position: relative;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(28, 34, 45, .06);
+}
+
+.tablet-mode .quote-table td {
+  width: 100% !important;
+  padding: 8px 0 !important;
+  border: 0 !important;
+  text-align: left !important;
+}
+
+.tablet-mode .quote-table td::before {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.tablet-mode .quote-table td:nth-child(1)::before { content: "Référence"; }
+.tablet-mode .quote-table td:nth-child(2)::before { content: "Désignation"; }
+.tablet-mode .quote-table td:nth-child(3)::before { content: "UDV"; }
+.tablet-mode .quote-table td:nth-child(4)::before { content: "Quantité"; }
+.tablet-mode .quote-table td:nth-child(5)::before { content: "Commentaire"; }
+.tablet-mode .quote-table td:nth-child(6)::before { content: ""; display: none; }
+
+.tablet-mode .quote-table input {
+  min-height: 54px;
+  padding: 10px 12px;
+  font-size: 18px;
+}
+
+.tablet-mode .quote-name-cell,
+.tablet-mode .quote-udv-cell {
+  min-height: 44px;
+  padding: 12px !important;
+  background: #f8fafc;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.tablet-mode .quote-qty-cell input {
+  max-width: 180px;
+  text-align: left;
+  font-size: 20px;
+}
+
+.tablet-mode .quote-table .icon-button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+}
+
+.tablet-mode .quote-add-line {
+  width: 100%;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.tablet-mode .quote-actions {
+  justify-content: stretch;
+}
+
+.tablet-mode .quote-actions .primary-button,
+.tablet-mode .quote-actions .tarif-send-status {
+  width: 100%;
+  text-align: left;
+}
+
+.tablet-mode .quote-history-heading,
+.tablet-mode .quote-history-item {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 800px) {
   .tarif-grid { grid-template-columns: 1fr; }
   .quote-layout { grid-template-columns: 1fr; }
   .quote-client-wide { grid-template-columns: 1fr; }
-  .quote-table { min-width: 1120px; }
+  .quote-table { min-width: 760px; }
   .quote-actions { justify-content: stretch; }
   .quote-actions .primary-button { width: 100%; }
   .quote-actions .tarif-send-status { text-align: left; }
@@ -93,6 +221,65 @@
   .global-search-results button { grid-template-columns: 1fr; }
   .global-search-results span { grid-row: auto; }
   .tour-route-summary { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1100px) {
+  .quote-panel { padding: 16px; }
+  .quote-client-card,
+  .quote-lines-card,
+  .quote-history-card { padding: 16px; border-radius: 18px; }
+  .quote-client-wide { grid-template-columns: 1fr; align-items: stretch; }
+  .quote-table-wrap { overflow: visible; }
+  .quote-table { min-width: 0; width: 100%; }
+  .quote-table thead { display: none; }
+  .quote-table,
+  .quote-table tbody,
+  .quote-table tr,
+  .quote-table td { display: block; }
+  .quote-table tbody { display: grid; gap: 14px; }
+  .quote-table tr {
+    padding: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(28, 34, 45, .06);
+  }
+  .quote-table td {
+    width: 100% !important;
+    padding: 8px 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+  }
+  .quote-table td::before {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .quote-table td:nth-child(1)::before { content: "Référence"; }
+  .quote-table td:nth-child(2)::before { content: "Désignation"; }
+  .quote-table td:nth-child(3)::before { content: "UDV"; }
+  .quote-table td:nth-child(4)::before { content: "Quantité"; }
+  .quote-table td:nth-child(5)::before { content: "Commentaire"; }
+  .quote-table td:nth-child(6)::before { content: ""; display: none; }
+  .quote-table input { min-height: 54px; padding: 10px 12px; font-size: 18px; }
+  .quote-name-cell,
+  .quote-udv-cell {
+    min-height: 44px;
+    padding: 12px !important;
+    background: #f8fafc;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+  .quote-qty-cell input { max-width: 180px; text-align: left; font-size: 20px; }
+  .quote-table .icon-button { width: 100%; min-height: 46px; border-radius: 12px; }
+  .quote-add-line { width: 100%; justify-content: center; margin: 14px 0; }
+  .quote-actions { justify-content: stretch; }
+  .quote-actions .primary-button,
+  .quote-actions .tarif-send-status { width: 100%; text-align: left; }
 }
 
 * {
