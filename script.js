@@ -9,6 +9,7 @@ const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
 let selectedQuoteClient = null;
+let selectedPrenetClient = null;
 let lines = [];
 let quoteLineItems = [];
 let currentUser = null;
@@ -600,6 +601,7 @@ function getVisiblePrenetClients() {
 }
 
 function renderPrenetEmpty() {
+  selectedPrenetClient = null;
   prenetClientSearch.value = "";
   prenetClientSuggestions.innerHTML = "";
   prenetClientSuggestions.classList.remove("is-open");
@@ -664,12 +666,41 @@ function renderPrenetTable(title, entries, statusClass) {
     </section>`;
 }
 
+function getPrenetNewEntries(client) {
+  const entries = Array.isArray(client?.entries) ? [...client.entries] : [];
+  entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
+  return entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
+}
+
+function filterPrenetEntries(entries, query) {
+  const cleanQuery = normalize(query || "");
+  if (!cleanQuery) return entries;
+  return entries.filter((entry) => normalize([
+    entry.ref,
+    entry.designation,
+    entry.quantity,
+    entry.price,
+    entry.status,
+  ].join(" ")).includes(cleanQuery));
+}
+
+function renderPrenetReferenceResults(client, query = "") {
+  const allEntries = getPrenetNewEntries(client);
+  const visibleEntries = filterPrenetEntries(allEntries, query);
+  if (!allEntries.length) {
+    return '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>';
+  }
+  if (!visibleEntries.length) {
+    return '<div class="prenet-empty"><strong>Aucune référence trouvée</strong><span>Essayez une autre référence ou une partie du nom produit.</span></div>';
+  }
+  return renderPrenetTable("Nouveaux prix nets", visibleEntries, "is-new");
+}
+
 function selectPrenetClient(client) {
+  selectedPrenetClient = client;
   prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
-  const entries = Array.isArray(client.entries) ? [...client.entries] : [];
-  entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
-  const newEntries = entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
+  const newEntries = getPrenetNewEntries(client);
   recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
 
   prenetResult.innerHTML = `
@@ -677,9 +708,13 @@ function selectPrenetClient(client) {
       <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
       <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
-    ${entries.length
-      ? renderPrenetTable("Nouveaux prix nets", newEntries, "is-new")
-      : '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>'}`;
+    <div class="prenet-reference-search">
+      <label for="prenetReferenceSearch">Rechercher une référence</label>
+      <input id="prenetReferenceSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou un nom produit…" />
+    </div>
+    <div id="prenetReferenceResults">
+      ${renderPrenetReferenceResults(client)}
+    </div>`;
 }
 
 function findStatsClient(row) {
@@ -4123,6 +4158,11 @@ homeRemindersList.addEventListener("click", (event) => {
   if (doneId) markReminderDone(doneId);
 });
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
+prenetResult.addEventListener("input", (event) => {
+  if (event.target?.id !== "prenetReferenceSearch" || !selectedPrenetClient) return;
+  const results = document.querySelector("#prenetReferenceResults");
+  if (results) results.innerHTML = renderPrenetReferenceResults(selectedPrenetClient, event.target.value);
+});
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));

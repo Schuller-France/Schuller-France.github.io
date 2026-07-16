@@ -2306,6 +2306,33 @@ h2 {
   text-transform: uppercase;
 }
 
+.prenet-reference-search {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.prenet-reference-search label {
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.prenet-reference-search input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 18px;
+  font-size: 16px;
+  background: var(--white);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.prenet-reference-search input:focus {
+  border-color: var(--red);
+  outline: 3px solid rgba(227, 6, 19, 0.1);
+}
+
 .prenet-group {
   margin-top: 26px;
   overflow: hidden;
