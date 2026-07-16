@@ -2883,6 +2883,333 @@ h2 {
   grid-template-columns: 1fr;
 }
 
+.tablet-mode .global-search {
+  order: 3;
+  width: 100%;
+  max-width: none;
+  flex-basis: 100%;
+}
+
+.tablet-mode .app-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.tablet-mode .tab-button {
+  flex: 0 0 auto;
+  min-width: 150px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tablet-mode .dashboard-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.tablet-mode .metric-card {
+  min-height: 132px;
+  padding: 22px;
+}
+
+.tablet-mode .dashboard-main-grid {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .panel-heading {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.tablet-mode .client-panel,
+.tablet-mode .order-panel,
+.tablet-mode .summary-panel,
+.tablet-mode .history-panel,
+.tablet-mode .quote-panel,
+.tablet-mode .notes-panel,
+.tablet-mode .tour-panel,
+.tablet-mode .backlog-panel,
+.tablet-mode .prenet-panel,
+.tablet-mode .tarif-panel,
+.tablet-mode .promotion-panel {
+  padding: 18px;
+}
+
+.tablet-mode .selected-client,
+.tablet-mode .summary-list,
+.tablet-mode .note-field,
+.tablet-mode .order-actions,
+.tablet-mode .history-actions,
+.tablet-mode .tour-actions,
+.tablet-mode .promotion-toolbar,
+.tablet-mode .tarif-send-form,
+.tablet-mode .notes-report-toolbar {
+  gap: 12px;
+}
+
+.tablet-mode .order-actions,
+.tablet-mode .history-actions,
+.tablet-mode .quote-actions,
+.tablet-mode .tour-actions,
+.tablet-mode .promotion-toolbar,
+.tablet-mode .notes-form-actions,
+.tablet-mode .notes-report-toolbar {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.tablet-mode .order-actions .ghost-button,
+.tablet-mode .history-actions .ghost-button,
+.tablet-mode .quote-actions .primary-button,
+.tablet-mode .tour-actions .primary-button,
+.tablet-mode .tour-actions .ghost-button,
+.tablet-mode .promotion-toolbar .primary-button,
+.tablet-mode .notes-form-actions .primary-button,
+.tablet-mode .notes-form-actions .ghost-button,
+.tablet-mode .notes-report-toolbar .primary-button,
+.tablet-mode .notes-report-toolbar .ghost-button,
+.tablet-mode #generateOrderFiles {
+  width: 100%;
+}
+
+.tablet-mode .table-wrap,
+.tablet-mode .backlog-table-wrap,
+.tablet-mode .prenet-table-wrap,
+.tablet-mode .dashboard-table-wrap,
+.tablet-mode .history-table-wrap {
+  overflow: visible;
+}
+
+.tablet-mode .order-table,
+.tablet-mode .order-table tbody,
+.tablet-mode .order-table tr,
+.tablet-mode .order-table td,
+.tablet-mode .backlog-table,
+.tablet-mode .backlog-table tbody,
+.tablet-mode .backlog-table tr,
+.tablet-mode .backlog-table td,
+.tablet-mode .prenet-table,
+.tablet-mode .prenet-table tbody,
+.tablet-mode .prenet-table tr,
+.tablet-mode .prenet-table td {
+  display: block;
+}
+
+.tablet-mode .order-table,
+.tablet-mode .backlog-table,
+.tablet-mode .prenet-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.tablet-mode .order-table thead,
+.tablet-mode .order-table colgroup,
+.tablet-mode .backlog-table thead,
+.tablet-mode .prenet-table thead {
+  display: none;
+}
+
+.tablet-mode .order-table tbody,
+.tablet-mode .backlog-table tbody,
+.tablet-mode .prenet-table tbody {
+  display: grid;
+  gap: 14px;
+}
+
+.tablet-mode .order-table tr,
+.tablet-mode .backlog-table tr,
+.tablet-mode .prenet-table tr {
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(28, 34, 45, .06);
+}
+
+.tablet-mode .order-table td,
+.tablet-mode .backlog-table td,
+.tablet-mode .prenet-table td {
+  width: 100% !important;
+  padding: 8px 0 !important;
+  border: 0 !important;
+  text-align: left !important;
+}
+
+.tablet-mode .order-table td::before,
+.tablet-mode .backlog-table td::before,
+.tablet-mode .prenet-table td::before {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.tablet-mode .order-table td:nth-child(1)::before { content: "Référence"; }
+.tablet-mode .order-table td:nth-child(2)::before { content: "Gencod"; }
+.tablet-mode .order-table td:nth-child(3)::before { content: "Désignation"; }
+.tablet-mode .order-table td:nth-child(4)::before { content: "UDV"; }
+.tablet-mode .order-table td:nth-child(5)::before { content: "Quantité"; }
+.tablet-mode .order-table td:nth-child(6)::before { content: "Prix unitaire"; }
+.tablet-mode .order-table td:nth-child(7)::before { content: "Total"; }
+.tablet-mode .order-table td:nth-child(8)::before { content: ""; display: none; }
+
+.tablet-mode .order-table input {
+  min-height: 54px;
+  padding: 10px 12px;
+  font-size: 18px;
+}
+
+.tablet-mode .name-cell,
+.tablet-mode .gencod-cell,
+.tablet-mode .price-cell,
+.tablet-mode .total-cell,
+.tablet-mode .udv-cell {
+  min-height: 38px;
+  padding: 10px 12px !important;
+  background: #f8fafc;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.tablet-mode .qty-cell input {
+  max-width: 180px;
+}
+
+.tablet-mode .order-table .icon-button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+}
+
+.tablet-mode .summary-list {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .history-layout {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .history-list {
+  max-height: none;
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tablet-mode .history-item {
+  min-height: 78px;
+  padding: 16px;
+}
+
+.tablet-mode .notes-layout {
+  min-height: auto;
+}
+
+.tablet-mode .notes-editor,
+.tablet-mode .notes-history {
+  border-right: 0;
+}
+
+.tablet-mode .notes-history {
+  border-top: 1px solid var(--line);
+}
+
+.tablet-mode .quick-note-buttons {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.tablet-mode .tour-toolbar,
+.tablet-mode .tour-savebar,
+.tablet-mode .backlog-toolbar {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .tour-map-card,
+.tablet-mode .tour-list-panel {
+  padding: 16px;
+}
+
+.tablet-mode .france-map {
+  min-height: 430px;
+  border-radius: 20px;
+}
+
+.tablet-mode .tour-client-list {
+  max-height: none;
+}
+
+.tablet-mode .tour-client-card {
+  min-height: 78px;
+  padding: 16px;
+}
+
+.tablet-mode .backlog-table td:nth-child(1)::before { content: "Date"; }
+.tablet-mode .backlog-table td:nth-child(2)::before { content: "Type"; }
+.tablet-mode .backlog-table td:nth-child(3)::before { content: "Commande"; }
+.tablet-mode .backlog-table td:nth-child(4)::before { content: "Client"; }
+.tablet-mode .backlog-table td:nth-child(5)::before { content: "Produit"; }
+.tablet-mode .backlog-table td:nth-child(6)::before { content: "Quantité"; }
+.tablet-mode .backlog-table td:nth-child(7)::before { content: "Commentaire"; }
+.tablet-mode .backlog-table td:nth-child(8)::before { content: "Statut"; }
+.tablet-mode .backlog-table td:nth-child(9)::before { content: ""; display: none; }
+
+.tablet-mode .backlog-done-check {
+  justify-content: flex-start;
+  min-height: 46px;
+}
+
+.tablet-mode .backlog-delete-button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+}
+
+.tablet-mode .prenet-result,
+.tablet-mode .prenet-search-block {
+  padding: 16px;
+}
+
+.tablet-mode .prenet-table td:nth-child(1)::before { content: "Référence"; }
+.tablet-mode .prenet-table td:nth-child(2)::before { content: "Désignation"; }
+.tablet-mode .prenet-table td:nth-child(3)::before { content: "Prix net"; }
+.tablet-mode .prenet-table td:nth-child(4)::before { content: "UDV"; }
+
+.tablet-mode .tarif-grid,
+.tablet-mode .promotion-toolbar {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .tarif-card {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 120px;
+}
+
+.tablet-mode .tarif-send-form {
+  padding: 18px;
+}
+
+.tablet-mode .promotion-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.tablet-mode .promotion-card {
+  padding: 18px;
+}
+
+.tablet-mode .promotion-card-actions {
+  grid-template-columns: 1fr;
+}
+
+.tablet-mode .promotion-preview-thumb {
+  min-height: 260px;
+}
+
 .backlog-panel { overflow: hidden; }
 .backlog-panel .helper-text { margin: 8px 0 0; }
 .backlog-metrics { margin: 18px 0; }
@@ -3062,4 +3389,80 @@ h2 {
   .prenet-update {
     text-align: left;
   }
+}
+
+/* Priorité finale du mode tablette : ces règles ne changent jamais la version PC. */
+.tablet-mode .app-tabs {
+  flex-direction: row;
+}
+
+.tablet-mode .order-table,
+.tablet-mode .quote-table,
+.tablet-mode .backlog-table,
+.tablet-mode .prenet-table {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.tablet-mode .table-wrap,
+.tablet-mode .quote-table-wrap,
+.tablet-mode .backlog-table-wrap,
+.tablet-mode .prenet-table-wrap {
+  overflow: visible !important;
+}
+
+.tablet-mode .order-table thead,
+.tablet-mode .quote-table thead,
+.tablet-mode .backlog-table thead,
+.tablet-mode .prenet-table thead,
+.tablet-mode .order-table colgroup {
+  display: none !important;
+}
+
+.tablet-mode .order-table,
+.tablet-mode .order-table tbody,
+.tablet-mode .order-table tr,
+.tablet-mode .order-table td,
+.tablet-mode .quote-table,
+.tablet-mode .quote-table tbody,
+.tablet-mode .quote-table tr,
+.tablet-mode .quote-table td,
+.tablet-mode .backlog-table,
+.tablet-mode .backlog-table tbody,
+.tablet-mode .backlog-table tr,
+.tablet-mode .backlog-table td,
+.tablet-mode .prenet-table,
+.tablet-mode .prenet-table tbody,
+.tablet-mode .prenet-table tr,
+.tablet-mode .prenet-table td {
+  display: block;
+}
+
+.tablet-mode .order-table tbody,
+.tablet-mode .quote-table tbody,
+.tablet-mode .backlog-table tbody,
+.tablet-mode .prenet-table tbody {
+  display: grid;
+  gap: 14px;
+}
+
+.tablet-mode .order-table tr,
+.tablet-mode .quote-table tr,
+.tablet-mode .backlog-table tr,
+.tablet-mode .prenet-table tr {
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(28, 34, 45, .06);
+}
+
+.tablet-mode .order-table td,
+.tablet-mode .quote-table td,
+.tablet-mode .backlog-table td,
+.tablet-mode .prenet-table td {
+  width: 100% !important;
+  padding: 8px 0 !important;
+  border: 0 !important;
+  text-align: left !important;
 }
