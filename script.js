@@ -13,6 +13,7 @@ let selectedPrenetClient = null;
 let lines = [];
 let quoteLineItems = [];
 let expenseLineItems = [];
+let activeExpenseDraftId = null;
 let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
@@ -44,6 +45,7 @@ const driveAutoRefreshMs = 10 * 60 * 1000;
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
+const expenseDraftStorageKey = "schullerExpenseDrafts";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -148,12 +150,16 @@ const expensesPeriod = document.querySelector("#expensesPeriod");
 const expensesNote = document.querySelector("#expensesNote");
 const expensesLines = document.querySelector("#expensesLines");
 const addExpenseLine = document.querySelector("#addExpenseLine");
+const newExpenseDraft = document.querySelector("#newExpenseDraft");
+const saveExpenseDraft = document.querySelector("#saveExpenseDraft");
 const sendExpenseReport = document.querySelector("#sendExpenseReport");
 const expensesSendStatus = document.querySelector("#expensesSendStatus");
 const expensesStatus = document.querySelector("#expensesStatus");
 const expensesTotalAmount = document.querySelector("#expensesTotalAmount");
 const expensesTotalVat = document.querySelector("#expensesTotalVat");
 const expensesTotalRefund = document.querySelector("#expensesTotalRefund");
+const expenseHistorySearch = document.querySelector("#expenseHistorySearch");
+const expenseHistoryList = document.querySelector("#expenseHistoryList");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -1888,6 +1894,65 @@ function newExpenseLine() {
     amount: "",
     vat: "",
     receiptName: "",
+    receiptDataUrl: "",
+    receiptMimeType: "",
+    receiptFile: null,
+  };
+}
+
+function expenseDraftKey() {
+  return `${expenseDraftStorageKey}:${currentUser?.id || "default"}`;
+}
+
+function getExpenseDrafts() {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(expenseDraftKey()) || "[]");
+    return Array.isArray(drafts) ? drafts : [];
+  } catch (error) {
+    localStorage.removeItem(expenseDraftKey());
+    return [];
+  }
+}
+
+function saveExpenseDrafts(drafts) {
+  localStorage.setItem(expenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
+}
+
+function getExpenseDraftTitle() {
+  const period = expensesPeriod?.value.trim();
+  if (period) return period;
+  const date = new Date();
+  return `Frais du ${date.toLocaleDateString("fr-FR")}`;
+}
+
+function getExpenseDraftTotals(linesToUse = expenseLineItems) {
+  const refunds = getExpenseRefunds(linesToUse);
+  return linesToUse.reduce((acc, line, index) => {
+    acc.amount += parseAmount(line.amount);
+    acc.vat += getExpenseVatForTotals(line);
+    acc.refund += refunds[index] || 0;
+    return acc;
+  }, { amount: 0, vat: 0, refund: 0 });
+}
+
+function serializeExpenseLine(line) {
+  return {
+    id: line.id || crypto.randomUUID(),
+    date: line.date || todayIsoDate(),
+    type: line.type || "REPAS MIDI",
+    precision: line.precision || "",
+    amount: line.amount || "",
+    vat: line.vat || "",
+    receiptName: line.receiptName || "",
+    receiptDataUrl: line.receiptDataUrl || "",
+    receiptMimeType: line.receiptMimeType || "",
+  };
+}
+
+function normalizeExpenseLine(line) {
+  return {
+    ...newExpenseLine(),
+    ...serializeExpenseLine(line || {}),
     receiptFile: null,
   };
 }
@@ -1957,25 +2022,22 @@ function renderExpenses() {
       </tr>`;
   }).join("");
   updateExpenseSummary();
+  renderExpenseHistory();
 }
 
 function updateExpenseSummary() {
   if (!expensesTotalAmount || !expensesTotalVat || !expensesTotalRefund || !expensesStatus) return;
-  const refunds = getExpenseRefunds();
-  const totals = expenseLineItems.reduce((acc, line, index) => {
-    acc.amount += parseAmount(line.amount);
-    acc.vat += getExpenseVatForTotals(line);
-    acc.refund += refunds[index] || 0;
-    return acc;
-  }, { amount: 0, vat: 0, refund: 0 });
+  const totals = getExpenseDraftTotals();
   expensesTotalAmount.textContent = formatter.format(roundMoney(totals.amount));
   expensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
   expensesTotalRefund.textContent = formatter.format(roundMoney(totals.refund));
   const filledCount = expenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
-  expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}`;
+  const draftLabel = activeExpenseDraftId ? " · brouillon ouvert" : "";
+  expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}${draftLabel}`;
 }
 
 function resetExpenses() {
+  activeExpenseDraftId = null;
   expenseLineItems = [newExpenseLine()];
   if (expensesPeriod) expensesPeriod.value = "";
   if (expensesNote) expensesNote.value = "";
@@ -1984,6 +2046,36 @@ function resetExpenses() {
     expensesSendStatus.className = "tarif-send-status";
   }
   renderExpenses();
+}
+
+function renderExpenseHistory() {
+  if (!expenseHistoryList) return;
+  const query = normalize(expenseHistorySearch?.value || "");
+  const drafts = getExpenseDrafts()
+    .filter((draft) => !query || normalize(`${draft.title} ${draft.note} ${draft.updatedLabel}`).includes(query))
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  if (!drafts.length) {
+    expenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais enregistrée pour le moment.</p>`;
+    return;
+  }
+  expenseHistoryList.innerHTML = drafts.map((draft) => {
+    const totals = draft.totals || getExpenseDraftTotals((draft.lines || []).map(normalizeExpenseLine));
+    const receiptCount = (draft.lines || []).filter((line) => line.receiptName).length;
+    const active = draft.id === activeExpenseDraftId ? " is-active" : "";
+    return `
+      <article class="expense-history-item${active}" data-expense-draft="${escapeHtml(draft.id)}">
+        <button class="expense-history-open" type="button" data-open-expense-draft="${escapeHtml(draft.id)}">
+          <strong>${escapeHtml(draft.title || "Note de frais")}</strong>
+          <span>${escapeHtml(draft.updatedLabel || "Non datée")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
+          <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net à payer</em>
+        </button>
+        <div class="expense-history-actions">
+          <button type="button" data-rename-expense-draft="${escapeHtml(draft.id)}">Renommer</button>
+          <button type="button" data-delete-expense-draft="${escapeHtml(draft.id)}" aria-label="Supprimer la note">&times;</button>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 function updateExpenseLine(id, field, value) {
@@ -2009,6 +2101,105 @@ function removeExpenseLine(id) {
   expenseLineItems = expenseLineItems.filter((line) => line.id !== id);
   if (!expenseLineItems.length) expenseLineItems.push(newExpenseLine());
   renderExpenses();
+}
+
+async function hydrateExpenseLineForDraft(line) {
+  const base = serializeExpenseLine(line);
+  if (line.receiptFile) {
+    const dataUrl = line.receiptFile.type.startsWith("image/") ? await resizeImageDataUrl(line.receiptFile, 1200, 0.72) : await fileToDataUrl(line.receiptFile);
+    base.receiptDataUrl = dataUrl;
+    base.receiptMimeType = line.receiptFile.type.includes("pdf") ? "application/pdf" : "image/jpeg";
+    base.receiptName = line.receiptName || line.receiptFile.name || "justificatif";
+  }
+  return base;
+}
+
+async function saveCurrentExpenseDraft() {
+  if (!currentUser || currentUser.role === "admin") return;
+  if (expensesSendStatus) {
+    expensesSendStatus.textContent = "Enregistrement de la note de frais…";
+    expensesSendStatus.className = "tarif-send-status";
+  }
+  try {
+    const linesToSave = [];
+    for (const line of expenseLineItems) {
+      linesToSave.push(await hydrateExpenseLineForDraft(line));
+    }
+    const now = new Date();
+    const title = getExpenseDraftTitle();
+    const draft = {
+      id: activeExpenseDraftId || crypto.randomUUID(),
+      title,
+      period: expensesPeriod?.value.trim() || title,
+      note: expensesNote?.value.trim() || "",
+      lines: linesToSave,
+      totals: getExpenseDraftTotals(linesToSave),
+      createdAt: activeExpenseDraftId ? undefined : now.toISOString(),
+      updatedAt: now.toISOString(),
+      updatedLabel: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
+    };
+    const drafts = getExpenseDrafts();
+    const existingIndex = drafts.findIndex((item) => item.id === draft.id);
+    if (existingIndex >= 0) {
+      draft.createdAt = drafts[existingIndex].createdAt || draft.updatedAt;
+      drafts[existingIndex] = draft;
+    } else {
+      draft.createdAt = draft.updatedAt;
+      drafts.unshift(draft);
+    }
+    saveExpenseDrafts(drafts.slice(0, 40));
+    activeExpenseDraftId = draft.id;
+    if (expensesSendStatus) {
+      expensesSendStatus.textContent = `Note de frais enregistrée : ${title}.`;
+      expensesSendStatus.classList.add("is-success");
+    }
+    renderExpenses();
+  } catch (error) {
+    if (expensesSendStatus) {
+      expensesSendStatus.textContent = "Impossible d'enregistrer les justificatifs. Essaie avec moins de photos ou envoie la note directement.";
+      expensesSendStatus.classList.add("is-error");
+    }
+  }
+}
+
+function openExpenseDraft(id) {
+  const draft = getExpenseDrafts().find((item) => item.id === id);
+  if (!draft) return;
+  activeExpenseDraftId = draft.id;
+  expenseLineItems = (draft.lines || []).map(normalizeExpenseLine);
+  if (!expenseLineItems.length) expenseLineItems = [newExpenseLine()];
+  if (expensesPeriod) expensesPeriod.value = draft.period || draft.title || "";
+  if (expensesNote) expensesNote.value = draft.note || "";
+  if (expensesSendStatus) {
+    expensesSendStatus.textContent = `Brouillon ouvert : ${draft.title || "note de frais"}.`;
+    expensesSendStatus.className = "tarif-send-status is-success";
+  }
+  renderExpenses();
+  expensesView?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renameExpenseDraft(id) {
+  const drafts = getExpenseDrafts();
+  const draft = drafts.find((item) => item.id === id);
+  if (!draft) return;
+  const title = window.prompt("Nouveau nom de la note de frais :", draft.title || "");
+  if (!title || !title.trim()) return;
+  draft.title = title.trim();
+  draft.period = title.trim();
+  draft.updatedAt = new Date().toISOString();
+  draft.updatedLabel = new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  saveExpenseDrafts(drafts);
+  if (activeExpenseDraftId === id && expensesPeriod) expensesPeriod.value = draft.period;
+  renderExpenseHistory();
+}
+
+function deleteExpenseDraft(id) {
+  const draft = getExpenseDrafts().find((item) => item.id === id);
+  if (!draft) return;
+  if (!window.confirm(`Supprimer la note de frais "${draft.title || "sans nom"}" ?`)) return;
+  saveExpenseDrafts(getExpenseDrafts().filter((item) => item.id !== id));
+  if (activeExpenseDraftId === id) resetExpenses();
+  else renderExpenseHistory();
 }
 
 function fileToDataUrl(file) {
@@ -2042,15 +2233,16 @@ function resizeImageDataUrl(file, maxSize = 1600, quality = 0.78) {
 }
 
 async function prepareExpenseReceipt(line, index) {
-  if (!line.receiptFile) return null;
+  if (!line.receiptFile && !line.receiptDataUrl) return null;
   const file = line.receiptFile;
-  const dataUrl = file.type.startsWith("image/") ? await resizeImageDataUrl(file) : await fileToDataUrl(file);
-  const extension = file.type.includes("pdf") ? "pdf" : "jpg";
+  const dataUrl = file ? (file.type.startsWith("image/") ? await resizeImageDataUrl(file) : await fileToDataUrl(file)) : line.receiptDataUrl;
+  const mimeType = file ? (file.type.includes("pdf") ? "application/pdf" : "image/jpeg") : (line.receiptMimeType || "image/jpeg");
+  const extension = mimeType.includes("pdf") ? "pdf" : "jpg";
   const safeDate = (line.date || "sans-date").replaceAll("/", "-");
   const safeType = normalize(line.type || "frais").replace(/[^a-z0-9]+/g, "-") || "frais";
   return {
-    name: `${String(index + 1).padStart(2, "0")}-${safeDate}-${safeType}.${extension}`,
-    mimeType: file.type.includes("pdf") ? "application/pdf" : "image/jpeg",
+    name: line.receiptName || `${String(index + 1).padStart(2, "0")}-${safeDate}-${safeType}.${extension}`,
+    mimeType,
     dataUrl,
   };
 }
@@ -2059,7 +2251,7 @@ async function sendExpenseReportDraft() {
   if (!currentUser || currentUser.role === "admin") return;
   const filledLines = expenseLineItems
     .map((line, index) => ({ ...line, index, amountNumber: parseAmount(line.amount), vatNumber: parseAmount(line.vat) }))
-    .filter((line) => line.date || line.type || line.precision || line.amountNumber || line.vatNumber || line.receiptFile);
+    .filter((line) => line.date || line.type || line.precision || line.amountNumber || line.vatNumber || line.receiptFile || line.receiptDataUrl);
   if (!filledLines.length || !filledLines.some((line) => line.amountNumber > 0)) {
     expensesSendStatus.textContent = "Ajoute au moins une ligne de frais avec un montant.";
     expensesSendStatus.classList.add("is-error");
@@ -4345,7 +4537,10 @@ quoteLines.addEventListener("click", (event) => {
   removeQuoteLineItem(button.dataset.removeQuoteLine);
 });
 addExpenseLine.addEventListener("click", addExpenseLineItem);
+newExpenseDraft.addEventListener("click", resetExpenses);
+saveExpenseDraft.addEventListener("click", saveCurrentExpenseDraft);
 sendExpenseReport.addEventListener("click", sendExpenseReportDraft);
+expenseHistorySearch.addEventListener("input", renderExpenseHistory);
 expensesLines.addEventListener("input", (event) => {
   const row = event.target.closest("[data-expense-line]");
   const field = event.target.dataset.expenseField;
@@ -4362,6 +4557,8 @@ expensesLines.addEventListener("change", (event) => {
     const file = event.target.files?.[0] || null;
     line.receiptFile = file;
     line.receiptName = file ? file.name : "";
+    line.receiptDataUrl = "";
+    line.receiptMimeType = "";
     renderExpenses();
     return;
   }
@@ -4371,6 +4568,20 @@ expensesLines.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-expense-line]");
   if (!button) return;
   removeExpenseLine(button.dataset.removeExpenseLine);
+});
+expenseHistoryList.addEventListener("click", (event) => {
+  const openButton = event.target.closest("[data-open-expense-draft]");
+  if (openButton) {
+    openExpenseDraft(openButton.dataset.openExpenseDraft);
+    return;
+  }
+  const renameButton = event.target.closest("[data-rename-expense-draft]");
+  if (renameButton) {
+    renameExpenseDraft(renameButton.dataset.renameExpenseDraft);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-expense-draft]");
+  if (deleteButton) deleteExpenseDraft(deleteButton.dataset.deleteExpenseDraft);
 });
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 showAllNotesButton.addEventListener("click", renderAllNotes);

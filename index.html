@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260717a" />
+    <link rel="stylesheet" href="style.css?v=20260717b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -465,9 +465,22 @@
               <div><dt>TVA</dt><dd id="expensesTotalVat">0,00 €</dd></div>
               <div><dt>Net à payer</dt><dd id="expensesTotalRefund">0,00 €</dd></div>
             </dl>
+            <button class="ghost-button" type="button" id="newExpenseDraft">Nouvelle note</button>
+            <button class="ghost-button" type="button" id="saveExpenseDraft">Enregistrer</button>
             <button class="primary-button" type="button" id="sendExpenseReport">Envoyer mes frais</button>
             <p class="tarif-send-status" id="expensesSendStatus"></p>
           </div>
+
+          <section class="expense-history-card" aria-labelledby="expenseHistoryTitle">
+            <div class="expense-history-heading">
+              <div>
+                <p class="step">Brouillons sauvegardés</p>
+                <h3 id="expenseHistoryTitle">Historique des frais</h3>
+              </div>
+              <input id="expenseHistorySearch" type="search" autocomplete="off" placeholder="Rechercher une semaine, un mois, une note..." />
+            </div>
+            <div class="expense-history-list" id="expenseHistoryList"></div>
+          </section>
         </section>
       </main>
 
@@ -847,9 +860,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260717a" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260717b" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260717a" charset="UTF-8"></script>
+    <script src="script.js?v=20260717b" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
