@@ -1317,7 +1317,6 @@ function arrangeTabsForUser(user) {
   [
     homeTab,
     orderTab,
-    historyTab,
     quoteTab,
     expensesTab,
     notesTab,
@@ -1582,7 +1581,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, historyTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
@@ -4052,7 +4051,6 @@ function openWazeNextClient() {
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
-  const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
   const showExpenses = tabName === "expenses";
   const showNotes = tabName === "notes";
@@ -4064,7 +4062,6 @@ function setActiveTab(tabName) {
   const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
-  historyTab.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
   expensesTab.classList.toggle("is-active", showExpenses);
   notesTab.classList.toggle("is-active", showNotes);
@@ -4076,7 +4073,6 @@ function setActiveTab(tabName) {
   adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
-  historyView.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
   expensesView.classList.toggle("is-hidden", !showExpenses);
   notesView.classList.toggle("is-hidden", !showNotes);
@@ -4088,16 +4084,13 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
   if (showOrder) {
-    requestAnimationFrame(() => clientSearch.focus());
-  }
-
-  if (showHistory) {
     renderOrderHistory();
+    requestAnimationFrame(() => clientSearch.focus());
   }
 
   if (showExpenses) {
@@ -4474,7 +4467,6 @@ document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
-historyTab.addEventListener("click", () => setActiveTab("history"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));

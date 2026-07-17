@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260717b" />
+    <link rel="stylesheet" href="style.css?v=20260717c" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -105,7 +105,6 @@
       <nav class="app-tabs" aria-label="Navigation application">
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
-        <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="expensesTab">Frais</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
@@ -300,6 +299,25 @@
           Le CSV contient uniquement les références. Le PDF contient la commande complète.
         </p>
       </aside>
+
+        <section class="panel history-panel order-history-panel" aria-labelledby="historyTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Historique</p>
+              <h2 id="historyTitle">Commandes passées</h2>
+            </div>
+            <div class="history-actions">
+              <span class="status-pill" id="historyCount">0 commande</span>
+              <button class="ghost-button compact" type="button" id="clearHistoryOrders">Effacer mes commandes</button>
+            </div>
+          </div>
+          <div class="history-layout">
+            <div class="history-list" id="historyList"></div>
+            <article class="history-detail" id="historyDetail">
+              <span>Sélectionnez une commande pour consulter le détail.</span>
+            </article>
+          </div>
+        </section>
       </main>
 
       <main class="app-shell is-hidden" id="prenetView">
@@ -324,27 +342,6 @@
               <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
             </div>
           </article>
-        </section>
-      </main>
-
-      <main class="app-shell is-hidden" id="historyView">
-        <section class="panel history-panel" aria-labelledby="historyTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="step">Historique</p>
-              <h2 id="historyTitle">Commandes passées</h2>
-            </div>
-            <div class="history-actions">
-              <span class="status-pill" id="historyCount">0 commande</span>
-              <button class="ghost-button compact" type="button" id="clearHistoryOrders">Effacer mes commandes</button>
-            </div>
-          </div>
-          <div class="history-layout">
-            <div class="history-list" id="historyList"></div>
-            <article class="history-detail" id="historyDetail">
-              <span>Sélectionnez une commande pour consulter le détail.</span>
-            </article>
-          </div>
         </section>
       </main>
 
@@ -860,9 +857,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260717b" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260717c" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260717b" charset="UTF-8"></script>
+    <script src="script.js?v=20260717c" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
