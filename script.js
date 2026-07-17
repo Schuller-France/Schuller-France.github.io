@@ -128,6 +128,9 @@ const adminDocumentCount = document.querySelector("#adminDocumentCount");
 const adminClientCount = document.querySelector("#adminClientCount");
 const adminNoteCount = document.querySelector("#adminNoteCount");
 const adminReminderCount = document.querySelector("#adminReminderCount");
+const adminExpenseCount = document.querySelector("#adminExpenseCount");
+const adminExpenseTotal = document.querySelector("#adminExpenseTotal");
+const adminExpenseBody = document.querySelector("#adminExpenseBody");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
@@ -240,6 +243,7 @@ const visitNextAction = document.querySelector("#visitNextAction");
 const visitFollowupDays = document.querySelector("#visitFollowupDays");
 const visitFollowupDaysLabel = document.querySelector("#visitFollowupDaysLabel");
 let adminLogsCache = [];
+let adminExpenseReportsCache = [];
 
 async function postService(parameters) {
   if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
@@ -383,28 +387,33 @@ async function loadAdminLogs() {
   adminLogStatus.textContent = "Actualisation…";
   refreshAdminLogs.disabled = true;
   try {
-    const result = await postService({ action: "getAdminLogs", token: currentSessionToken });
+    const [result, expenseResult] = await Promise.all([
+      postService({ action: "getAdminLogs", token: currentSessionToken }),
+      postService({ action: "getExpenseReports", token: currentSessionToken }),
+    ]);
     adminLogsCache = (result.logs || []).filter((log) => log.userId !== "admin");
-    renderAdminScopeOptions(adminLogsCache);
+    adminExpenseReportsCache = expenseResult.reports || [];
+    renderAdminScopeOptions(adminLogsCache, adminExpenseReportsCache);
     renderAdminDashboard();
     adminLogStatus.textContent = "À jour";
   } catch (error) {
     adminLogStatus.textContent = "Erreur d’actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
+    adminExpenseBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Impossible de charger les frais. Reconnectez-vous.</td></tr>';
   } finally {
     refreshAdminLogs.disabled = false;
   }
 }
 
-function renderAdminScopeOptions(logs) {
+function renderAdminScopeOptions(logs, expenseReports = []) {
   const selected = adminScopeFilter.value || "all";
   const options = [{ value: "all", label: "Tous les commerciaux" }];
   const users = new Map();
   const sectors = new Set();
-  logs.forEach((log) => {
-    if (log.userId) users.set(log.userId, log.userName || log.userId);
-    String(log.sectors || "").split("+").map((sector) => sector.trim()).filter(Boolean).forEach((sector) => sectors.add(sector));
+  [...logs, ...expenseReports].forEach((item) => {
+    if (item.userId) users.set(item.userId, item.userName || item.userId);
+    String(item.sectors || "").split("+").map((sector) => sector.trim()).filter(Boolean).forEach((sector) => sectors.add(sector));
   });
   [...users.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr")).forEach(([id, name]) => options.push({ value: `user:${id}`, label: name }));
   [...sectors].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })).forEach((sector) => options.push({ value: `sector:${sector}`, label: sector }));
@@ -420,6 +429,14 @@ function getFilteredAdminLogs() {
   if (scope.startsWith("user:")) return recentLogs.filter((log) => log.userId === scope.slice(5));
   if (scope.startsWith("sector:")) return recentLogs.filter((log) => String(log.sectors || "").includes(scope.slice(7)));
   return recentLogs;
+}
+
+function getFilteredAdminExpenses() {
+  const scope = adminScopeFilter.value || "all";
+  if (scope === "all") return adminExpenseReportsCache;
+  if (scope.startsWith("user:")) return adminExpenseReportsCache.filter((report) => report.userId === scope.slice(5));
+  if (scope.startsWith("sector:")) return adminExpenseReportsCache.filter((report) => String(report.sectors || "").includes(scope.slice(7)));
+  return adminExpenseReportsCache;
 }
 
 function parseFrenchDateTime(value = "") {
@@ -458,6 +475,7 @@ function renderAdminDashboard() {
   adminClientCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("client")).length);
   adminNoteCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("note")).length);
   adminReminderCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("relance")).length);
+  renderAdminExpenses();
 
   adminTypeSummary.innerHTML = Object.keys(counts).length
     ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
@@ -488,6 +506,41 @@ function renderAdminDashboard() {
       <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
+}
+
+function renderAdminExpenses() {
+  const reports = getFilteredAdminExpenses();
+  const total = reports.reduce((sum, report) => sum + (Number(report.totals?.refund) || 0), 0);
+  adminExpenseCount.textContent = String(reports.length);
+  adminExpenseTotal.textContent = formatter.format(roundMoney(total));
+  adminExpenseBody.innerHTML = reports.length ? reports.map((report) => {
+    const lines = Array.isArray(report.lines) ? report.lines : [];
+    const lineDetails = lines.length ? `
+      <details class="admin-expense-details">
+        <summary>${lines.length} ligne${lines.length > 1 ? "s" : ""}</summary>
+        <ul>
+          ${lines.map((line) => `
+            <li>
+              <strong>${escapeHtml(line.date || "-")} · ${escapeHtml(line.type || "-")}</strong>
+              <span>${escapeHtml(line.precision || "Sans précision")}</span>
+              <em>${escapeHtml(formatter.format(roundMoney(line.refund || 0)))} / ${escapeHtml(formatter.format(roundMoney(line.amount || 0)))} TTC${line.receiptName ? ` · justificatif : ${escapeHtml(line.receiptName)}` : ""}</em>
+            </li>
+          `).join("")}
+        </ul>
+      </details>
+    ` : "Aucune ligne";
+    return `
+      <tr>
+        <td>${escapeHtml(report.updatedAt || report.createdAt || "-")}</td>
+        <td><strong>${escapeHtml(report.userName || report.userId || "-")}</strong></td>
+        <td>${escapeHtml(report.sectors || "-")}</td>
+        <td><span class="admin-action-badge ${normalize(report.status || "").includes("envoye") ? "is-document" : "is-navigation"}">${escapeHtml(report.status || "Enregistré")}</span></td>
+        <td><strong>${escapeHtml(report.title || "Note de frais")}</strong><br><small>${escapeHtml(report.note || "")}</small></td>
+        <td><strong>${escapeHtml(formatter.format(roundMoney(report.totals?.refund || 0)))}</strong><br><small>TVA ${escapeHtml(formatter.format(roundMoney(report.totals?.vat || 0)))}</small></td>
+        <td>${lineDetails}</td>
+      </tr>
+    `;
+  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrée pour ce filtre.</td></tr>';
 }
 
 function resetTarifForm() {
@@ -2178,6 +2231,20 @@ async function saveCurrentExpenseDraft() {
     }
     saveExpenseDrafts(drafts.slice(0, 40));
     activeExpenseDraftId = draft.id;
+    try {
+      await postService({
+        action: "saveExpenseDraftSummary",
+        report: JSON.stringify({
+          id: draft.id,
+          title: draft.title,
+          period: draft.period,
+          note: draft.note,
+          lines: draft.lines,
+        }),
+      });
+    } catch (error) {
+      // Le brouillon reste sauvegardé localement même si Google répond lentement.
+    }
     if (expensesSendStatus) {
       expensesSendStatus.textContent = `Note de frais enregistrée : ${title}.`;
       expensesSendStatus.classList.add("is-success");
@@ -2308,6 +2375,7 @@ async function sendExpenseReportDraft() {
     }));
     const result = await postService({
       action: "sendExpenseReport",
+      draftId: activeExpenseDraftId || "",
       period: expensesPeriod.value.trim(),
       note: expensesNote.value.trim(),
       lines: JSON.stringify(payloadLines),

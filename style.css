@@ -2927,6 +2927,13 @@ h2 {
 .admin-action-badge.is-document { color: #7c2d12; background: #ffedd5; }
 .admin-action-badge.is-login { color: #3730a3; background: #e0e7ff; }
 .admin-action-badge.is-navigation { color: #6b21a8; background: #f3e8ff; }
+.admin-expense-panel { overflow: hidden; }
+.admin-expense-table td:nth-child(5) { min-width: 220px; }
+.admin-expense-details summary { color: var(--red); font-weight: 950; cursor: pointer; }
+.admin-expense-details ul { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.admin-expense-details li { display: grid; gap: 3px; padding: 10px; background: #fafbfc; border: 1px solid var(--line); border-radius: 12px; }
+.admin-expense-details span { color: var(--muted); }
+.admin-expense-details em { color: var(--dark); font-style: normal; font-weight: 900; }
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 
 .tablet-mode {

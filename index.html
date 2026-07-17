@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260717d" />
+    <link rel="stylesheet" href="style.css?v=20260717e" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -837,6 +837,23 @@
           <article class="panel metric-card"><span>Clients consultés</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
           <article class="panel metric-card"><span>Notes ajoutées</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
           <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminées</small></article>
+          <article class="panel metric-card"><span>Frais contrôlés</span><strong id="adminExpenseCount">0</strong><small>Notes enregistrées / envoyées</small></article>
+        </section>
+        <section class="panel admin-expense-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Contrôle frais</p>
+              <h2>Notes de frais par secteur</h2>
+              <p class="helper-text">Vue de contrôle uniquement : les commerciaux saisissent leurs frais dans leur session, vous les vérifiez ici.</p>
+            </div>
+            <span class="status-pill" id="adminExpenseTotal">0,00 €</span>
+          </div>
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-expense-table">
+              <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Statut</th><th>Note</th><th>Total</th><th>Détail</th></tr></thead>
+              <tbody id="adminExpenseBody"></tbody>
+            </table>
+          </div>
         </section>
         <section class="admin-dashboard-grid">
           <article class="panel admin-feed-panel">
@@ -857,9 +874,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260717d" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260717e" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260717d" charset="UTF-8"></script>
+    <script src="script.js?v=20260717e" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
