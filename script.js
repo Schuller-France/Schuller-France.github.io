@@ -5,6 +5,8 @@ let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
+let promotionsRefreshInProgress = false;
+let lastPromotionsRefreshAt = 0;
 const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
@@ -319,6 +321,33 @@ async function refreshSecureAppDataInBackground(token, userId) {
     }
   } catch (error) {
     // La copie locale permet de continuer à travailler même si Google répond lentement.
+  }
+}
+
+async function refreshPromotionsFromDrive(force = false) {
+  if (!currentSessionToken || promotionsRefreshInProgress) return;
+  if (!force && Date.now() - lastPromotionsRefreshAt < 30000) return;
+  promotionsRefreshInProgress = true;
+  lastPromotionsRefreshAt = Date.now();
+  if (promotionSendStatus) {
+    promotionSendStatus.textContent = "Actualisation des promotions Drive…";
+    promotionSendStatus.className = "tarif-send-status";
+  }
+  try {
+    const result = await postService({ action: "getAppData", token: currentSessionToken });
+    applySecureAppData(result);
+    saveSecureDataCache(currentUser?.id || "", result);
+    if (promotionSendStatus) {
+      promotionSendStatus.textContent = "Promotions Drive à jour.";
+      promotionSendStatus.classList.add("is-success");
+    }
+  } catch (error) {
+    if (promotionSendStatus) {
+      promotionSendStatus.textContent = "Impossible d'actualiser Drive pour l'instant. Dernière liste conservée.";
+      promotionSendStatus.classList.add("is-warning");
+    }
+  } finally {
+    promotionsRefreshInProgress = false;
   }
 }
 
@@ -1138,9 +1167,10 @@ function buildGlobalSearchResults(query) {
         title: order.orderNumber,
         meta: `${order.client?.name || "Client"} - ${formatStoredDate(order.dayKey || order.orderDate || todayInputDate())}`,
         action: () => {
-          setActiveTab("history");
+          setActiveTab("order");
           activeHistoryOrderId = order.id;
           renderOrderHistory();
+          requestAnimationFrame(() => document.querySelector(".order-history-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
         },
       });
     });
@@ -4123,7 +4153,10 @@ function setActiveTab(tabName) {
 
   if (showAdmin) loadAdminLogs();
 
-  if (showPromotion) renderPromotions();
+  if (showPromotion) {
+    renderPromotions();
+    refreshPromotionsFromDrive();
+  }
 }
 
 function csvValue(value) {
