@@ -76,6 +76,35 @@
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
 
+.expenses-panel { padding: 28px; display: grid; gap: 18px; }
+.expenses-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.expenses-rules article { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #e1e5eb; border-radius: 16px; background: #fff7f7; }
+.expenses-rules strong { color: #171a21; font-size: 15px; }
+.expenses-rules span { color: #5f6673; font-size: 13px; line-height: 1.35; }
+.expenses-meta { display: grid; grid-template-columns: minmax(260px, .4fr) minmax(320px, .6fr); gap: 16px; }
+.expenses-meta label { display: grid; gap: 8px; font-weight: 900; }
+.expenses-meta input { min-height: 50px; padding: 0 14px; border: 1px solid #cfd5dd; border-radius: 12px; }
+.expenses-table-wrap { overflow-x: auto; border: 1px solid #e1e5eb; border-radius: 18px; background: #fff; }
+.expenses-table { width: 100%; min-width: 1180px; border-collapse: collapse; }
+.expenses-table th, .expenses-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #edf0f3; vertical-align: top; }
+.expenses-table th { color: #5f6673; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; background: #f8fafc; }
+.expenses-table tr:last-child td { border-bottom: 0; }
+.expenses-table input, .expenses-table select { width: 100%; min-height: 46px; padding: 8px 10px; border: 1px solid #cfd5dd; border-radius: 12px; background: #fff; font-weight: 800; }
+.expenses-table td:nth-child(1) { width: 130px; }
+.expenses-table td:nth-child(2) { width: 170px; }
+.expenses-table td:nth-child(3) { width: 280px; }
+.expenses-table td:nth-child(4), .expenses-table td:nth-child(5), .expenses-table td:nth-child(6) { width: 130px; }
+.expenses-table td:nth-child(7) { width: 180px; }
+.expense-warning { display: block; margin-top: 4px; color: #e30613; font-size: 11px; font-weight: 900; }
+.expense-upload { display: grid; cursor: pointer; }
+.expense-upload input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+.expense-upload span { display: grid; min-height: 46px; place-items: center; padding: 8px 10px; color: #e30613; font-weight: 950; text-align: center; background: #fff1f2; border: 1px dashed #e30613; border-radius: 12px; }
+.expenses-actions { display: grid; grid-template-columns: auto minmax(360px, 1fr) auto; gap: 16px; align-items: center; }
+.expenses-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; }
+.expenses-summary div { padding: 12px 14px; border: 1px solid #e1e5eb; border-radius: 14px; background: #fff; }
+.expenses-summary dt { color: #5f6673; font-size: 11px; font-weight: 950; text-transform: uppercase; }
+.expenses-summary dd { margin: 5px 0 0; font-size: 22px; font-weight: 950; }
+
 .tablet-mode .quote-panel {
   padding: 16px;
 }
@@ -198,6 +227,38 @@
   width: 100%;
   text-align: left;
 }
+
+.tablet-mode .expenses-panel { padding: 16px; }
+.tablet-mode .expenses-rules,
+.tablet-mode .expenses-meta,
+.tablet-mode .expenses-actions,
+.tablet-mode .expenses-summary { grid-template-columns: 1fr; }
+.tablet-mode .expenses-table-wrap { overflow: visible; border: 0; background: transparent; }
+.tablet-mode .expenses-table,
+.tablet-mode .expenses-table tbody,
+.tablet-mode .expenses-table tr,
+.tablet-mode .expenses-table td { display: block; }
+.tablet-mode .expenses-table { min-width: 0; width: 100%; }
+.tablet-mode .expenses-table thead { display: none; }
+.tablet-mode .expenses-table tbody { display: grid; gap: 14px; }
+.tablet-mode .expenses-table tr { padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 8px 22px rgba(28, 34, 45, .06); }
+.tablet-mode .expenses-table td { width: 100% !important; padding: 8px 0 !important; border: 0 !important; }
+.tablet-mode .expenses-table td::before { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .05em; }
+.tablet-mode .expenses-table td:nth-child(1)::before { content: "Date"; }
+.tablet-mode .expenses-table td:nth-child(2)::before { content: "Type de frais"; }
+.tablet-mode .expenses-table td:nth-child(3)::before { content: "Précision"; }
+.tablet-mode .expenses-table td:nth-child(4)::before { content: "Montant TTC"; }
+.tablet-mode .expenses-table td:nth-child(5)::before { content: "Dont TVA"; }
+.tablet-mode .expenses-table td:nth-child(6)::before { content: "Remboursé"; }
+.tablet-mode .expenses-table td:nth-child(7)::before { content: "Justificatif"; }
+.tablet-mode .expenses-table td:nth-child(8)::before { content: ""; display: none; }
+.tablet-mode .expenses-table input,
+.tablet-mode .expenses-table select,
+.tablet-mode .expense-upload span { min-height: 56px; font-size: 18px; }
+.tablet-mode .expenses-table .icon-button { width: 100%; min-height: 46px; border-radius: 12px; }
+.tablet-mode .expenses-actions .primary-button,
+.tablet-mode .expenses-actions .ghost-button,
+.tablet-mode .expenses-actions .tarif-send-status { width: 100%; }
 
 .tablet-mode .quote-history-heading,
 .tablet-mode .quote-history-item {

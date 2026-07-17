@@ -12,6 +12,7 @@ let selectedQuoteClient = null;
 let selectedPrenetClient = null;
 let lines = [];
 let quoteLineItems = [];
+let expenseLineItems = [];
 let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
@@ -48,6 +49,10 @@ const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
 });
+const expenseTypes = ["HOTEL", "REPAS SOIR", "REPAS MIDI", "INVITATION CLIENT", "PARKING", "CARBURANT", "DIVERS"];
+const expenseLunchLimit = 20;
+const expenseDinnerLimit = 20;
+const expenseHotelDinnerLimit = 115;
 
 const clientSearch = document.querySelector("#clientSearch");
 const clientSuggestions = document.querySelector("#clientSuggestions");
@@ -89,6 +94,7 @@ const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
+const expensesTab = document.querySelector("#expensesTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const tourTab = document.querySelector("#tourTab");
@@ -100,6 +106,7 @@ const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
+const expensesView = document.querySelector("#expensesView");
 const historyView = document.querySelector("#historyView");
 const notesView = document.querySelector("#notesView");
 const tourView = document.querySelector("#tourView");
@@ -137,6 +144,16 @@ const sendQuoteRequest = document.querySelector("#sendQuoteRequest");
 const quoteSendStatus = document.querySelector("#quoteSendStatus");
 const quoteHistorySearch = document.querySelector("#quoteHistorySearch");
 const quoteHistoryList = document.querySelector("#quoteHistoryList");
+const expensesPeriod = document.querySelector("#expensesPeriod");
+const expensesNote = document.querySelector("#expensesNote");
+const expensesLines = document.querySelector("#expensesLines");
+const addExpenseLine = document.querySelector("#addExpenseLine");
+const sendExpenseReport = document.querySelector("#sendExpenseReport");
+const expensesSendStatus = document.querySelector("#expensesSendStatus");
+const expensesStatus = document.querySelector("#expensesStatus");
+const expensesTotalAmount = document.querySelector("#expensesTotalAmount");
+const expensesTotalVat = document.querySelector("#expensesTotalVat");
+const expensesTotalRefund = document.querySelector("#expensesTotalRefund");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -1296,6 +1313,7 @@ function arrangeTabsForUser(user) {
     orderTab,
     historyTab,
     quoteTab,
+    expensesTab,
     notesTab,
     promotionTab,
     tarifTab,
@@ -1558,7 +1576,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, historyTab, quoteTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
@@ -1577,6 +1595,7 @@ function showApp(user, token = user.token || "") {
   resetQuoteRequest();
   renderQuoteLines();
   renderQuoteHistory();
+  resetExpenses();
   renderPrenetEmpty();
   renderNotesEmpty();
   selectedTourCodes = new Set();
@@ -1854,6 +1873,237 @@ function renderQuoteLines() {
       <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
     </tr>
   `).join("");
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function newExpenseLine() {
+  return {
+    id: crypto.randomUUID(),
+    date: todayIsoDate(),
+    type: "REPAS MIDI",
+    precision: "",
+    amount: "",
+    vat: "",
+    receiptName: "",
+    receiptFile: null,
+  };
+}
+
+function parseAmount(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  const normalizedValue = String(value).replace(/\s/g, "").replace(",", ".");
+  const number = Number(normalizedValue);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function getExpenseRefunds(linesToCompute = expenseLineItems) {
+  const dinnerByDate = new Map();
+  const hasHotelByDate = new Map();
+  linesToCompute.forEach((line) => {
+    const amount = parseAmount(line.amount);
+    if (!line.date || !amount) return;
+    if (line.type === "REPAS SOIR") dinnerByDate.set(line.date, roundMoney((dinnerByDate.get(line.date) || 0) + amount));
+    if (line.type === "HOTEL") hasHotelByDate.set(line.date, true);
+  });
+  return linesToCompute.map((line) => {
+    const amount = parseAmount(line.amount);
+    if (!amount) return 0;
+    if (line.type === "REPAS MIDI") return roundMoney(Math.min(amount, expenseLunchLimit));
+    if (line.type === "REPAS SOIR") return roundMoney(hasHotelByDate.get(line.date) ? amount : Math.min(amount, expenseDinnerLimit));
+    if (line.type === "HOTEL") {
+      const dinnerAmount = dinnerByDate.get(line.date) || 0;
+      return roundMoney(Math.min(amount, Math.max(0, expenseHotelDinnerLimit - dinnerAmount)));
+    }
+    return roundMoney(amount);
+  });
+}
+
+function getExpenseVatForTotals(line) {
+  const amount = parseAmount(line.amount);
+  const vat = parseAmount(line.vat);
+  if (line.type === "REPAS MIDI" && amount >= expenseLunchLimit) return 2;
+  return vat;
+}
+
+function renderExpenses() {
+  if (!expensesLines) return;
+  const refunds = getExpenseRefunds();
+  expensesLines.innerHTML = expenseLineItems.map((line, index) => {
+    const refunded = refunds[index] || 0;
+    const amount = parseAmount(line.amount);
+    const warning = amount && refunded < amount ? `<small class="expense-warning">Plafond appliqué : ${escapeHtml(formatter.format(refunded))}</small>` : "";
+    return `
+      <tr data-expense-line="${escapeHtml(line.id)}">
+        <td><input type="date" value="${escapeHtml(line.date)}" data-expense-field="date" /></td>
+        <td><select data-expense-field="type">${expenseTypes.map((type) => `<option value="${escapeHtml(type)}" ${line.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></td>
+        <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, hôtel, détail..." data-expense-field="precision" /></td>
+        <td><input type="text" inputmode="decimal" value="${escapeHtml(line.amount)}" placeholder="0,00" data-expense-field="amount" /></td>
+        <td><input type="text" inputmode="decimal" value="${escapeHtml(line.vat)}" placeholder="0,00" data-expense-field="vat" /></td>
+        <td><strong>${escapeHtml(formatter.format(refunded))}</strong>${warning}</td>
+        <td>
+          <label class="expense-upload">
+            <input type="file" accept="image/*,.pdf" capture="environment" data-expense-field="receipt" />
+            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter photo"}</span>
+          </label>
+        </td>
+        <td><button class="icon-button" type="button" data-remove-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
+      </tr>`;
+  }).join("");
+  updateExpenseSummary();
+}
+
+function updateExpenseSummary() {
+  if (!expensesTotalAmount || !expensesTotalVat || !expensesTotalRefund || !expensesStatus) return;
+  const refunds = getExpenseRefunds();
+  const totals = expenseLineItems.reduce((acc, line, index) => {
+    acc.amount += parseAmount(line.amount);
+    acc.vat += getExpenseVatForTotals(line);
+    acc.refund += refunds[index] || 0;
+    return acc;
+  }, { amount: 0, vat: 0, refund: 0 });
+  expensesTotalAmount.textContent = formatter.format(roundMoney(totals.amount));
+  expensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
+  expensesTotalRefund.textContent = formatter.format(roundMoney(totals.refund));
+  const filledCount = expenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
+  expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}`;
+}
+
+function resetExpenses() {
+  expenseLineItems = [newExpenseLine()];
+  if (expensesPeriod) expensesPeriod.value = "";
+  if (expensesNote) expensesNote.value = "";
+  if (expensesSendStatus) {
+    expensesSendStatus.textContent = "";
+    expensesSendStatus.className = "tarif-send-status";
+  }
+  renderExpenses();
+}
+
+function updateExpenseLine(id, field, value) {
+  const line = expenseLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+  renderExpenses();
+}
+
+function setExpenseLineField(id, field, value) {
+  const line = expenseLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+  updateExpenseSummary();
+}
+
+function addExpenseLineItem() {
+  expenseLineItems.push(newExpenseLine());
+  renderExpenses();
+}
+
+function removeExpenseLine(id) {
+  expenseLineItems = expenseLineItems.filter((line) => line.id !== id);
+  if (!expenseLineItems.length) expenseLineItems.push(newExpenseLine());
+  renderExpenses();
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizeImageDataUrl(file, maxSize = 1600, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * ratio));
+        canvas.height = Math.max(1, Math.round(image.height * ratio));
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      image.onerror = reject;
+      image.src = String(reader.result || "");
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function prepareExpenseReceipt(line, index) {
+  if (!line.receiptFile) return null;
+  const file = line.receiptFile;
+  const dataUrl = file.type.startsWith("image/") ? await resizeImageDataUrl(file) : await fileToDataUrl(file);
+  const extension = file.type.includes("pdf") ? "pdf" : "jpg";
+  const safeDate = (line.date || "sans-date").replaceAll("/", "-");
+  const safeType = normalize(line.type || "frais").replace(/[^a-z0-9]+/g, "-") || "frais";
+  return {
+    name: `${String(index + 1).padStart(2, "0")}-${safeDate}-${safeType}.${extension}`,
+    mimeType: file.type.includes("pdf") ? "application/pdf" : "image/jpeg",
+    dataUrl,
+  };
+}
+
+async function sendExpenseReportDraft() {
+  if (!currentUser || currentUser.role === "admin") return;
+  const filledLines = expenseLineItems
+    .map((line, index) => ({ ...line, index, amountNumber: parseAmount(line.amount), vatNumber: parseAmount(line.vat) }))
+    .filter((line) => line.date || line.type || line.precision || line.amountNumber || line.vatNumber || line.receiptFile);
+  if (!filledLines.length || !filledLines.some((line) => line.amountNumber > 0)) {
+    expensesSendStatus.textContent = "Ajoute au moins une ligne de frais avec un montant.";
+    expensesSendStatus.classList.add("is-error");
+    return;
+  }
+  sendExpenseReport.disabled = true;
+  sendExpenseReport.textContent = "Envoi en cours…";
+  expensesSendStatus.textContent = "Préparation du fichier Excel et des justificatifs…";
+  expensesSendStatus.className = "tarif-send-status";
+  try {
+    const refunds = getExpenseRefunds(expenseLineItems);
+    const receiptEntries = [];
+    for (const line of filledLines) {
+      const receipt = await prepareExpenseReceipt(line, line.index);
+      if (receipt) receiptEntries.push({ lineId: line.id, ...receipt });
+    }
+    const payloadLines = filledLines.map((line) => ({
+      date: line.date,
+      type: line.type,
+      precision: line.precision,
+      amount: line.amountNumber,
+      vat: getExpenseVatForTotals(line),
+      refund: refunds[line.index] || 0,
+      receiptName: receiptEntries.find((receipt) => receipt.lineId === line.id)?.name || "",
+    }));
+    const result = await postService({
+      action: "sendExpenseReport",
+      period: expensesPeriod.value.trim(),
+      note: expensesNote.value.trim(),
+      lines: JSON.stringify(payloadLines),
+      receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
+    });
+    const successMessage = result.message || "Frais envoyés.";
+    recordActivity("Frais envoyés", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
+    resetExpenses();
+    expensesSendStatus.textContent = successMessage;
+    expensesSendStatus.classList.add("is-success");
+  } catch (error) {
+    expensesSendStatus.textContent = error.message || "L'envoi des frais a échoué.";
+    expensesSendStatus.classList.add("is-error");
+  } finally {
+    sendExpenseReport.disabled = false;
+    sendExpenseReport.textContent = "Envoyer mes frais";
+  }
 }
 
 function quoteHistoryKey() {
@@ -3612,6 +3862,7 @@ function setActiveTab(tabName) {
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
+  const showExpenses = tabName === "expenses";
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
   const showBacklog = tabName === "backlog";
@@ -3623,6 +3874,7 @@ function setActiveTab(tabName) {
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
+  expensesTab.classList.toggle("is-active", showExpenses);
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
   backlogTab.classList.toggle("is-active", showBacklog);
@@ -3634,6 +3886,7 @@ function setActiveTab(tabName) {
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
+  expensesView.classList.toggle("is-hidden", !showExpenses);
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
   backlogView.classList.toggle("is-hidden", !showBacklog);
@@ -3643,7 +3896,7 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -3653,6 +3906,11 @@ function setActiveTab(tabName) {
 
   if (showHistory) {
     renderOrderHistory();
+  }
+
+  if (showExpenses) {
+    renderExpenses();
+    requestAnimationFrame(() => expensesPeriod?.focus());
   }
 
   if (showNotes) {
@@ -4026,6 +4284,7 @@ homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
+expensesTab.addEventListener("click", () => setActiveTab("expenses"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
 backlogTab.addEventListener("click", () => setActiveTab("backlog"));
@@ -4084,6 +4343,34 @@ quoteLines.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-quote-line]");
   if (!button) return;
   removeQuoteLineItem(button.dataset.removeQuoteLine);
+});
+addExpenseLine.addEventListener("click", addExpenseLineItem);
+sendExpenseReport.addEventListener("click", sendExpenseReportDraft);
+expensesLines.addEventListener("input", (event) => {
+  const row = event.target.closest("[data-expense-line]");
+  const field = event.target.dataset.expenseField;
+  if (!row || !field || field === "receipt") return;
+  setExpenseLineField(row.dataset.expenseLine, field, event.target.value);
+});
+expensesLines.addEventListener("change", (event) => {
+  const row = event.target.closest("[data-expense-line]");
+  const field = event.target.dataset.expenseField;
+  if (!row || !field) return;
+  const line = expenseLineItems.find((item) => item.id === row.dataset.expenseLine);
+  if (!line) return;
+  if (field === "receipt") {
+    const file = event.target.files?.[0] || null;
+    line.receiptFile = file;
+    line.receiptName = file ? file.name : "";
+    renderExpenses();
+    return;
+  }
+  updateExpenseLine(line.id, field, event.target.value);
+});
+expensesLines.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-expense-line]");
+  if (!button) return;
+  removeExpenseLine(button.dataset.removeExpenseLine);
 });
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 showAllNotesButton.addEventListener("click", renderAllNotes);

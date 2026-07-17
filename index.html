@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260716i" />
+    <link rel="stylesheet" href="style.css?v=20260717a" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -107,6 +107,7 @@
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
+        <button class="tab-button" type="button" id="expensesTab">Frais</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
@@ -169,6 +170,7 @@
             <button type="button" data-tablet-tab="order">Nouvelle commande</button>
             <button type="button" data-tablet-tab="notes">Prise de notes</button>
             <button type="button" data-tablet-tab="quote">Demande de devis</button>
+            <button type="button" data-tablet-tab="expenses">Frais</button>
             <button type="button" data-tablet-tab="tour">Tournées</button>
             <button type="button" data-tablet-tab="backlog">Reliquats & reprise</button>
           </div>
@@ -406,6 +408,66 @@
             </div>
             <div class="quote-history-list" id="quoteHistoryList"></div>
           </section>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="expensesView">
+        <section class="panel expenses-panel" aria-labelledby="expensesTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Note de frais</p>
+              <h2 id="expensesTitle">Frais commerciaux</h2>
+              <p class="helper-text">Saisissez vos frais, ajoutez une photo du justificatif, puis envoyez le tableau complet à l'administration.</p>
+            </div>
+            <span class="status-pill" id="expensesStatus">En préparation</span>
+          </div>
+
+          <section class="expenses-rules" aria-label="Règles de remboursement">
+            <article><strong>Repas midi</strong><span>Remboursé jusqu'à 20 € TTC.</span></article>
+            <article><strong>Repas soir</strong><span>20 € TTC sans hôtel, inclus dans le plafond hôtel si même date.</span></article>
+            <article><strong>Hôtel + dîner</strong><span>Plafond global 115 € TTC par date.</span></article>
+            <article><strong>Invitation client</strong><span>Indiquez le client et le nombre de personnes.</span></article>
+          </section>
+
+          <div class="expenses-meta">
+            <label>
+              Semaine / période
+              <input id="expensesPeriod" type="text" autocomplete="off" placeholder="Ex. Semaine 25-26-27, juillet 2026…" />
+            </label>
+            <label>
+              Commentaire général
+              <input id="expensesNote" type="text" autocomplete="off" placeholder="Optionnel : précision pour la secrétaire…" />
+            </label>
+          </div>
+
+          <div class="expenses-table-wrap">
+            <table class="expenses-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type de frais</th>
+                  <th>Précision</th>
+                  <th>Montant TTC</th>
+                  <th>Dont TVA</th>
+                  <th>Remboursé</th>
+                  <th>Justificatif</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expensesLines"></tbody>
+            </table>
+          </div>
+
+          <div class="expenses-actions">
+            <button class="ghost-button compact" type="button" id="addExpenseLine">Ajouter une ligne</button>
+            <dl class="expenses-summary">
+              <div><dt>Total TTC</dt><dd id="expensesTotalAmount">0,00 €</dd></div>
+              <div><dt>TVA</dt><dd id="expensesTotalVat">0,00 €</dd></div>
+              <div><dt>Net à payer</dt><dd id="expensesTotalRefund">0,00 €</dd></div>
+            </dl>
+            <button class="primary-button" type="button" id="sendExpenseReport">Envoyer mes frais</button>
+            <p class="tarif-send-status" id="expensesSendStatus"></p>
+          </div>
         </section>
       </main>
 
@@ -785,9 +847,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260716i" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260717a" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260716i" charset="UTF-8"></script>
+    <script src="script.js?v=20260717a" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
