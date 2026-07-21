@@ -194,6 +194,7 @@
   display: none;
 }
 .client360-card { padding: 20px; min-width: 0; overflow: hidden; }
+.client360-card-wide { grid-column: 1 / -1; }
 .client360-card h3 { margin: 4px 0 0; font-size: 22px; }
 .client360-list { display: grid; gap: 10px; min-width: 0; }
 .client360-row {
@@ -268,6 +269,12 @@
   font-size: 19px;
   overflow-wrap: anywhere;
 }
+.client360-article-mini-kpis em {
+  color: inherit;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
 .client360-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -276,7 +283,7 @@
 }
 .client360-article-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
 }
 .client360-article-table th,
@@ -3936,10 +3943,12 @@ h2 {
   gap: 12px;
   text-align: right;
 }
-.tablet-mode .client360-article-table td:nth-child(3)::before { content: "Qté 2026"; color: var(--muted); }
-.tablet-mode .client360-article-table td:nth-child(4)::before { content: "Qté N-1"; color: var(--muted); }
-.tablet-mode .client360-article-table td:nth-child(5)::before { content: "Évolution"; color: var(--muted); }
-.tablet-mode .client360-article-table td:nth-child(6)::before { content: "Indicateur"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(3)::before { content: "CA 2026"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(4)::before { content: "CA N-1"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(5)::before { content: "Écart €"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(6)::before { content: "Qté 2026"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(7)::before { content: "Qté N-1"; color: var(--muted); }
+.tablet-mode .client360-article-table td:nth-child(8)::before { content: "Écart Qté"; color: var(--muted); }
 
 .tablet-mode .order-table thead,
 .tablet-mode .quote-table thead,

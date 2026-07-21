@@ -31,7 +31,7 @@ let voiceNoteListening = false;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
-let backlogItemsCache = Array.isArray(initialBacklogItems) ? initialBacklogItems : [];
+let backlogItemsCache = Array.isArray(initialBacklogItems) ?initialBacklogItems : [];
 let selectedTourCodes = new Set();
 let tourMapInstance = null;
 let tourMarkersLayer = null;
@@ -271,16 +271,16 @@ async function postService(parameters) {
     body: new URLSearchParams(payload),
   });
   const result = JSON.parse(await response.text());
-  if (!result.ok) throw new Error(result.message || "OpÃ©ration impossible.");
+  if (!result.ok) throw new Error(result.message || "Op?ration impossible.");
   return result;
 }
 
 function applySecureAppData(result) {
   if (!result) return;
   const previousEndpoint = tariffConfig.endpoint || "";
-  allClients = Array.isArray(result.appData?.clients) ? result.appData.clients : [];
-  products = Array.isArray(result.appData?.products) ? result.appData.products : [];
-  prenetClients = Array.isArray(result.prenetData?.clients) ? result.prenetData.clients : [];
+  allClients = Array.isArray(result.appData?.clients) ?result.appData.clients : [];
+  products = Array.isArray(result.appData?.products) ?result.appData.products : [];
+  prenetClients = Array.isArray(result.prenetData?.clients) ?result.prenetData.clients : [];
   prenetDataMeta = {
     updatedAt: result.prenetData?.updatedAt || "",
     sourceFile: result.prenetData?.sourceFile || "",
@@ -343,7 +343,7 @@ async function refreshSecureAppDataInBackground(token, userId) {
       if (selectedClient360) selectClient360(selectedClient360);
     }
   } catch (error) {
-    // La copie locale permet de continuer Ã  travailler mÃªme si Google rÃ©pond lentement.
+    // La copie locale permet de continuer ? travailler m?me si Google r?pond lentement.
   }
 }
 
@@ -353,7 +353,7 @@ async function refreshPromotionsFromDrive(force = false) {
   promotionsRefreshInProgress = true;
   lastPromotionsRefreshAt = Date.now();
   if (promotionSendStatus) {
-    promotionSendStatus.textContent = "Actualisation des promotions Driveâ€¦";
+    promotionSendStatus.textContent = "Actualisation des promotions Drive?";
     promotionSendStatus.className = "tarif-send-status";
   }
   try {
@@ -361,12 +361,12 @@ async function refreshPromotionsFromDrive(force = false) {
     applySecureAppData(result);
     saveSecureDataCache(currentUser?.id || "", result);
     if (promotionSendStatus) {
-      promotionSendStatus.textContent = "Promotions Drive Ã  jour.";
+      promotionSendStatus.textContent = "Promotions Drive ? jour.";
       promotionSendStatus.classList.add("is-success");
     }
   } catch (error) {
     if (promotionSendStatus) {
-      promotionSendStatus.textContent = "Impossible d'actualiser Drive pour l'instant. DerniÃ¨re liste conservÃ©e.";
+      promotionSendStatus.textContent = "Impossible d'actualiser Drive pour l'instant. Derni?re liste conserv?e.";
       promotionSendStatus.classList.add("is-warning");
     }
   } finally {
@@ -394,17 +394,17 @@ function recordActivity(type, detail = "") {
 function setDisplayMode(mode) {
   const tablet = mode === "tablet";
   document.body.classList.toggle("tablet-mode", tablet);
-  localStorage.setItem(displayModeStorageKey, tablet ? "tablet" : "pc");
-  displayModeToggle.textContent = tablet ? "Mode PC" : "Mode tablette";
+  localStorage.setItem(displayModeStorageKey, tablet ?"tablet" : "pc");
+  displayModeToggle.textContent = tablet ?"Mode PC" : "Mode tablette";
 }
 
 function toggleDisplayMode() {
-  setDisplayMode(document.body.classList.contains("tablet-mode") ? "pc" : "tablet");
+  setDisplayMode(document.body.classList.contains("tablet-mode") ?"pc" : "tablet");
 }
 
 async function loadAdminLogs() {
   if (currentUser?.role !== "admin") return;
-  adminLogStatus.textContent = "Actualisationâ€¦";
+  adminLogStatus.textContent = "Actualisation?";
   refreshAdminLogs.disabled = true;
   try {
     const [result, expenseResult] = await Promise.all([
@@ -415,9 +415,9 @@ async function loadAdminLogs() {
     adminExpenseReportsCache = expenseResult.reports || [];
     renderAdminScopeOptions(adminLogsCache, adminExpenseReportsCache);
     renderAdminDashboard();
-    adminLogStatus.textContent = "Ã€ jour";
+    adminLogStatus.textContent = "? jour";
   } catch (error) {
-    adminLogStatus.textContent = "Erreur dâ€™actualisation";
+    adminLogStatus.textContent = "Erreur d?actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
     adminExpenseBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Impossible de charger les frais. Reconnectez-vous.</td></tr>';
@@ -438,13 +438,13 @@ function renderAdminScopeOptions(logs, expenseReports = []) {
   [...users.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr")).forEach(([id, name]) => options.push({ value: `user:${id}`, label: name }));
   [...sectors].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })).forEach((sector) => options.push({ value: `sector:${sector}`, label: sector }));
   adminScopeFilter.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
-  adminScopeFilter.value = options.some((option) => option.value === selected) ? selected : "all";
+  adminScopeFilter.value = options.some((option) => option.value === selected) ?selected : "all";
 }
 
 function getFilteredAdminLogs() {
   const scope = adminScopeFilter.value || "all";
   const resetAt = Number(localStorage.getItem(adminResetKey) || 0);
-  const recentLogs = resetAt ? adminLogsCache.filter((log) => parseFrenchDateTime(log.date) >= resetAt) : adminLogsCache;
+  const recentLogs = resetAt ?adminLogsCache.filter((log) => parseFrenchDateTime(log.date) >= resetAt) : adminLogsCache;
   if (scope === "all") return recentLogs;
   if (scope.startsWith("user:")) return recentLogs.filter((log) => log.userId === scope.slice(5));
   if (scope.startsWith("sector:")) return recentLogs.filter((log) => String(log.sectors || "").includes(scope.slice(7)));
@@ -469,7 +469,7 @@ function parseFrenchDateTime(value = "") {
 function resetAdminLogDisplay() {
   localStorage.setItem(adminResetKey, String(Date.now()));
   renderAdminDashboard();
-  adminLogStatus.textContent = "Affichage remis Ã  zÃ©ro";
+  adminLogStatus.textContent = "Affichage remis ? z?ro";
 }
 
 function adminActionClass(type = "") {
@@ -484,7 +484,7 @@ function adminActionClass(type = "") {
 function renderAdminDashboard() {
   const logs = getFilteredAdminLogs();
   const counts = logs.reduce((result, log) => {
-    const type = log.type || "ActivitÃ©";
+    const type = log.type || "Activit?";
     result[type] = (result[type] || 0) + 1;
     return result;
   }, {});
@@ -498,34 +498,34 @@ function renderAdminDashboard() {
   renderAdminExpenses();
 
   adminTypeSummary.innerHTML = Object.keys(counts).length
-    ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
+    ?Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
       <div class="admin-type-row">
         <span class="admin-action-badge ${adminActionClass(type)}">${escapeHtml(type)}</span>
         <strong>${count}</strong>
       </div>`).join("")
-    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activit? sur ce filtre.</div>';
 
   adminActivityFeed.innerHTML = logs.length
-    ? logs.slice(0, 40).map((log) => `
+    ?logs.slice(0, 40).map((log) => `
       <article class="admin-feed-item">
         <div class="admin-feed-top">
-          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span>
+          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activit?")}</span>
           <small>${escapeHtml(log.date || "-")}</small>
         </div>
         <strong>${escapeHtml(log.userName || log.userId || "-")}</strong>
         <p>${escapeHtml(log.detail || "-")}</p>
         <small>${escapeHtml(log.sectors || "-")}</small>
       </article>`).join("")
-    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activit? sur ce filtre.</div>';
 
-  adminLogBody.innerHTML = logs.length ? logs.map((log) => `
+  adminLogBody.innerHTML = logs.length ?logs.map((log) => `
     <tr>
       <td>${escapeHtml(log.date || "-")}</td>
       <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
       <td>${escapeHtml(log.sectors || "-")}</td>
-      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span></td>
+      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activit?")}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
-    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activitÃ© enregistrÃ©e pour ce filtre.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activit? enregistr?e pour ce filtre.</td></tr>';
 }
 
 function renderAdminExpenses() {
@@ -533,17 +533,17 @@ function renderAdminExpenses() {
   const total = reports.reduce((sum, report) => sum + (Number(report.totals?.refund) || 0), 0);
   adminExpenseCount.textContent = String(reports.length);
   adminExpenseTotal.textContent = formatter.format(roundMoney(total));
-  adminExpenseBody.innerHTML = reports.length ? reports.map((report) => {
-    const lines = Array.isArray(report.lines) ? report.lines : [];
-    const lineDetails = lines.length ? `
+  adminExpenseBody.innerHTML = reports.length ?reports.map((report) => {
+    const lines = Array.isArray(report.lines) ?report.lines : [];
+    const lineDetails = lines.length ?`
       <details class="admin-expense-details">
-        <summary>${lines.length} ligne${lines.length > 1 ? "s" : ""}</summary>
+        <summary>${lines.length} ligne${lines.length > 1 ?"s" : ""}</summary>
         <ul>
           ${lines.map((line) => `
             <li>
-              <strong>${escapeHtml(line.date || "-")} Â· ${escapeHtml(line.type || "-")}</strong>
-              <span>${escapeHtml(line.precision || "Sans prÃ©cision")}</span>
-              <em>${escapeHtml(formatter.format(roundMoney(line.refund || 0)))} / ${escapeHtml(formatter.format(roundMoney(line.amount || 0)))} TTC${line.receiptName ? ` Â· justificatif : ${escapeHtml(line.receiptName)}` : ""}</em>
+              <strong>${escapeHtml(line.date || "-")} ? ${escapeHtml(line.type || "-")}</strong>
+              <span>${escapeHtml(line.precision || "Sans pr?cision")}</span>
+              <em>${escapeHtml(formatter.format(roundMoney(line.refund || 0)))} / ${escapeHtml(formatter.format(roundMoney(line.amount || 0)))} TTC${line.receiptName ?` ? justificatif : ${escapeHtml(line.receiptName)}` : ""}</em>
             </li>
           `).join("")}
         </ul>
@@ -554,13 +554,13 @@ function renderAdminExpenses() {
         <td>${escapeHtml(report.updatedAt || report.createdAt || "-")}</td>
         <td><strong>${escapeHtml(report.userName || report.userId || "-")}</strong></td>
         <td>${escapeHtml(report.sectors || "-")}</td>
-        <td><span class="admin-action-badge ${normalize(report.status || "").includes("envoye") ? "is-document" : "is-navigation"}">${escapeHtml(report.status || "EnregistrÃ©")}</span></td>
+        <td><span class="admin-action-badge ${normalize(report.status || "").includes("envoye") ?"is-document" : "is-navigation"}">${escapeHtml(report.status || "Enregistr?")}</span></td>
         <td><strong>${escapeHtml(report.title || "Note de frais")}</strong><br><small>${escapeHtml(report.note || "")}</small></td>
         <td><strong>${escapeHtml(formatter.format(roundMoney(report.totals?.refund || 0)))}</strong><br><small>TVA ${escapeHtml(formatter.format(roundMoney(report.totals?.vat || 0)))}</small></td>
         <td>${lineDetails}</td>
       </tr>
     `;
-  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrÃ©e pour ce filtre.</td></tr>';
+  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistr?e pour ce filtre.</td></tr>';
 }
 
 function resetTarifForm() {
@@ -578,8 +578,8 @@ function openTarifForm(tariffId) {
   selectedTarifName.textContent = selectedTariff.name;
   tarifSendForm.classList.remove("is-hidden");
   tarifSendStatus.textContent = tariffConfig.endpoint
-    ? ""
-    : "Lâ€™envoi sera disponible aprÃ¨s lâ€™autorisation Google de lâ€™adresse expÃ©ditrice.";
+    ?""
+    : "L?envoi sera disponible apr?s l?autorisation Google de l?adresse exp?ditrice.";
   requestAnimationFrame(() => tarifRecipient.focus());
 }
 
@@ -596,23 +596,23 @@ async function sendTarif(event) {
   }
 
   if (!tariffConfig.endpoint) {
-    tarifSendStatus.textContent = "Lâ€™adresse dâ€™envoi doit dâ€™abord Ãªtre autorisÃ©e par Google.";
+    tarifSendStatus.textContent = "L?adresse d?envoi doit d?abord ?tre autoris?e par Google.";
     tarifSendStatus.classList.add("is-warning");
     return;
   }
 
   sendTarifButton.disabled = true;
-  sendTarifButton.textContent = "Envoi en coursâ€¦";
+  sendTarifButton.textContent = "Envoi en cours?";
   tarifSendStatus.textContent = "";
 
   try {
     await postService({ action: "sendTariff", recipient, tariff: selectedTariff?.id || "" });
-    tarifSendStatus.textContent = `${selectedTariff.name} envoyÃ© Ã  ${recipient}.`;
+    tarifSendStatus.textContent = `${selectedTariff.name} envoy? ? ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
-    recordActivity("Document envoyÃ©", `${selectedTariff.name} envoyÃ© Ã  ${recipient}`);
+    recordActivity("Document envoy?", `${selectedTariff.name} envoy? ? ${recipient}`);
     tarifRecipient.value = "";
   } catch (error) {
-    tarifSendStatus.textContent = "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. RÃ©essayez dans quelques instants.";
+    tarifSendStatus.textContent = "L?envoi n?a pas pu ?tre effectu?. R?essayez dans quelques instants.";
     tarifSendStatus.classList.add("is-error");
   } finally {
     sendTarifButton.disabled = false;
@@ -621,7 +621,7 @@ async function sendTarif(event) {
 }
 
 function getPromotions() {
-  return Array.isArray(tariffConfig.promotions) ? tariffConfig.promotions : [];
+  return Array.isArray(tariffConfig.promotions) ?tariffConfig.promotions : [];
 }
 
 function drivePreviewUrl(fileId) {
@@ -635,7 +635,7 @@ function renderPromotions() {
   if (!promotions.length) {
     promotionGrid.innerHTML = `
       <div class="promotion-empty">
-        <strong>Aucune promotion configurÃ©e pour le moment.</strong>
+        <strong>Aucune promotion configur?e pour le moment.</strong>
         <span>Ajoute les PDF dans le Drive, puis indique leurs fichiers dans la configuration pour les afficher ici.</span>
       </div>`;
     return;
@@ -645,7 +645,7 @@ function renderPromotions() {
     <article class="promotion-card">
       <label class="promotion-check">
         <input type="checkbox" value="${escapeHtml(promotion.id)}" />
-        <span>SÃ©lectionner</span>
+        <span>S?lectionner</span>
       </label>
       <div class="promotion-preview-thumb">
         <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
@@ -653,10 +653,10 @@ function renderPromotions() {
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
-        <p>${escapeHtml(promotion.description || "PDF promotionnel prÃªt Ã  prÃ©senter ou envoyer.")}</p>
+        <p>${escapeHtml(promotion.description || "PDF promotionnel pr?t ? pr?senter ou envoyer.")}</p>
       </div>
       <div class="promotion-card-actions">
-        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">AperÃ§u plein Ã©cran</button>
+        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">Aper?u plein ?cran</button>
         <button class="primary-button compact" type="button" data-send-promotion="${escapeHtml(promotion.id)}">Envoyer</button>
       </div>
     </article>`).join("");
@@ -673,7 +673,7 @@ function openPromotionPreview(promotionId) {
   promotionModalTitle.textContent = promotion.name;
   promotionPreviewFrame.src = drivePreviewUrl(promotion.driveFileId);
   promotionModal.classList.remove("is-hidden");
-  recordActivity("Promotion consultÃ©e", promotion.name);
+  recordActivity("Promotion consult?e", promotion.name);
 }
 
 function closePromotionPreview() {
@@ -692,22 +692,22 @@ async function sendPromotions(forcedId = "") {
     return;
   }
   if (!ids.length) {
-    promotionSendStatus.textContent = "SÃ©lectionnez au moins une promotion.";
+    promotionSendStatus.textContent = "S?lectionnez au moins une promotion.";
     promotionSendStatus.classList.add("is-error");
     return;
   }
 
   sendSelectedPromotions.disabled = true;
-  promotionSendStatus.textContent = "Envoi en coursâ€¦";
+  promotionSendStatus.textContent = "Envoi en cours?";
   try {
     await postService({ action: "sendDocuments", recipient, documents: ids.join(",") });
     const names = getPromotions().filter((item) => ids.includes(item.id)).map((item) => item.name).join(", ");
-    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyÃ©e${ids.length > 1 ? "s" : ""} Ã  ${recipient}.`;
+    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ?"s" : ""} envoy?e${ids.length > 1 ?"s" : ""} ? ${recipient}.`;
     promotionSendStatus.classList.add("is-success");
-    recordActivity("Promotion envoyÃ©e", `${names} envoyÃ© Ã  ${recipient}`);
+    recordActivity("Promotion envoy?e", `${names} envoy? ? ${recipient}`);
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
   } catch (error) {
-    promotionSendStatus.textContent = error.message || "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. VÃ©rifiez que les promotions sont bien activÃ©es cÃ´tÃ© Drive.";
+    promotionSendStatus.textContent = error.message || "L?envoi n?a pas pu ?tre effectu?. V?rifiez que les promotions sont bien activ?es c?t? Drive.";
     promotionSendStatus.classList.add("is-error");
   } finally {
     sendSelectedPromotions.disabled = false;
@@ -733,8 +733,8 @@ function renderPrenetEmpty() {
   prenetSector.textContent = currentUser?.sectors?.join(" + ") || currentUser?.sector || "Secteur";
   prenetResult.innerHTML = `
     <div class="prenet-empty">
-      <strong>SÃ©lectionnez un client</strong>
-      <span>Ses nouveaux prix nets apparaÃ®tront ici, classÃ©s par rÃ©fÃ©rence.</span>
+      <strong>S?lectionnez un client</strong>
+      <span>Ses nouveaux prix nets appara?tront ici, class?s par r?f?rence.</span>
     </div>`;
 }
 
@@ -774,14 +774,14 @@ function renderPrenetTable(title, entries, statusClass) {
     <section class="prenet-group">
       <div class="prenet-group-heading">
         <h3>${escapeHtml(title)}</h3>
-        <span class="prenet-count">${entries.length} rÃ©fÃ©rence${entries.length > 1 ? "s" : ""}</span>
+        <span class="prenet-count">${entries.length} r?f?rence${entries.length > 1 ?"s" : ""}</span>
       </div>
       <div class="prenet-table-wrap">
         <table class="prenet-table">
-          <thead><tr><th>RÃ©fÃ©rence</th><th>QuantitÃ©</th><th>Prix net</th><th>Statut</th></tr></thead>
+          <thead><tr><th>R?f?rence</th><th>Quantit?</th><th>Prix net</th><th>Statut</th></tr></thead>
           <tbody>${entries.map((entry) => `
             <tr>
-              <td><strong>${escapeHtml(entry.ref || "-")}</strong>${entry.designation ? `<small>${escapeHtml(entry.designation)}</small>` : ""}</td>
+              <td><strong>${escapeHtml(entry.ref || "-")}</strong>${entry.designation ?`<small>${escapeHtml(entry.designation)}</small>` : ""}</td>
               <td>${formatNumber(entry.quantity)}</td>
               <td><strong>${escapeHtml(formatter.format(Number(entry.price) || 0))}</strong></td>
               <td><span class="prenet-badge ${statusClass}">${escapeHtml(entry.status || title)}</span></td>
@@ -792,7 +792,7 @@ function renderPrenetTable(title, entries, statusClass) {
 }
 
 function getPrenetNewEntries(client) {
-  const entries = Array.isArray(client?.entries) ? [...client.entries] : [];
+  const entries = Array.isArray(client?.entries) ?[...client.entries] : [];
   entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
   return entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
 }
@@ -816,26 +816,26 @@ function renderPrenetReferenceResults(client, query = "") {
     return '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>';
   }
   if (!visibleEntries.length) {
-    return '<div class="prenet-empty"><strong>Aucune rÃ©fÃ©rence trouvÃ©e</strong><span>Essayez une autre rÃ©fÃ©rence ou une partie du nom produit.</span></div>';
+    return '<div class="prenet-empty"><strong>Aucune r?f?rence trouv?e</strong><span>Essayez une autre r?f?rence ou une partie du nom produit.</span></div>';
   }
   return renderPrenetTable("Nouveaux prix nets", visibleEntries, "is-new");
 }
 
 function selectPrenetClient(client) {
   selectedPrenetClient = client;
-  prenetClientSearch.value = `${client.name || ""}${client.code ? ` Â· ${client.code}` : ""}`;
+  prenetClientSearch.value = `${client.name || ""}${client.code ?` ? ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
   const newEntries = getPrenetNewEntries(client);
-  recordActivity("Prix nets consultÃ©s", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} rÃ©fÃ©rence(s)`);
+  recordActivity("Prix nets consult?s", `${client.name || "Client"}${client.code ?` (${client.code})` : ""} - ${newEntries.length} r?f?rence(s)`);
 
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
       <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
-      <div class="prenet-update"><span>Mise Ã  jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
+      <div class="prenet-update"><span>Mise ? jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
     <div class="prenet-reference-search">
-      <label for="prenetReferenceSearch">Rechercher une rÃ©fÃ©rence</label>
-      <input id="prenetReferenceSearch" type="search" autocomplete="off" placeholder="Tapez une rÃ©fÃ©rence ou un nom produitâ€¦" />
+      <label for="prenetReferenceSearch">Rechercher une r?f?rence</label>
+      <input id="prenetReferenceSearch" type="search" autocomplete="off" placeholder="Tapez une r?f?rence ou un nom produit?" />
     </div>
     <div id="prenetReferenceResults">
       ${renderPrenetReferenceResults(client)}
@@ -867,12 +867,12 @@ function getStatsDepartment(client) {
 
 function formatSignedCurrency(value) {
   const amount = Number(value) || 0;
-  return `${amount >= 0 ? "+" : "-"}${formatter.format(Math.abs(amount))}`;
+  return `${amount >= 0 ?"+" : "-"}${formatter.format(Math.abs(amount))}`;
 }
 
 function formatSignedPercent(value) {
   const amount = Number(value) || 0;
-  return `${amount >= 0 ? "+" : "-"}${Math.abs(amount).toFixed(1).replace(".", ",")}%`;
+  return `${amount >= 0 ?"+" : "-"}${Math.abs(amount).toFixed(1).replace(".", ",")}%`;
 }
 
 function monthNameFromObjectiveLabel(label) {
@@ -881,24 +881,24 @@ function monthNameFromObjectiveLabel(label) {
 
 function buildComparisonNote(current, target, suffix) {
   const diff = Number(current || 0) - Number(target || 0);
-  const pct = target ? (diff / Number(target || 0)) * 100 : 0;
-  const sign = diff >= 0 ? "+" : "";
+  const pct = target ?(diff / Number(target || 0)) * 100 : 0;
+  const sign = diff >= 0 ?"+" : "";
   return `${sign}${formatter.format(diff)} - ${sign}${pct.toFixed(1).replace(".", ",")}% ${suffix || ""}`.trim();
 }
 
 function buildGoal(label, current, target, options = {}) {
   const diff = Number(current || 0) - Number(target || 0);
-  const percent = target ? (Number(current || 0) / Number(target || 0)) * 100 : 0;
+  const percent = target ?(Number(current || 0) / Number(target || 0)) * 100 : 0;
   const remaining = Math.max(0, Number(target || 0) - Number(current || 0));
-  const sign = diff >= 0 ? "+" : "";
+  const sign = diff >= 0 ?"+" : "";
   return {
     label,
     current,
     target,
-    percent: typeof options.percent === "number" ? options.percent : percent,
+    percent: typeof options.percent === "number" ?options.percent : percent,
     format: options.format || "currency",
     valueLabel: options.valueLabel || `${formatter.format(Number(current) || 0)} / ${formatter.format(Number(target) || 0)}`,
-    note: options.note || `${sign}${formatter.format(diff)} Â· ${sign}${percent.toFixed(1).replace(".", ",")}%`,
+    note: options.note || `${sign}${formatter.format(diff)} ? ${sign}${percent.toFixed(1).replace(".", ",")}%`,
     remaining,
   };
 }
@@ -941,23 +941,23 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
 
   const topClients = [...clientTotals.values()].filter((client) => client.revenue > 0).sort((a, b) => b.revenue - a.revenue);
   const values = topClients.map((client) => client.revenue).sort((a, b) => a - b);
-  const median = values.length ? values[Math.floor(values.length / 2)] : 0;
+  const median = values.length ?values[Math.floor(values.length / 2)] : 0;
   const goals = [];
   const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
   const ytdObjective = Number(sourceInfo.ytdObjectives?.[sector]) || 0;
   const annualObjective = Number(sourceInfo.annualObjectives?.[sector]) || 0;
   const objectiveTarget = monthlyObjective || totalObjective;
   const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
-  const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
+  const objectivePercent = objectiveTarget > 0 ?(totalRevenue / objectiveTarget) * 100 : 0;
   const objectiveMonthLabel = sourceInfo.objectiveMonthLabel || "mois";
   const monthName = monthNameFromObjectiveLabel(objectiveMonthLabel);
   const monthTitle = `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)}`;
   const cumulativeLabel = `janvier-${monthName}`;
-  const projectionValue = totalObjective > 0 ? totalObjective : totalRevenue;
+  const projectionValue = totalObjective > 0 ?totalObjective : totalRevenue;
 
   if (ytdObjective > 0 || projectionValue > 0) {
     goals.push(buildGoal(`Projection ${cumulativeLabel}`, projectionValue, ytdObjective, {
-      note: ytdObjective > 0 ? buildComparisonNote(projectionValue, ytdObjective, "vs objectif") : "Objectif cumule absent du fichier previsionnel.",
+      note: ytdObjective > 0 ?buildComparisonNote(projectionValue, ytdObjective, "vs objectif") : "Objectif cumule absent du fichier previsionnel.",
     }));
   }
   if (totalPrevious > 0) {
@@ -994,15 +994,15 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
     }));
   }
   const safeGoals = goals.length
-    ? goals
-    : (Array.isArray(fallbackStats.goals) ? fallbackStats.goals.map((goal) => ({
+    ?goals
+    : (Array.isArray(fallbackStats.goals) ?fallbackStats.goals.map((goal) => ({
         ...goal,
-        note: goal.note ? `${goal.note} Â· rÃ©fÃ©rence prÃ©visionnelle` : "RÃ©fÃ©rence prÃ©visionnelle",
+        note: goal.note ?`${goal.note} ? r?f?rence pr?visionnelle` : "R?f?rence pr?visionnelle",
       })) : []);
 
   return {
     updatedAt: sourceInfo.updatedAt || "Drive",
-    periodLabel: `CA depuis le dÃ©but du mois Â· ${sector} Â· ${sourceInfo.sourceFile || "fichier Drive"}`,
+    periodLabel: `CA depuis le d?but du mois ? ${sector} ? ${sourceInfo.sourceFile || "fichier Drive"}`,
     kpis: {
       revenue: totalRevenue,
       clients: topClients.length,
@@ -1012,13 +1012,13 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       objectiveRemaining,
       objectivePercent,
       objectiveMonthLabel: sourceInfo.objectiveMonthLabel || "mois",
-      averageClient: topClients.length ? totalRevenue / topClients.length : 0,
+      averageClient: topClients.length ?totalRevenue / topClients.length : 0,
       medianClient: median,
       revenueNote: "CA fichier Drive",
       clientsNote: monthlyObjective > 0
-        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
-        : `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
-      averageNote: `MÃ©diane : ${formatter.format(median)}`,
+        ?`${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint ? reste ${formatter.format(objectiveRemaining)}`
+        : `${topClients.length} client${topClients.length > 1 ?"s" : ""} avec CA`,
+      averageNote: `M?diane : ${formatter.format(median)}`,
     },
     salesTrend: [...departmentTotals.entries()]
       .map(([label, value]) => ({ label, value }))
@@ -1055,7 +1055,7 @@ async function loadDashboardStatsFromDrive() {
   if (!currentSessionToken || dashboardStatsLoading || currentUser?.role === "admin") return;
   dashboardStatsLoading = true;
   const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
-  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Driveâ€¦";
+  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive?";
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -1070,7 +1070,7 @@ async function loadDashboardStatsFromDrive() {
     renderDashboardSectorSwitch(currentUser);
     renderDashboard(currentUser);
   } catch (error) {
-    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "DonnÃ©es locales";
+    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Donn?es locales";
   } finally {
     dashboardStatsLoading = false;
   }
@@ -1093,8 +1093,8 @@ function getDashboardStats(user) {
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
   return {
-    updatedAt: "Ã€ venir",
-    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichÃ©es dÃ¨s leur import.`,
+    updatedAt: "? venir",
+    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affich?es d?s leur import.`,
     kpis: { revenue: 0, clients: visibleClients.length, averageClient: 0 },
     salesTrend: [],
     goals: [],
@@ -1111,7 +1111,7 @@ function renderDashboardSectorSwitch(user) {
   sectors.forEach((sector) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `dashboard-sector-button${sector === activeDashboardSector ? " is-active" : ""}`;
+    button.className = `dashboard-sector-button${sector === activeDashboardSector ?" is-active" : ""}`;
     button.textContent = sector;
     button.addEventListener("click", () => {
       activeDashboardSector = sector;
@@ -1129,54 +1129,54 @@ function formatNumber(value) {
 function renderDashboard(user) {
   const stats = getDashboardStats(user);
   const kpis = stats.kpis || {};
-  const trend = Array.isArray(stats.salesTrend) ? stats.salesTrend : [];
-  const goals = Array.isArray(stats.goals) ? stats.goals : [];
-  const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
+  const trend = Array.isArray(stats.salesTrend) ?stats.salesTrend : [];
+  const goals = Array.isArray(stats.goals) ?stats.goals : [];
+  const topClients = Array.isArray(stats.topClients) ?stats.topClients : [];
 
   document.querySelector("#dashboardUpdatedAt").textContent = stats.updatedAt || "En attente";
-  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthÃ©tique de votre activitÃ© commerciale.";
-  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA rÃ©alisÃ©";
+  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synth?tique de votre activit? commerciale.";
+  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA r?alis?";
   document.querySelector("#metricOrders").textContent = formatter.format(Number(kpis.revenue) || 0);
   const monthlyObjective = Number(kpis.monthlyObjective) || 0;
   const objectivePercent = Number(kpis.objectivePercent) || 0;
   const objectiveRemaining = Number(kpis.objectiveRemaining) || 0;
-  document.querySelector("#metricRevenue").previousElementSibling.textContent = monthlyObjective ? `Objectif ${kpis.objectiveMonthLabel || "mois"}` : "Objectif mois";
-  document.querySelector("#metricRevenue").textContent = monthlyObjective ? formatter.format(monthlyObjective) : "--";
+  document.querySelector("#metricRevenue").previousElementSibling.textContent = monthlyObjective ?`Objectif ${kpis.objectiveMonthLabel || "mois"}` : "Objectif mois";
+  document.querySelector("#metricRevenue").textContent = monthlyObjective ?formatter.format(monthlyObjective) : "--";
   document.querySelector("#metricClients").textContent = formatter.format(Number(kpis.averageClient) || 0);
   document.querySelector("#metricOrdersNote").textContent = kpis.revenueNote || "Secteur du commercial";
-  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prÃ©visionnel";
+  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA pr?visionnel";
   document.querySelector("#metricClientsNote").textContent = kpis.averageNote || "Valeur moyenne du portefeuille";
   document.querySelector("#metricRevenueNote").textContent = monthlyObjective
-    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
-    : (kpis.clientsNote || "Objectif mensuel non trouvÃ©");
+    ?`${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint ? reste ${formatter.format(objectiveRemaining)}`
+    : (kpis.clientsNote || "Objectif mensuel non trouv?");
 
   const maxTrend = Math.max(...trend.map((item) => Number(item.value) || 0), 1);
   document.querySelector("#trendTotal").textContent = trend.length
-    ? formatter.format(trend.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
-    : "Aucune donnÃ©e";
+    ?formatter.format(trend.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
+    : "Aucune donn?e";
   document.querySelector("#salesChart").innerHTML = trend.length
-    ? trend.map((item) => {
+    ?trend.map((item) => {
         const value = Number(item.value) || 0;
-        const height = Math.max((value / maxTrend) * 100, value > 0 ? 6 : 0);
+        const height = Math.max((value / maxTrend) * 100, value > 0 ?6 : 0);
         return `<div class="chart-column"><span class="chart-value">${escapeHtml(formatter.format(value))}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(item.label || "-")}</strong></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucune donnÃ©e gÃ©ographique.</div>';
+    : '<div class="dashboard-empty">Aucune donn?e g?ographique.</div>';
 
   document.querySelector("#goalList").innerHTML = goals.length
-    ? goals.map((goal) => {
+    ?goals.map((goal) => {
         const current = Number(goal.current) || 0;
         const target = Number(goal.target) || 0;
-        const percent = typeof goal.percent === "number" ? Math.min(Math.max(goal.percent, 0), 100) : (target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0);
-        const displayCurrent = goal.format === "currency" ? formatter.format(current) : formatNumber(current);
-        const displayTarget = goal.format === "currency" ? formatter.format(target) : formatNumber(target);
+        const percent = typeof goal.percent === "number" ?Math.min(Math.max(goal.percent, 0), 100) : (target > 0 ?Math.min(Math.round((current / target) * 100), 100) : 0);
+        const displayCurrent = goal.format === "currency" ?formatter.format(current) : formatNumber(current);
+        const displayTarget = goal.format === "currency" ?formatter.format(target) : formatNumber(target);
         const valueLabel = goal.valueLabel || `${displayCurrent} / ${displayTarget}`;
         return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(valueLabel)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucun objectif renseignÃ©.</div>';
+    : '<div class="dashboard-empty">Aucun objectif renseign?.</div>';
 
   document.querySelector("#topClientsBody").innerHTML = topClients.length
-    ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
-    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnÃ©e client.</td></tr>';
+    ?topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
+    : '<tr><td colspan="2" class="dashboard-empty">Aucune donn?e client.</td></tr>';
 
   renderHomeReminders();
 }
@@ -1229,12 +1229,12 @@ function appendVisitSummaryToNote(action) {
     summaryLines.push(`Delai prevu : ${Math.max(0, Number(visitFollowupDays.value) || 0)} jour(s)`);
   }
   const summary = summaryLines.join("\n");
-  return currentText ? `${currentText}\n\n${summary}` : summary;
+  return currentText ?`${currentText}\n\n${summary}` : summary;
 }
 
 function getClientStats360(client) {
   const stats = getDashboardStats(currentUser || {});
-  const list = Array.isArray(stats.allClientsStats) ? stats.allClientsStats : Array.isArray(stats.topClients) ? stats.topClients : [];
+  const list = Array.isArray(stats.allClientsStats) ?stats.allClientsStats : Array.isArray(stats.topClients) ?stats.topClients : [];
   return list.find((item) => normalize(item.code || "") === normalize(client.code || "") || normalize(item.name || "") === normalize(client.name || ""));
 }
 
@@ -1245,6 +1245,22 @@ function getClientArticleStats360(client) {
   const nameKey = normalize(client.name || "");
   if (nameKey && byClient[nameKey]) return byClient[nameKey];
   return null;
+}
+
+function buildClientArticleFallbackSummary(articleStats) {
+  const articles = Array.isArray(articleStats?.topArticles) ?articleStats.topArticles : [];
+  if (!articles.length) return null;
+  const ca2026 = articles.reduce((sum, article) => sum + (Number(article.ca2026) || 0), 0);
+  const ca2025 = articles.reduce((sum, article) => sum + (Number(article.ca2025) || 0), 0);
+  const quantity2026 = articles.reduce((sum, article) => sum + (Number(article.quantity2026) || 0), 0);
+  const quantity2025 = articles.reduce((sum, article) => sum + (Number(article.quantity2025) || 0), 0);
+  return {
+    ca2026,
+    ca2025,
+    quantity2026,
+    quantity2025,
+    gapCa: ca2026 - ca2025,
+  };
 }
 
 function getClientPrenet360(client) {
@@ -1328,57 +1344,68 @@ function renderClient360Suggestions(query) {
 function renderClient360List(container, items, emptyText, renderer) {
   if (!container) return;
   container.innerHTML = items.length
-    ? items.map(renderer).join("")
+    ?items.map(renderer).join("")
     : `<div class="dashboard-empty">${escapeHtml(emptyText)}</div>`;
 }
 
 function formatEvolutionPercent(value) {
   if (value === null || value === undefined || !isFinite(Number(value))) return "--";
   const percent = Number(value) * 100;
-  return `${percent >= 0 ? "+" : ""}${percent.toFixed(1).replace(".", ",")}%`;
+  return `${percent >= 0 ?"+" : ""}${percent.toFixed(1).replace(".", ",")}%`;
+}
+
+function formatCurrencyDelta(value) {
+  const number = Number(value) || 0;
+  const label = formatter.format(Math.abs(number));
+  if (number > 0) return `+${label}`;
+  if (number < 0) return `-${label}`;
+  return formatter.format(0);
+}
+
+function formatNumberDelta(value) {
+  const number = Number(value) || 0;
+  const label = formatNumber(Math.abs(number));
+  if (number > 0) return `+${label}`;
+  if (number < 0) return `-${label}`;
+  return "0";
 }
 
 function client360StatTrendClass(value) {
   const number = Number(value);
   if (!isFinite(number) || number === 0) return "is-neutral";
-  return number > 0 ? "is-up" : "is-down";
-}
-
-function client360ArticleMainMetric(article, showRevenue) {
-  if (showRevenue) return formatter.format(Number(article.ca2026) || 0);
-  return `${formatNumber(article.quantity2026 || 0)} u.`;
+  return number > 0 ?"is-up" : "is-down";
 }
 
 function renderClient360ArticleStats(topArticles) {
   if (!topArticles.length) {
     return clientArticleStats360?.available
-      ? '<div class="dashboard-empty">Aucun achat trouve pour ce client dans le fichier Drive.</div>'
+      ?'<div class="dashboard-empty">Aucun achat trouve pour ce client dans le fichier Drive.</div>'
       : '<div class="dashboard-empty">Aucun fichier stats client/article charge depuis Drive.</div>';
   }
   const totalCa2026 = topArticles.reduce((sum, article) => sum + (Number(article.ca2026) || 0), 0);
   const totalCa2025 = topArticles.reduce((sum, article) => sum + (Number(article.ca2025) || 0), 0);
   const totalQty2026 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2026) || 0), 0);
   const totalQty2025 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2025) || 0), 0);
-  const showRevenue = totalCa2026 > 0 || totalCa2025 > 0;
-  const qtyEvolution = totalQty2025 ? (totalQty2026 - totalQty2025) / totalQty2025 : null;
-  const revenueEvolution = totalCa2025 ? (totalCa2026 - totalCa2025) / totalCa2025 : null;
-  const mainEvolution = showRevenue ? revenueEvolution : qtyEvolution;
+  const totalGapCa = totalCa2026 - totalCa2025;
+  const totalGapQty = totalQty2026 - totalQty2025;
   const rows = topArticles.map((article, index) => {
-    const evolution = Number(article.evolutionPct);
-    const safeEvolution = isFinite(evolution) ? evolution : null;
-    const trendClass = client360StatTrendClass(safeEvolution);
+    const gapCa = Number(article.gapCa) || ((Number(article.ca2026) || 0) - (Number(article.ca2025) || 0));
+    const gapQty = Number(article.gapQuantity) || ((Number(article.quantity2026) || 0) - (Number(article.quantity2025) || 0));
+    const trendClass = client360StatTrendClass(gapCa || gapQty);
     return `
       <tr>
         <td><span class="client360-rank">${index + 1}</span></td>
         <td>
           <strong>${escapeHtml(article.articleCode || "")}</strong>
           <small>${escapeHtml(article.articleName || "Article sans designation")}</small>
-          ${article.family ? `<em>${escapeHtml(article.family)}</em>` : ""}
+          ${article.family ?`<em>${escapeHtml(article.family)}</em>` : ""}
         </td>
+        <td class="numeric">${escapeHtml(formatter.format(Number(article.ca2026) || 0))}</td>
+        <td class="numeric muted">${escapeHtml(formatter.format(Number(article.ca2025) || 0))}</td>
+        <td class="numeric ${trendClass}">${escapeHtml(formatCurrencyDelta(gapCa))}</td>
         <td class="numeric">${escapeHtml(formatNumber(article.quantity2026 || 0))}</td>
         <td class="numeric muted">${escapeHtml(formatNumber(article.quantity2025 || 0))}</td>
-        <td class="numeric ${trendClass}">${escapeHtml(formatEvolutionPercent(safeEvolution))}</td>
-        <td class="numeric">${escapeHtml(client360ArticleMainMetric(article, showRevenue))}</td>
+        <td class="numeric ${trendClass}">${escapeHtml(formatNumberDelta(gapQty))}</td>
       </tr>
     `;
   }).join("");
@@ -1388,12 +1415,12 @@ function renderClient360ArticleStats(topArticles) {
         <div>
           <small>Top achats client</small>
           <strong>${topArticles.length} références clés</strong>
-          <span>${showRevenue ? "Classées par montant acheté." : "Le fichier Drive ne donne pas de CA article exploitable : affichage prioritaire des quantités."}</span>
+          <span>Classement des articles achetés avec comparaison chiffre d'affaires et quantités vs N-1.</span>
         </div>
         <div class="client360-article-mini-kpis">
-          <span><small>${showRevenue ? "CA 2026 top" : "Qté 2026 top"}</small><strong>${escapeHtml(showRevenue ? formatter.format(totalCa2026) : formatNumber(totalQty2026))}</strong></span>
-          <span><small>${showRevenue ? "CA N-1 top" : "Qté N-1 top"}</small><strong>${escapeHtml(showRevenue ? formatter.format(totalCa2025) : formatNumber(totalQty2025))}</strong></span>
-          <span class="${client360StatTrendClass(mainEvolution)}"><small>Évolution</small><strong>${escapeHtml(formatEvolutionPercent(mainEvolution))}</strong></span>
+          <span><small>CA 2026 top</small><strong>${escapeHtml(formatter.format(totalCa2026))}</strong></span>
+          <span><small>CA N-1 top</small><strong>${escapeHtml(formatter.format(totalCa2025))}</strong></span>
+          <span class="${client360StatTrendClass(totalGapCa || totalGapQty)}"><small>Écart</small><strong>${escapeHtml(formatCurrencyDelta(totalGapCa))}</strong><em>${escapeHtml(formatNumberDelta(totalGapQty))} u.</em></span>
         </div>
       </div>
       <div class="client360-table-wrap">
@@ -1402,10 +1429,12 @@ function renderClient360ArticleStats(topArticles) {
             <tr>
               <th>#</th>
               <th>Article</th>
+              <th>CA 2026</th>
+              <th>CA N-1</th>
+              <th>Écart €</th>
               <th>Qté 2026</th>
               <th>Qté N-1</th>
-              <th>Évol.</th>
-              <th>${showRevenue ? "CA 2026" : "Indicateur"}</th>
+              <th>Écart Qté</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1422,11 +1451,12 @@ function selectClient360(client) {
   document.querySelector("#client360Grid")?.classList.remove("is-empty");
   if (client360Status) client360Status.textContent = "Client selectionne";
   const data = getClient360Data(client);
-  const articleSummary = data.articleStats?.summary || null;
-  const caLabel = articleSummary ? formatter.format(Number(articleSummary.ca2026) || 0) : data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
-  const caPreviousLabel = articleSummary ? formatter.format(Number(articleSummary.ca2025) || 0) : "--";
-  const evolutionLabel = articleSummary ? formatEvolutionPercent(articleSummary.evolutionPct) : "--";
-  const topArticles = Array.isArray(data.articleStats?.topArticles) ? data.articleStats.topArticles : [];
+  const articleSummary = data.articleStats?.summary || buildClientArticleFallbackSummary(data.articleStats) || null;
+  const caLabel = articleSummary ?formatter.format(Number(articleSummary.ca2026) || 0) : data.stats ?formatter.format(Number(data.stats.revenue) || 0) : "--";
+  const caPreviousLabel = articleSummary ?formatter.format(Number(articleSummary.ca2025) || 0) : "--";
+  const gapCa = articleSummary ?Number(articleSummary.gapCa || ((Number(articleSummary.ca2026) || 0) - (Number(articleSummary.ca2025) || 0))) : null;
+  const evolutionLabel = articleSummary ?formatCurrencyDelta(gapCa) : "--";
+  const topArticles = Array.isArray(data.articleStats?.topArticles) ?data.articleStats.topArticles : [];
   client360Summary.innerHTML = `
     <article class="selected-client client360-identity">
       <div>
@@ -1438,32 +1468,18 @@ function selectClient360(client) {
       <div class="client360-kpis">
         <span><small>CA 2026</small><strong>${escapeHtml(caLabel)}</strong></span>
         <span><small>CA N-1</small><strong>${escapeHtml(caPreviousLabel)}</strong></span>
-        <span><small>Evolution</small><strong>${escapeHtml(evolutionLabel)}</strong></span>
-        <span><small>Notes</small><strong>${data.notes.length}</strong></span>
-        <span><small>Devis</small><strong>${data.quotes.length}</strong></span>
+        <span class="${client360StatTrendClass(gapCa)}"><small>Écart CA</small><strong>${escapeHtml(evolutionLabel)}</strong></span>
         <span><small>Prix nets</small><strong>${data.prenetEntries.length}</strong></span>
       </div>
     </article>
   `;
-  client360NotesCount.textContent = String(data.notes.length);
-  client360QuotesCount.textContent = String(data.quotes.length);
-  client360PrenetCount.textContent = String(data.prenetEntries.length);
-  client360OrdersCount.textContent = String(topArticles.length);
-  renderClient360List(client360Notes, data.notes.slice(0, 8), "Aucune note pour ce client.", (note) => `
-    <button class="client360-row" type="button" data-client360-open="notes">
-      <strong>${escapeHtml(formatNoteDate(note.date))}</strong>
-      <span>${escapeHtml((note.text || "").slice(0, 180))}</span>
-    </button>
-  `);
-  renderClient360List(client360Quotes, data.quotes.slice(0, 8), "Aucune demande de devis pour ce client.", (quote) => `
-    <button class="client360-row" type="button" data-client360-open="quote">
-      <strong>${escapeHtml(quoteStatusLabel(quote.status))} - ${escapeHtml(quote.date || "")}</strong>
-      <span>${escapeHtml((quote.lines || []).map((line) => `${line.ref} x${line.qty}`).join(", ") || "Sans reference")}</span>
-    </button>
-  `);
+  if (client360NotesCount) client360NotesCount.textContent = String(data.notes.length);
+  if (client360QuotesCount) client360QuotesCount.textContent = String(data.quotes.length);
+  if (client360PrenetCount) client360PrenetCount.textContent = String(data.prenetEntries.length);
+  if (client360OrdersCount) client360OrdersCount.textContent = String(topArticles.length);
   renderClient360List(client360Prenets, data.prenetEntries.slice(0, 10), "Aucun prix net trouve pour ce client.", (entry) => `
     <button class="client360-row" type="button" data-client360-open="prenet">
-      <strong>${escapeHtml(entry.ref || "")} ${Number(entry.price) ? `- ${escapeHtml(formatter.format(Number(entry.price) || 0))}` : ""}</strong>
+      <strong>${escapeHtml(entry.ref || "")} ${Number(entry.price) ?`- ${escapeHtml(formatter.format(Number(entry.price) || 0))}` : ""}</strong>
       <span>${escapeHtml(entry.designation || "")}</span>
     </button>
   `);
@@ -1574,7 +1590,7 @@ function buildGlobalSearchResults(query) {
       results.push({
         type: "reference",
         title: product.ref,
-        meta: `${product.name || ""}${product.price ? ` - ${formatter.format(product.price)}` : ""}`,
+        meta: `${product.name || ""}${product.price ?` - ${formatter.format(product.price)}` : ""}`,
         action: () => {
           setActiveTab("order");
           productRefs.value = product.ref;
@@ -1626,7 +1642,7 @@ function renderGlobalSearchResults() {
   if (!results.length) {
     globalSearchResults.classList.toggle("is-hidden", globalSearchInput.value.trim().length < 2);
     globalSearchResults.innerHTML = globalSearchInput.value.trim().length >= 2
-      ? `<div class="global-search-empty">Aucun resultat trouve.</div>`
+      ?`<div class="global-search-empty">Aucun resultat trouve.</div>`
       : "";
     return;
   }
@@ -1762,7 +1778,7 @@ function isBacklogItemForCurrentUser(item) {
   const itemSector = getBacklogSectorKey(item.sector || item.secteur || "");
   if (itemSector && allowedSectors.has(itemSector)) return true;
   const client = getBacklogClientMatch(item);
-  return client ? allowedSectors.has(getBacklogSectorKey(client.sector)) : false;
+  return client ?allowedSectors.has(getBacklogSectorKey(client.sector)) : false;
 }
 
 function normalizeBacklogItem(item) {
@@ -1861,15 +1877,15 @@ function renderBacklog() {
   backlogTotalCount.textContent = String(filteredItems.length);
 
   if (!backlogItemsCache.length) {
-    backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donnÃ©e chargÃ©e pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
+    backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donn?e charg?e pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
     return;
   }
 
   backlogBody.innerHTML = filteredItems.length
-    ? filteredItems.map((item) => `
+    ?filteredItems.map((item) => `
       <tr>
         <td><strong>${escapeHtml(item.date || "-")}</strong><small>${escapeHtml(item.sector || "")}</small></td>
-        <td><span class="backlog-badge ${item.type === "reprise" ? "is-return" : "is-remainder"}">${item.type === "reprise" ? "Reprise" : "Reliquat"}</span></td>
+        <td><span class="backlog-badge ${item.type === "reprise" ?"is-return" : "is-remainder"}">${item.type === "reprise" ?"Reprise" : "Reliquat"}</span></td>
         <td><strong>${escapeHtml(item.orderNumber || "-")}</strong></td>
         <td><strong>${escapeHtml(item.clientName || "-")}</strong><small>${escapeHtml(item.clientCode || "")}</small></td>
         <td><strong>${escapeHtml(item.product || "-")}</strong><small>${escapeHtml(item.reference || "")}</small></td>
@@ -1877,29 +1893,29 @@ function renderBacklog() {
         <td>${escapeHtml(item.detail || "-")}</td>
         <td class="backlog-done-cell">
           <label class="backlog-done-check">
-            <input type="checkbox" data-backlog-done="${escapeHtml(item.id)}" ${isBacklogDone(item.id) ? "checked" : ""} />
+            <input type="checkbox" data-backlog-done="${escapeHtml(item.id)}" ${isBacklogDone(item.id) ?"checked" : ""} />
             <span>Fait</span>
           </label>
         </td>
         <td class="backlog-action-cell"><button class="icon-button backlog-delete-button" type="button" data-backlog-hide="${escapeHtml(item.id)}" aria-label="Masquer cette ligne">&times;</button></td>
       </tr>
     `).join("")
-    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvÃ© avec ce filtre.</td></tr>`;
+    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouv? avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems(silent = false) {
   if (!backlogStatus || !refreshBacklog) return;
   if (!silent) {
-    backlogStatus.textContent = "Actualisationâ€¦";
+    backlogStatus.textContent = "Actualisation?";
     refreshBacklog.disabled = true;
   }
   try {
     const result = await postService({ action: "getReliquatsReprises", token: currentSessionToken });
-    backlogItemsCache = Array.isArray(result.items) ? result.items : [];
+    backlogItemsCache = Array.isArray(result.items) ?result.items : [];
     const updatedAt = result.updatedAt || window.RELIQUATS_DATA?.updatedAt || "Drive";
-    backlogStatus.textContent = `Ã€ jour Â· ${updatedAt}`;
+    backlogStatus.textContent = `? jour ? ${updatedAt}`;
   } catch (error) {
-    if (!silent) backlogStatus.textContent = backlogItemsCache.length ? "DonnÃ©es locales" : "Drive Ã  connecter";
+    if (!silent) backlogStatus.textContent = backlogItemsCache.length ?"Donn?es locales" : "Drive ? connecter";
   } finally {
     if (!silent) refreshBacklog.disabled = false;
     renderBacklog();
@@ -1970,7 +1986,7 @@ function showLogin() {
 }
 
 function showApp(user, token = user.token || "") {
-  const sectors = Array.isArray(user.sectors) && user.sectors.length ? user.sectors : [user.sector].filter(Boolean);
+  const sectors = Array.isArray(user.sectors) && user.sectors.length ?user.sectors : [user.sector].filter(Boolean);
   currentSessionToken = token;
   currentUser = { ...user, sectors, sector: sectors[0] || "Secteur", token };
   activeDashboardSector = currentUser.sectors[0] || null;
@@ -1983,7 +1999,7 @@ function showApp(user, token = user.token || "") {
   } else {
     localStorage.removeItem(rememberedSessionKey);
   }
-  sessionLabel.textContent = currentUser.role === "admin" ? "Schuller France - Administration" : `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
+  sessionLabel.textContent = currentUser.role === "admin" ?"Schuller France - Administration" : `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
 
@@ -2021,17 +2037,17 @@ async function submitLogin() {
   loginError.textContent = "";
   loginError.className = "login-error";
   loginSubmitButton.disabled = true;
-  loginSubmitButton.textContent = "Connexionâ€¦";
+  loginSubmitButton.textContent = "Connexion?";
   try {
     const result = await postService({
       action: "login",
       identifier: loginId.value.trim(),
       password: loginPassword.value,
-      remember: rememberLogin.checked ? "1" : "",
+      remember: rememberLogin.checked ?"1" : "",
     });
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
-      loginSubmitButton.textContent = "Chargement des donnÃ©esâ€¦";
+      loginSubmitButton.textContent = "Chargement des donn?es?";
       await loadSecureAppData(result.token, result.user?.id || "");
     }
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
@@ -2050,7 +2066,7 @@ async function requestPasswordReset(event) {
   passwordResetStatus.textContent = "";
   passwordResetStatus.className = "reset-status";
   requestResetButton.disabled = true;
-  requestResetButton.textContent = "Envoi en coursâ€¦";
+  requestResetButton.textContent = "Envoi en cours?";
   try {
     const result = await postService({ action: "requestReset", email: passwordResetEmail.value.trim() });
     passwordResetStatus.textContent = result.message;
@@ -2059,7 +2075,7 @@ async function requestPasswordReset(event) {
     passwordResetConfirmForm.classList.remove("is-hidden");
     requestAnimationFrame(() => passwordResetCode.focus());
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "La demande nâ€™a pas pu Ãªtre envoyÃ©e.";
+    passwordResetStatus.textContent = error.message || "La demande n?a pas pu ?tre envoy?e.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     requestResetButton.disabled = false;
@@ -2079,7 +2095,7 @@ async function confirmPasswordReset(event) {
   }
 
   confirmResetButton.disabled = true;
-  confirmResetButton.textContent = "Modificationâ€¦";
+  confirmResetButton.textContent = "Modification?";
   try {
     const result = await postService({
       action: "confirmReset",
@@ -2089,11 +2105,11 @@ async function confirmPasswordReset(event) {
     });
     loginId.value = result.identifier || passwordResetEmail.value.trim();
     closePasswordReset();
-    loginError.textContent = "Mot de passe modifiÃ©. Vous pouvez vous connecter.";
+    loginError.textContent = "Mot de passe modifi?. Vous pouvez vous connecter.";
     loginError.classList.add("is-success");
     loginPassword.focus();
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "Le mot de passe nâ€™a pas pu Ãªtre modifiÃ©.";
+    passwordResetStatus.textContent = error.message || "Le mot de passe n?a pas pu ?tre modifi?.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     confirmResetButton.disabled = false;
@@ -2106,7 +2122,7 @@ async function restoreSession() {
     const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
     if (savedUser?.id) {
       rememberLogin.checked = Boolean(savedUser.remember);
-      loginError.textContent = "Reconnexion sÃ©curisÃ©e...";
+      loginError.textContent = "Reconnexion s?curis?e...";
       loginError.className = "login-error";
       const cached = restoreSecureDataCache(savedUser.id);
       if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
@@ -2129,7 +2145,7 @@ function selectClient(client) {
   selectedClient = client;
   clientSearch.value = client.name;
   clientSuggestions.classList.remove("is-open");
-  recordActivity("Client sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client s?lectionn?", `${client.name} (${client.code}) - ${client.sector}`);
   clientStatus.textContent = "Client selectionne";
   clientStatus.classList.add("is-ready");
   selectedClientBox.innerHTML = `
@@ -2200,7 +2216,7 @@ function selectQuoteClient(client) {
   selectedQuoteClient = client;
   quoteClientSearch.value = client.name;
   quoteClientSuggestions.classList.remove("is-open");
-  quoteStatus.textContent = "Client sÃ©lectionnÃ©";
+  quoteStatus.textContent = "Client s?lectionn?";
   quoteStatus.classList.add("is-ready");
   quoteSelectedClient.innerHTML = `
     <strong>${escapeHtml(client.name)}</strong>
@@ -2210,12 +2226,12 @@ function selectQuoteClient(client) {
     <span>${escapeHtml(client.sector)}</span>
   `;
   quoteSendStatus.textContent = "";
-  recordActivity("Client devis sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client devis s?lectionn?", `${client.name} (${client.code}) - ${client.sector}`);
 }
 
 function resetQuoteRequest() {
   selectedQuoteClient = null;
-  quoteStatus.textContent = "Client non sÃ©lectionnÃ©";
+  quoteStatus.textContent = "Client non s?lectionn?";
   quoteStatus.classList.remove("is-ready");
   quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   quoteSendStatus.textContent = "";
@@ -2261,10 +2277,10 @@ function applyQuoteReference(id, value) {
   const line = quoteLineItems.find((item) => item.id === id);
   if (!line) return;
   const product = findProduct(value);
-  line.ref = product ? product.ref : value;
+  line.ref = product ?product.ref : value;
   if (product) {
     line.qty = defaultQuantityForProduct(product);
-    recordActivity("RÃ©fÃ©rence devis consultÃ©e", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
+    recordActivity("R?f?rence devis consult?e", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
   }
   renderQuoteLines();
 }
@@ -2276,13 +2292,13 @@ function renderQuoteLines() {
       ${(() => {
         const product = findProduct(line.ref);
         return `
-          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="RÃ©fÃ©rence ${index + 1}" data-quote-field="ref" /></td>
-          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une rÃ©fÃ©rence"}</td>
-          <td class="quote-udv-cell">${product ? escapeHtml(product.udv || "-") : "-"}</td>
+          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="R?f?rence ${index + 1}" data-quote-field="ref" /></td>
+          <td class="quote-name-cell ${product ?"" : "empty-product"}">${product ?escapeHtml(product.name) : "Saisir une r?f?rence"}</td>
+          <td class="quote-udv-cell">${product ?escapeHtml(product.udv || "-") : "-"}</td>
         `;
       })()}
-      <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-quote-field="qty" aria-label="QuantitÃ©" /></td>
-      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, prÃ©cision..." data-quote-field="comment" /></td>
+      <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-quote-field="qty" aria-label="Quantit?" /></td>
+      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, pr?cision..." data-quote-field="comment" /></td>
       <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
     </tr>
   `).join("");
@@ -2314,7 +2330,7 @@ function expenseDraftKey() {
 function getExpenseDrafts() {
   try {
     const drafts = JSON.parse(localStorage.getItem(expenseDraftKey()) || "[]");
-    return Array.isArray(drafts) ? drafts : [];
+    return Array.isArray(drafts) ?drafts : [];
   } catch (error) {
     localStorage.removeItem(expenseDraftKey());
     return [];
@@ -2322,7 +2338,7 @@ function getExpenseDrafts() {
 }
 
 function saveExpenseDrafts(drafts) {
-  localStorage.setItem(expenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
+  localStorage.setItem(expenseDraftKey(), JSON.stringify(Array.isArray(drafts) ?drafts : []));
 }
 
 function getExpenseDraftTitle() {
@@ -2368,7 +2384,7 @@ function parseAmount(value) {
   if (value === null || value === undefined || value === "") return 0;
   const normalizedValue = String(value).replace(/\s/g, "").replace(",", ".");
   const number = Number(normalizedValue);
-  return Number.isFinite(number) ? number : 0;
+  return Number.isFinite(number) ?number : 0;
 }
 
 function roundMoney(value) {
@@ -2388,7 +2404,7 @@ function getExpenseRefunds(linesToCompute = expenseLineItems) {
     const amount = parseAmount(line.amount);
     if (!amount) return 0;
     if (line.type === "REPAS MIDI") return roundMoney(Math.min(amount, expenseLunchLimit));
-    if (line.type === "REPAS SOIR") return roundMoney(hasHotelByDate.get(line.date) ? amount : Math.min(amount, expenseDinnerLimit));
+    if (line.type === "REPAS SOIR") return roundMoney(hasHotelByDate.get(line.date) ?amount : Math.min(amount, expenseDinnerLimit));
     if (line.type === "HOTEL") {
       const dinnerAmount = dinnerByDate.get(line.date) || 0;
       return roundMoney(Math.min(amount, Math.max(0, expenseHotelDinnerLimit - dinnerAmount)));
@@ -2410,19 +2426,19 @@ function renderExpenses() {
   expensesLines.innerHTML = expenseLineItems.map((line, index) => {
     const refunded = refunds[index] || 0;
     const amount = parseAmount(line.amount);
-    const warning = amount && refunded < amount ? `<small class="expense-warning">Plafond appliquÃ© : ${escapeHtml(formatter.format(refunded))}</small>` : "";
+    const warning = amount && refunded < amount ?`<small class="expense-warning">Plafond appliqu? : ${escapeHtml(formatter.format(refunded))}</small>` : "";
     return `
       <tr data-expense-line="${escapeHtml(line.id)}">
         <td><input type="date" value="${escapeHtml(line.date)}" data-expense-field="date" /></td>
-        <td><select data-expense-field="type">${expenseTypes.map((type) => `<option value="${escapeHtml(type)}" ${line.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></td>
-        <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, hÃ´tel, dÃ©tail..." data-expense-field="precision" /></td>
+        <td><select data-expense-field="type">${expenseTypes.map((type) => `<option value="${escapeHtml(type)}" ${line.type === type ?"selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></td>
+        <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, h?tel, d?tail..." data-expense-field="precision" /></td>
         <td><input type="text" inputmode="decimal" value="${escapeHtml(line.amount)}" placeholder="0,00" data-expense-field="amount" /></td>
         <td><input type="text" inputmode="decimal" value="${escapeHtml(line.vat)}" placeholder="0,00" data-expense-field="vat" /></td>
         <td><strong>${escapeHtml(formatter.format(refunded))}</strong>${warning}</td>
         <td>
           <label class="expense-upload">
             <input type="file" accept="image/*,.pdf" capture="environment" data-expense-field="receipt" />
-            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter photo"}</span>
+            <span>${line.receiptName ?escapeHtml(line.receiptName) : "Ajouter photo"}</span>
           </label>
         </td>
         <td><button class="icon-button" type="button" data-remove-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
@@ -2439,8 +2455,8 @@ function updateExpenseSummary() {
   expensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
   expensesTotalRefund.textContent = formatter.format(roundMoney(totals.refund));
   const filledCount = expenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
-  const draftLabel = activeExpenseDraftId ? " Â· brouillon ouvert" : "";
-  expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}${draftLabel}`;
+  const draftLabel = activeExpenseDraftId ?" ? brouillon ouvert" : "";
+  expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ?"s" : ""}${draftLabel}`;
 }
 
 function resetExpenses() {
@@ -2462,19 +2478,19 @@ function renderExpenseHistory() {
     .filter((draft) => !query || normalize(`${draft.title} ${draft.note} ${draft.updatedLabel}`).includes(query))
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
   if (!drafts.length) {
-    expenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais enregistrÃ©e pour le moment.</p>`;
+    expenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais enregistr?e pour le moment.</p>`;
     return;
   }
   expenseHistoryList.innerHTML = drafts.map((draft) => {
     const totals = draft.totals || getExpenseDraftTotals((draft.lines || []).map(normalizeExpenseLine));
     const receiptCount = (draft.lines || []).filter((line) => line.receiptName).length;
-    const active = draft.id === activeExpenseDraftId ? " is-active" : "";
+    const active = draft.id === activeExpenseDraftId ?" is-active" : "";
     return `
       <article class="expense-history-item${active}" data-expense-draft="${escapeHtml(draft.id)}">
         <button class="expense-history-open" type="button" data-open-expense-draft="${escapeHtml(draft.id)}">
           <strong>${escapeHtml(draft.title || "Note de frais")}</strong>
-          <span>${escapeHtml(draft.updatedLabel || "Non datÃ©e")} Â· ${(draft.lines || []).length} ligne(s) Â· ${receiptCount} justificatif(s)</span>
-          <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net Ã  payer</em>
+          <span>${escapeHtml(draft.updatedLabel || "Non dat?e")} ? ${(draft.lines || []).length} ligne(s) ? ${receiptCount} justificatif(s)</span>
+          <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net ? payer</em>
         </button>
         <div class="expense-history-actions">
           <button type="button" data-rename-expense-draft="${escapeHtml(draft.id)}">Renommer</button>
@@ -2513,9 +2529,9 @@ function removeExpenseLine(id) {
 async function hydrateExpenseLineForDraft(line) {
   const base = serializeExpenseLine(line);
   if (line.receiptFile) {
-    const dataUrl = line.receiptFile.type.startsWith("image/") ? await resizeImageDataUrl(line.receiptFile, 1200, 0.72) : await fileToDataUrl(line.receiptFile);
+    const dataUrl = line.receiptFile.type.startsWith("image/") ?await resizeImageDataUrl(line.receiptFile, 1200, 0.72) : await fileToDataUrl(line.receiptFile);
     base.receiptDataUrl = dataUrl;
-    base.receiptMimeType = line.receiptFile.type.includes("pdf") ? "application/pdf" : "image/jpeg";
+    base.receiptMimeType = line.receiptFile.type.includes("pdf") ?"application/pdf" : "image/jpeg";
     base.receiptName = line.receiptName || line.receiptFile.name || "justificatif";
   }
   return base;
@@ -2524,7 +2540,7 @@ async function hydrateExpenseLineForDraft(line) {
 async function saveCurrentExpenseDraft() {
   if (!currentUser || currentUser.role === "admin") return;
   if (expensesSendStatus) {
-    expensesSendStatus.textContent = "Enregistrement de la note de fraisâ€¦";
+    expensesSendStatus.textContent = "Enregistrement de la note de frais?";
     expensesSendStatus.className = "tarif-send-status";
   }
   try {
@@ -2541,7 +2557,7 @@ async function saveCurrentExpenseDraft() {
       note: expensesNote?.value.trim() || "",
       lines: linesToSave,
       totals: getExpenseDraftTotals(linesToSave),
-      createdAt: activeExpenseDraftId ? undefined : now.toISOString(),
+      createdAt: activeExpenseDraftId ?undefined : now.toISOString(),
       updatedAt: now.toISOString(),
       updatedLabel: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
     };
@@ -2568,10 +2584,10 @@ async function saveCurrentExpenseDraft() {
         }),
       });
     } catch (error) {
-      // Le brouillon reste sauvegardÃ© localement mÃªme si Google rÃ©pond lentement.
+      // Le brouillon reste sauvegard? localement m?me si Google r?pond lentement.
     }
     if (expensesSendStatus) {
-      expensesSendStatus.textContent = `Note de frais enregistrÃ©e : ${title}.`;
+      expensesSendStatus.textContent = `Note de frais enregistr?e : ${title}.`;
       expensesSendStatus.classList.add("is-success");
     }
     renderExpenses();
@@ -2656,9 +2672,9 @@ function resizeImageDataUrl(file, maxSize = 1600, quality = 0.78) {
 async function prepareExpenseReceipt(line, index) {
   if (!line.receiptFile && !line.receiptDataUrl) return null;
   const file = line.receiptFile;
-  const dataUrl = file ? (file.type.startsWith("image/") ? await resizeImageDataUrl(file) : await fileToDataUrl(file)) : line.receiptDataUrl;
-  const mimeType = file ? (file.type.includes("pdf") ? "application/pdf" : "image/jpeg") : (line.receiptMimeType || "image/jpeg");
-  const extension = mimeType.includes("pdf") ? "pdf" : "jpg";
+  const dataUrl = file ?(file.type.startsWith("image/") ?await resizeImageDataUrl(file) : await fileToDataUrl(file)) : line.receiptDataUrl;
+  const mimeType = file ?(file.type.includes("pdf") ?"application/pdf" : "image/jpeg") : (line.receiptMimeType || "image/jpeg");
+  const extension = mimeType.includes("pdf") ?"pdf" : "jpg";
   const safeDate = (line.date || "sans-date").replaceAll("/", "-");
   const safeType = normalize(line.type || "frais").replace(/[^a-z0-9]+/g, "-") || "frais";
   return {
@@ -2679,8 +2695,8 @@ async function sendExpenseReportDraft() {
     return;
   }
   sendExpenseReport.disabled = true;
-  sendExpenseReport.textContent = "Envoi en coursâ€¦";
-  expensesSendStatus.textContent = "PrÃ©paration du fichier Excel et des justificatifsâ€¦";
+  sendExpenseReport.textContent = "Envoi en cours?";
+  expensesSendStatus.textContent = "Pr?paration du fichier Excel et des justificatifs?";
   expensesSendStatus.className = "tarif-send-status";
   try {
     const refunds = getExpenseRefunds(expenseLineItems);
@@ -2706,13 +2722,13 @@ async function sendExpenseReportDraft() {
       lines: JSON.stringify(payloadLines),
       receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
     });
-    const successMessage = result.message || "Frais envoyÃ©s.";
-    recordActivity("Frais envoyÃ©s", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
+    const successMessage = result.message || "Frais envoy?s.";
+    recordActivity("Frais envoy?s", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
     resetExpenses();
     expensesSendStatus.textContent = successMessage;
     expensesSendStatus.classList.add("is-success");
   } catch (error) {
-    expensesSendStatus.textContent = error.message || "L'envoi des frais a Ã©chouÃ©.";
+    expensesSendStatus.textContent = error.message || "L'envoi des frais a ?chou?.";
     expensesSendStatus.classList.add("is-error");
   } finally {
     sendExpenseReport.disabled = false;
@@ -2734,15 +2750,15 @@ function getQuoteHistory() {
 }
 
 function saveQuoteHistory(items) {
-  localStorage.setItem(quoteHistoryKey(), JSON.stringify(Array.isArray(items) ? items : []));
+  localStorage.setItem(quoteHistoryKey(), JSON.stringify(Array.isArray(items) ?items : []));
 }
 
 function quoteStatusLabel(status) {
   return {
     pending: "En attente",
-    relaunched: "RelancÃ©",
-    accepted: "ValidÃ©",
-    refused: "RefusÃ©",
+    relaunched: "Relanc?",
+    accepted: "Valid?",
+    refused: "Refus?",
   }[status] || "En attente";
 }
 
@@ -2788,7 +2804,7 @@ function updateQuoteHistoryStatus(id, status) {
   item.statusUpdatedAt = new Date().toISOString();
   saveQuoteHistory(items);
   renderQuoteHistory();
-  recordActivity("Statut devis modifiÃ©", `${item.clientName} - ${quoteStatusLabel(status)}`);
+  recordActivity("Statut devis modifi?", `${item.clientName} - ${quoteStatusLabel(status)}`);
 }
 
 function deleteQuoteHistoryItem(id) {
@@ -2814,28 +2830,28 @@ function renderQuoteHistory() {
   });
 
   quoteHistoryList.innerHTML = items.length
-    ? items.map((item) => {
+    ?items.map((item) => {
         const refs = (item.lines || []).map((line) => `${line.ref} x${line.qty}`).join(", ");
         return `
           <article class="quote-history-item">
             <div class="quote-history-main">
               <span class="quote-status-pill ${quoteStatusClass(item.status)}">${escapeHtml(quoteStatusLabel(item.status))}</span>
               <strong>${escapeHtml(item.clientName || "Client")}</strong>
-              <small>${escapeHtml(item.date || "")} Â· ${escapeHtml(item.clientCode || "")} Â· ${escapeHtml(item.sector || "")}</small>
-              <p>${escapeHtml(refs || "Aucune rÃ©fÃ©rence")}</p>
-              ${item.note ? `<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
+              <small>${escapeHtml(item.date || "")} ? ${escapeHtml(item.clientCode || "")} ? ${escapeHtml(item.sector || "")}</small>
+              <p>${escapeHtml(refs || "Aucune r?f?rence")}</p>
+              ${item.note ?`<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
             </div>
             <div class="quote-history-actions">
               <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="pending">En attente</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="relaunched">RelancÃ©</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="accepted">ValidÃ©</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="refused">RefusÃ©</button>
-              <button class="quote-history-delete" type="button" data-quote-delete="${escapeHtml(item.id)}">Ã—</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="relaunched">Relanc?</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="accepted">Valid?</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="refused">Refus?</button>
+              <button class="quote-history-delete" type="button" data-quote-delete="${escapeHtml(item.id)}">?</button>
             </div>
           </article>
         `;
       }).join("")
-    : '<div class="dashboard-empty">Aucune demande de devis enregistrÃ©e pour le moment.</div>';
+    : '<div class="dashboard-empty">Aucune demande de devis enregistr?e pour le moment.</div>';
 }
 
 async function sendQuoteRequestDraft() {
@@ -2855,29 +2871,29 @@ async function sendQuoteRequestDraft() {
     .filter((line) => line.ref);
 
   if (!selectedQuoteClient) {
-    quoteSendStatus.textContent = "SÃ©lectionnez dâ€™abord le client.";
+    quoteSendStatus.textContent = "S?lectionnez d?abord le client.";
     quoteSendStatus.classList.add("is-error");
     quoteClientSearch.focus();
     return;
   }
 
   if (!validLines.length) {
-    quoteSendStatus.textContent = "Ajoutez au moins une rÃ©fÃ©rence Ã  chiffrer.";
+    quoteSendStatus.textContent = "Ajoutez au moins une r?f?rence ? chiffrer.";
     quoteSendStatus.classList.add("is-error");
     quoteLines.querySelector("input")?.focus();
     return;
   }
 
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
-  const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
+  const more = validLines.length > 6 ?` + ${validLines.length - 6} autre(s)` : "";
   if (!tariffConfig.endpoint) {
-    quoteSendStatus.textContent = "Lâ€™envoi doit dâ€™abord Ãªtre autorisÃ© cÃ´tÃ© Google.";
+    quoteSendStatus.textContent = "L?envoi doit d?abord ?tre autoris? c?t? Google.";
     quoteSendStatus.classList.add("is-warning");
     return;
   }
 
   sendQuoteRequest.disabled = true;
-  sendQuoteRequest.textContent = "Envoi en coursâ€¦";
+  sendQuoteRequest.textContent = "Envoi en cours?";
   quoteSendStatus.textContent = "";
 
   try {
@@ -2894,12 +2910,12 @@ async function sendQuoteRequestDraft() {
       lines: JSON.stringify(validLines),
       note: quoteNote.value.trim(),
     });
-    recordActivity("Demande de devis envoyÃ©e", `${selectedQuoteClient.name} - ${refs}${more} - envoyÃ© Ã  flogilet44@gmail.com`);
+    recordActivity("Demande de devis envoy?e", `${selectedQuoteClient.name} - ${refs}${more} - envoy? ? flogilet44@gmail.com`);
     addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
-    quoteSendStatus.textContent = "Demande envoyÃ©e Ã  flogilet44@gmail.com avec le fichier Excel.";
+    quoteSendStatus.textContent = "Demande envoy?e ? flogilet44@gmail.com avec le fichier Excel.";
     quoteSendStatus.classList.add("is-success");
   } catch (error) {
-    quoteSendStatus.textContent = error.message || "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. RÃ©essayez dans quelques instants.";
+    quoteSendStatus.textContent = error.message || "L?envoi n?a pas pu ?tre effectu?. R?essayez dans quelques instants.";
     quoteSendStatus.classList.add("is-error");
   } finally {
     sendQuoteRequest.disabled = false;
@@ -2938,16 +2954,16 @@ function setLineReference(id, ref) {
     return {
       ...line,
       ref,
-      qty: product && referenceChanged ? defaultQuantityForProduct(product) : line.qty,
+      qty: product && referenceChanged ?defaultQuantityForProduct(product) : line.qty,
     };
   });
   const product = findProduct(ref);
-  if (product) recordActivity("RÃ©fÃ©rence consultÃ©e", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
+  if (product) recordActivity("R?f?rence consult?e", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderLines();
 }
 
 function updateLine(id, changes) {
-  lines = lines.map((line) => (line.id === id ? { ...line, ...changes } : line));
+  lines = lines.map((line) => (line.id === id ?{ ...line, ...changes } : line));
   renderLines();
 }
 
@@ -3005,7 +3021,7 @@ function getNextLineId(currentId) {
 }
 
 function completeQuantity(id, qty) {
-  lines = lines.map((line) => (line.id === id ? { ...line, qty } : line));
+  lines = lines.map((line) => (line.id === id ?{ ...line, qty } : line));
   const nextLineId = getNextLineId(id);
   renderLines();
   if (nextLineId) {
@@ -3019,7 +3035,7 @@ function renderLines() {
   lines.forEach((line) => {
     const product = findProduct(line.ref);
     const quantity = Math.max(Number(line.qty) || 0, 0);
-    const lineTotal = product ? product.price * quantity : 0;
+    const lineTotal = product ?product.price * quantity : 0;
     const row = document.createElement("tr");
     row.dataset.lineId = line.id;
 
@@ -3027,14 +3043,14 @@ function renderLines() {
       <td class="ref-cell">
         <input value="${escapeHtml(line.ref)}" list="productRefs" inputmode="numeric" aria-label="Reference produit" />
       </td>
-      <td class="gencod-cell">${product ? escapeHtml(product.gencod) : "-"}</td>
-      <td class="name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une reference"}</td>
-      <td class="udv-cell">${product ? escapeHtml(product.udv || "-") : "-"}</td>
+      <td class="gencod-cell">${product ?escapeHtml(product.gencod) : "-"}</td>
+      <td class="name-cell ${product ?"" : "empty-product"}">${product ?escapeHtml(product.name) : "Saisir une reference"}</td>
+      <td class="udv-cell">${product ?escapeHtml(product.udv || "-") : "-"}</td>
       <td class="qty-cell">
         <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
       </td>
-      <td class="price-cell">${product ? formatter.format(product.price) : "-"}</td>
-      <td class="line-total-cell">${product ? formatter.format(lineTotal) : "-"}</td>
+      <td class="price-cell">${product ?formatter.format(product.price) : "-"}</td>
+      <td class="line-total-cell">${product ?formatter.format(lineTotal) : "-"}</td>
       <td>
         <button class="remove-line" type="button" aria-label="Supprimer la ligne">x</button>
       </td>
@@ -3091,7 +3107,7 @@ function getTotal() {
 
 function updateSummary() {
   const validLines = getValidLines();
-  summaryClient.textContent = selectedClient ? selectedClient.name : "Non selectionne";
+  summaryClient.textContent = selectedClient ?selectedClient.name : "Non selectionne";
   summaryLines.textContent = validLines.length.toString();
   summaryTotal.textContent = formatter.format(getTotal());
 }
@@ -3118,7 +3134,7 @@ function clearCurrentUserOrders() {
   if (!currentUser) return;
   const visibleOrders = getVisibleStoredOrders();
   if (!visibleOrders.length) return;
-  if (!confirm(`Effacer ${visibleOrders.length} commande${visibleOrders.length > 1 ? "s" : ""} de votre historique ?`)) return;
+  if (!confirm(`Effacer ${visibleOrders.length} commande${visibleOrders.length > 1 ?"s" : ""} de votre historique ?`)) return;
   const visibleIds = new Set(visibleOrders.map((order) => order.id));
   saveStoredOrders(getStoredOrders().filter((order) => !visibleIds.has(order.id)));
   activeHistoryOrderId = null;
@@ -3133,7 +3149,7 @@ function buildOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
     orderDate,
     isoDate,
     dayKey: isoDate.slice(0, 10),
-    user: currentUser ? { id: currentUser.id, name: currentUser.name, sector: currentUser.sector } : null,
+    user: currentUser ?{ id: currentUser.id, name: currentUser.name, sector: currentUser.sector } : null,
     client: { ...selectedClient },
     note,
     total: getTotal(),
@@ -3154,8 +3170,8 @@ function storeOrder(order) {
   orders.push(order);
   saveStoredOrders(orders);
   const refs = order.lines.slice(0, 8).map((line) => `${line.ref} x${line.qty}`).join(", ");
-  const more = order.lines.length > 8 ? ` + ${order.lines.length - 8} autre(s)` : "";
-  recordActivity("Commande enregistrÃ©e", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
+  const more = order.lines.length > 8 ?` + ${order.lines.length - 8} autre(s)` : "";
+  recordActivity("Commande enregistr?e", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
   activeHistoryOrderId = order.id;
   renderOrderHistory();
 }
@@ -3178,12 +3194,12 @@ function getVisibleStoredOrders() {
 
 function renderOrderHistory() {
   const orders = getVisibleStoredOrders();
-  historyCount.textContent = `${orders.length} commande${orders.length > 1 ? "s" : ""}`;
+  historyCount.textContent = `${orders.length} commande${orders.length > 1 ?"s" : ""}`;
   historyList.innerHTML = "";
 
   if (!orders.length) {
-    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrÃ©e</div>';
-    historyDetail.innerHTML = "<span>Les commandes gÃ©nÃ©rÃ©es apparaÃ®tront ici.</span>";
+    historyList.innerHTML = '<div class="history-day">Aucune commande enregistr?e</div>';
+    historyDetail.innerHTML = "<span>Les commandes g?n?r?es appara?tront ici.</span>";
     return;
   }
 
@@ -3199,14 +3215,14 @@ function renderOrderHistory() {
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `history-item${order.id === activeHistoryOrderId ? " is-active" : ""}`;
+    button.className = `history-item${order.id === activeHistoryOrderId ?" is-active" : ""}`;
     button.innerHTML = `
       <span>
         <strong>${escapeHtml(order.client.name)}</strong>
-        <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
+        <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ?"s" : ""}</small>
       </span>
       <span class="history-item-total">${formatter.format(order.total)}</span>
-      <span class="history-delete" title="Effacer cette commande">Ã—</span>
+      <span class="history-delete" title="Effacer cette commande">?</span>
     `;
     button.addEventListener("click", () => {
       activeHistoryOrderId = order.id;
@@ -3250,9 +3266,9 @@ function renderOrderDetail(order) {
     <table class="history-table">
       <thead>
         <tr>
-          <th>RÃ©f.</th>
-          <th>DÃ©signation</th>
-          <th>QtÃ©</th>
+          <th>R?f.</th>
+          <th>D?signation</th>
+          <th>Qt?</th>
           <th>Prix U.</th>
           <th>Total</th>
         </tr>
@@ -3273,7 +3289,7 @@ function renderOrderDetail(order) {
           .join("")}
       </tbody>
     </table>
-    ${order.note ? `<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
+    ${order.note ?`<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
   `;
 }
 
@@ -3316,11 +3332,11 @@ function exportVisitReport(clientOnly = false) {
     .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
     .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrÃ©e pour ce client sur cette pÃ©riode." : "Aucune visite enregistrÃ©e Ã  exporter sur cette pÃ©riode.");
+    alert(clientOnly ?"Aucune visite enregistr?e pour ce client sur cette p?riode." : "Aucune visite enregistr?e ? exporter sur cette p?riode.");
     return;
   }
   const rows = [
-    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prÃ©vue", "Motif relance", "Relance faite"],
+    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance pr?vue", "Motif relance", "Relance faite"],
     ...notes.map((note) => [
       note.userName || currentUser.name,
       note.clientSector || "",
@@ -3328,14 +3344,14 @@ function exportVisitReport(clientOnly = false) {
       note.clientName || "",
       formatNoteDate(note.date),
       note.text || "",
-      note.reminderDate ? formatNoteDate(note.reminderDate) : "",
+      note.reminderDate ?formatNoteDate(note.reminderDate) : "",
       note.reminderText || "",
-      note.reminderDone ? "Oui" : "Non",
+      note.reminderDone ?"Oui" : "Non",
     ]),
   ];
-  const scope = clientOnly && selectedNotesClient ? selectedNotesClient.code : currentUser.id;
+  const scope = clientOnly && selectedNotesClient ?selectedNotesClient.code : currentUser.id;
   downloadCsv(`compte-rendu-visites-${scope}-${todayInputDate()}.csv`, rows);
-  recordActivity("Compte-rendu exportÃ©", `${notes.length} visite(s) exportÃ©e(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+  recordActivity("Compte-rendu export?", `${notes.length} visite(s) export?e(s)${clientOnly && selectedNotesClient ?` - ${selectedNotesClient.name}` : ""}`);
 }
 
 async function sendVisitReport(clientOnly = false) {
@@ -3344,20 +3360,20 @@ async function sendVisitReport(clientOnly = false) {
     .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
     .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrÃ©e pour ce client sur cette pÃ©riode." : "Aucune visite enregistrÃ©e Ã  envoyer sur cette pÃ©riode.");
+    alert(clientOnly ?"Aucune visite enregistr?e pour ce client sur cette p?riode." : "Aucune visite enregistr?e ? envoyer sur cette p?riode.");
     return;
   }
   sendVisitReportButton.disabled = true;
   const previousText = sendVisitReportButton.textContent;
-  sendVisitReportButton.textContent = "Envoiâ€¦";
-  notesStatus.textContent = "Envoi du compte-rendu en coursâ€¦";
+  sendVisitReportButton.textContent = "Envoi?";
+  notesStatus.textContent = "Envoi du compte-rendu en cours?";
   try {
     const result = await postService({
       action: "sendVisitReport",
       token: currentSessionToken,
       startDate: reportStartDate?.value || "",
       endDate: reportEndDate?.value || "",
-      clientOnly: clientOnly ? "1" : "",
+      clientOnly: clientOnly ?"1" : "",
       notes: JSON.stringify(notes.map((note) => ({
         userName: note.userName || currentUser.name,
         clientSector: note.clientSector || "",
@@ -3370,8 +3386,8 @@ async function sendVisitReport(clientOnly = false) {
         reminderDone: Boolean(note.reminderDone),
       }))),
     });
-    notesStatus.textContent = result.message || "Compte-rendu envoyÃ©.";
-    recordActivity("Compte-rendu envoyÃ©", `${notes.length} visite(s) envoyÃ©e(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+    notesStatus.textContent = result.message || "Compte-rendu envoy?.";
+    recordActivity("Compte-rendu envoy?", `${notes.length} visite(s) envoy?e(s)${clientOnly && selectedNotesClient ?` - ${selectedNotesClient.name}` : ""}`);
   } catch (error) {
     notesStatus.textContent = error.message || "Envoi impossible pour le moment.";
   } finally {
@@ -3382,14 +3398,14 @@ async function sendVisitReport(clientOnly = false) {
 
 function finishVisit() {
   if (!selectedNotesClient) {
-    notesStatus.textContent = "SÃ©lectionnez un client avant de terminer le rendez-vous.";
+    notesStatus.textContent = "S?lectionnez un client avant de terminer le rendez-vous.";
     notesClientSearch.focus();
     return;
   }
   if (!notesText.value.trim()) {
-    notesText.value = "Rendez-vous terminÃ©";
+    notesText.value = "Rendez-vous termin?";
   }
-  recordActivity("Rendez-vous terminÃ©", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+  recordActivity("Rendez-vous termin?", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   notesForm.requestSubmit();
 }
 
@@ -3419,9 +3435,9 @@ function finishVisit() {
     setReminderFieldsEnabled(true);
     noteReminderDate.value = reminder.toISOString().slice(0, 10);
     noteReminderText.value = action === "relance"
-      ? "Relancer le client suite au rendez-vous"
+      ?"Relancer le client suite au rendez-vous"
       : action === "devis"
-        ? "Faire ou envoyer le devis"
+        ?"Faire ou envoyer le devis"
         : "Reprendre contact pour commande probable";
   } else {
     resetReminderFields();
@@ -3447,7 +3463,7 @@ function getNoteActionLabel(note) {
 
 function reminderStatus(note) {
   if (note.reminderDone) return "none";
-  if (!note.reminderDate) return getNoteActionLabel(note) ? "action" : "none";
+  if (!note.reminderDate) return getNoteActionLabel(note) ?"action" : "none";
   const today = getTodayKey();
   if (note.reminderDate < today) return "late";
   if (note.reminderDate === today) return "today";
@@ -3497,7 +3513,7 @@ function renderHomeReminders() {
   updateReminderBadge();
 
   homeRemindersPanel.classList.toggle("is-hidden", reminders.length === 0);
-  homeRemindersCount.textContent = `${reminders.length} relance${reminders.length > 1 ? "s" : ""}`;
+  homeRemindersCount.textContent = `${reminders.length} relance${reminders.length > 1 ?"s" : ""}`;
   if (!reminders.length) {
     homeRemindersList.innerHTML = "";
     return;
@@ -3506,7 +3522,7 @@ function renderHomeReminders() {
   homeRemindersList.innerHTML = reminders
     .map((note) => {
       const status = reminderStatus(note);
-      const label = status === "late" ? "En retard" : "Aujourdâ€™hui";
+      const label = status === "late" ?"En retard" : "Aujourd?hui";
       return `
         <article class="home-reminder-card ${status}">
           <div>
@@ -3554,7 +3570,7 @@ function showReminderFocus(note) {
   notesReminderFocus.classList.remove("is-hidden");
   notesReminderFocus.innerHTML = `
     <div>
-      <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Relance"}</span>
+      <span class="reminder-pill">${reminderStatus(note) === "late" ?"En retard" : "Relance"}</span>
       <strong>${escapeHtml(note.clientName)}</strong>
       <small>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</small>
     </div>
@@ -3579,16 +3595,16 @@ function renderNotesReminderInbox() {
   notesReminderFocus.innerHTML = `
     <div class="notes-reminder-inbox-header">
       <div>
-        <span class="reminder-pill">${reminders.length} Ã  traiter</span>
+        <span class="reminder-pill">${reminders.length} ? traiter</span>
         <strong>Relances clients</strong>
-        <small>Voici les clients Ã  rappeler aujourdâ€™hui ou en retard.</small>
+        <small>Voici les clients ? rappeler aujourd?hui ou en retard.</small>
       </div>
     </div>
     <div class="notes-reminder-inbox-list">
       ${reminders.map((note) => `
         <article class="home-reminder-card ${reminderStatus(note)}">
           <div>
-            <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Aujourdâ€™hui"}</span>
+            <span class="reminder-pill">${reminderStatus(note) === "late" ?"En retard" : "Aujourd?hui"}</span>
             <strong>${escapeHtml(note.clientName)}</strong>
             <small>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</small>
           </div>
@@ -3668,7 +3684,7 @@ function selectNotesClient(client) {
   notesSelectedClient.innerHTML = `
     <strong>${escapeHtml(client.name)}</strong>
     <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)}</span>
-    <span>${escapeHtml(client.sector)}${client.phone ? ` - ${escapeHtml(client.phone)}` : ""}</span>
+    <span>${escapeHtml(client.sector)}${client.phone ?` - ${escapeHtml(client.phone)}` : ""}</span>
   `;
   notesDate.value = todayInputDate();
   notesText.value = "";
@@ -3676,7 +3692,7 @@ function selectNotesClient(client) {
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   renderClientNotes();
-  recordActivity("Client consultÃ© en notes", `${client.name} (${client.code})`);
+  recordActivity("Client consult? en notes", `${client.name} (${client.code})`);
   requestAnimationFrame(() => notesText.focus());
 }
 
@@ -3685,11 +3701,11 @@ function renderNotesEmpty(message = "Recherchez un client pour afficher ses note
   editingNoteId = null;
   notesHistoryMode = "client";
   hideReminderFocus();
-  notesStatus.textContent = "Aucun client sÃ©lectionnÃ©";
+  notesStatus.textContent = "Aucun client s?lectionn?";
   notesCount.textContent = "0 note";
   notesHistoryTitle.textContent = "Notes du client";
   notesSelectedClient.innerHTML = `
-    <strong>SÃ©lectionnez un client</strong>
+    <strong>S?lectionnez un client</strong>
     <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
   `;
   notesList.innerHTML = `<div class="notes-empty">${escapeHtml(message)}</div>`;
@@ -3711,13 +3727,13 @@ function renderAllNotes() {
   });
   notesStatus.textContent = "Toutes vos notes";
   notesHistoryTitle.textContent = "Mes notes";
-  notesCount.textContent = `${notes.length} note${notes.length > 1 ? "s" : ""}`;
+  notesCount.textContent = `${notes.length} note${notes.length > 1 ?"s" : ""}`;
 
   if (!notes.length) {
     notesList.innerHTML = `
       <div class="notes-empty">
-        <strong>Aucune note trouvÃ©e.</strong>
-        <span>Modifiez la pÃ©riode ou sÃ©lectionnez un client pour ajouter une nouvelle note.</span>
+        <strong>Aucune note trouv?e.</strong>
+        <span>Modifiez la p?riode ou s?lectionnez un client pour ajouter une nouvelle note.</span>
       </div>
     `;
     return;
@@ -3729,21 +3745,21 @@ function renderAllNotes() {
         <div>
           <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
           <strong>${escapeHtml(note.clientName || "Client")}</strong>
-          <small>${escapeHtml(note.clientCode || "")}${note.clientSector ? ` - ${escapeHtml(note.clientSector)}` : ""}</small>
+          <small>${escapeHtml(note.clientCode || "")}${note.clientSector ?` - ${escapeHtml(note.clientSector)}` : ""}</small>
         </div>
         <div class="note-actions">
           <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
+          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">?</button>
         </div>
       </div>
       <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
-      ${note.reminderDate ? `
+      ${note.reminderDate ?`
         <div class="note-reminder ${reminderStatus(note)}">
           <div>
-            <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
+            <strong>${note.reminderDone ?"Relance faite" : "Relance pr?vue"}</strong>
             <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
           </div>
-          ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
+          ${!note.reminderDone ?`<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
         </div>
       ` : ""}
     </article>
@@ -3753,7 +3769,7 @@ function renderAllNotes() {
 function renderClientNotes() {
   notesHistoryMode = "client";
   const notes = getVisibleNotesForClient();
-  notesCount.textContent = `${notes.length} note${notes.length > 1 ? "s" : ""}`;
+  notesCount.textContent = `${notes.length} note${notes.length > 1 ?"s" : ""}`;
   notesHistoryTitle.textContent = "Notes du client";
 
   if (!selectedNotesClient) {
@@ -3765,7 +3781,7 @@ function renderClientNotes() {
     notesList.innerHTML = `
       <div class="notes-empty">
         <strong>Aucune note pour ce client.</strong>
-        <span>Ajoutez le compte-rendu du rendez-vous Ã  gauche.</span>
+        <span>Ajoutez le compte-rendu du rendez-vous ? gauche.</span>
       </div>
     `;
     return;
@@ -3777,21 +3793,21 @@ function renderClientNotes() {
         <div class="note-card-header">
           <div>
             <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
-            <small>AjoutÃ©e le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
+            <small>Ajout?e le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
           </div>
           <div class="note-actions">
             <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
+            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">?</button>
           </div>
         </div>
         <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
-        ${note.reminderDate ? `
+        ${note.reminderDate ?`
           <div class="note-reminder ${reminderStatus(note)}">
             <div>
-              <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
+              <strong>${note.reminderDone ?"Relance faite" : "Relance pr?vue"}</strong>
               <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
             </div>
-            ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
+            ${!note.reminderDone ?`<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
           </div>
         ` : ""}
       </article>
@@ -3802,7 +3818,7 @@ function renderClientNotes() {
 function saveClientNote(event) {
   event.preventDefault();
   if (!currentUser || !selectedNotesClient) {
-    notesStatus.textContent = "SÃ©lectionnez un client avant dâ€™enregistrer.";
+    notesStatus.textContent = "S?lectionnez un client avant d?enregistrer.";
     requestAnimationFrame(() => notesClientSearch.focus());
     return;
   }
@@ -3818,19 +3834,19 @@ function saveClientNote(event) {
   if (editingNoteId) {
     const index = notes.findIndex((note) => note.id === editingNoteId && note.userId === currentUser.id);
     if (index !== -1) {
-      const reminderChanged = notes[index].reminderDate !== (noteReminderEnabled.checked ? noteReminderDate.value : "") ||
-        notes[index].reminderText !== (noteReminderEnabled.checked ? noteReminderText.value.trim() : "");
+      const reminderChanged = notes[index].reminderDate !== (noteReminderEnabled.checked ?noteReminderDate.value : "") ||
+        notes[index].reminderText !== (noteReminderEnabled.checked ?noteReminderText.value.trim() : "");
       notes[index] = {
         ...notes[index],
         date: notesDate.value || todayInputDate(),
         text,
-        reminderDate: noteReminderEnabled.checked ? noteReminderDate.value : "",
-        reminderText: noteReminderEnabled.checked ? noteReminderText.value.trim() : "",
-        reminderDone: noteReminderEnabled.checked ? (reminderChanged ? false : Boolean(notes[index].reminderDone)) : false,
-        reminderDoneAt: noteReminderEnabled.checked && !reminderChanged ? (notes[index].reminderDoneAt || "") : "",
+        reminderDate: noteReminderEnabled.checked ?noteReminderDate.value : "",
+        reminderText: noteReminderEnabled.checked ?noteReminderText.value.trim() : "",
+        reminderDone: noteReminderEnabled.checked ?(reminderChanged ?false : Boolean(notes[index].reminderDone)) : false,
+        reminderDoneAt: noteReminderEnabled.checked && !reminderChanged ?(notes[index].reminderDoneAt || "") : "",
         updatedAt: now,
       };
-      recordActivity("Note client modifiÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+      recordActivity("Note client modifi?e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
     }
   } else {
     notes.push({
@@ -3842,14 +3858,14 @@ function saveClientNote(event) {
       clientSector: selectedNotesClient.sector,
       date: notesDate.value || todayInputDate(),
       text,
-      reminderDate: noteReminderEnabled.checked ? noteReminderDate.value : "",
-      reminderText: noteReminderEnabled.checked ? noteReminderText.value.trim() : "",
+      reminderDate: noteReminderEnabled.checked ?noteReminderDate.value : "",
+      reminderText: noteReminderEnabled.checked ?noteReminderText.value.trim() : "",
       reminderDone: false,
       reminderDoneAt: "",
       createdAt: now,
       updatedAt: now,
     });
-    recordActivity("Note client ajoutÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
+    recordActivity("Note client ajout?e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
   }
 
   saveStoredNotes(notes);
@@ -3881,7 +3897,7 @@ function editClientNote(noteId) {
     notesSelectedClient.innerHTML = `
       <strong>${escapeHtml(client.name)}</strong>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)}</span>
-      <span>${escapeHtml(client.sector)}${client.phone ? ` - ${escapeHtml(client.phone)}` : ""}</span>
+      <span>${escapeHtml(client.sector)}${client.phone ?` - ${escapeHtml(client.phone)}` : ""}</span>
     `;
   }
   editingNoteId = note.id;
@@ -3917,7 +3933,7 @@ function deleteClientNote(noteId) {
   if (!confirm(`Supprimer la note du ${formatNoteDate(note.date)} pour ${selectedNotesClient.name} ?`)) return;
   saveStoredNotes(getStoredNotes().filter((item) => item.id !== noteId));
   if (editingNoteId === noteId) cancelNoteEdit();
-  recordActivity("Note client supprimÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
+  recordActivity("Note client supprim?e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
   renderClientNotes();
   if (wasAllNotes) renderAllNotes();
   renderHomeReminders();
@@ -3928,7 +3944,7 @@ function setupVoiceNotes() {
   if (!SpeechRecognition) {
     startVoiceNote.disabled = true;
     startVoiceNote.classList.add("is-disabled");
-    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dict?e vocale non disponible sur ce navigateur.";
     return;
   }
 
@@ -3940,8 +3956,8 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("start", () => {
     voiceNoteListening = true;
     startVoiceNote.classList.add("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸ”´</span> ArrÃªter la dictÃ©e';
-    voiceNoteStatus.textContent = "Jâ€™Ã©couteâ€¦ parlez clairement, le texte sâ€™ajoute Ã  la note.";
+    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸ”´</span> Arr?ter la dict?e';
+    voiceNoteStatus.textContent = "J??coute? parlez clairement, le texte s?ajoute ? la note.";
   });
 
   voiceRecognition.addEventListener("result", (event) => {
@@ -3957,11 +3973,11 @@ function setupVoiceNotes() {
     }
 
     if (finalText) {
-      const separator = notesText.value.trim() ? "\n" : "";
+      const separator = notesText.value.trim() ?"\n" : "";
       notesText.value = `${notesText.value.trimEnd()}${separator}${finalText.trim()}`;
       notesText.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "Jâ€™Ã©couteâ€¦";
+    voiceNoteStatus.textContent = interimText ?`En cours : ${interimText.trim()}` : "J??coute?";
   });
 
   voiceRecognition.addEventListener("end", () => {
@@ -3969,9 +3985,9 @@ function setupVoiceNotes() {
     startVoiceNote.classList.remove("is-listening");
     startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
     if (voiceNoteStatus.textContent.startsWith("En cours")) {
-      voiceNoteStatus.textContent = "DictÃ©e terminÃ©e. Relisez puis enregistrez la note.";
+      voiceNoteStatus.textContent = "Dict?e termin?e. Relisez puis enregistrez la note.";
     } else if (!voiceNoteStatus.textContent.includes("non disponible")) {
-      voiceNoteStatus.textContent = "DictÃ©e arrÃªtÃ©e. Vous pouvez relire puis enregistrer.";
+      voiceNoteStatus.textContent = "Dict?e arr?t?e. Vous pouvez relire puis enregistrer.";
     }
   });
 
@@ -3980,22 +3996,22 @@ function setupVoiceNotes() {
     startVoiceNote.classList.remove("is-listening");
     startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
     const messages = {
-      "not-allowed": "Micro refusÃ©. Autorisez le micro dans Chrome pour utiliser la dictÃ©e.",
-      "no-speech": "Je nâ€™ai pas entendu de voix. RÃ©essayez en parlant plus prÃ¨s de la tablette.",
-      "audio-capture": "Aucun micro dÃ©tectÃ© sur cet appareil.",
-      network: "La dictÃ©e vocale a besoin dâ€™une connexion internet.",
+      "not-allowed": "Micro refus?. Autorisez le micro dans Chrome pour utiliser la dict?e.",
+      "no-speech": "Je n?ai pas entendu de voix. R?essayez en parlant plus pr?s de la tablette.",
+      "audio-capture": "Aucun micro d?tect? sur cet appareil.",
+      network: "La dict?e vocale a besoin d?une connexion internet.",
     };
-    voiceNoteStatus.textContent = messages[event.error] || "La dictÃ©e vocale sâ€™est arrÃªtÃ©e. RÃ©essayez.";
+    voiceNoteStatus.textContent = messages[event.error] || "La dict?e vocale s?est arr?t?e. R?essayez.";
   });
 }
 
 function toggleVoiceNote() {
   if (!voiceRecognition) {
-    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dict?e vocale non disponible sur ce navigateur.";
     return;
   }
   if (!selectedNotesClient) {
-    voiceNoteStatus.textContent = "SÃ©lectionnez dâ€™abord un client avant de dicter une note.";
+    voiceNoteStatus.textContent = "S?lectionnez d?abord un client avant de dicter une note.";
     notesClientSearch.focus();
     return;
   }
@@ -4005,9 +4021,9 @@ function toggleVoiceNote() {
   }
   try {
     voiceRecognition.start();
-    recordActivity("DictÃ©e vocale lancÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+    recordActivity("Dict?e vocale lanc?e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   } catch {
-    voiceNoteStatus.textContent = "La dictÃ©e est dÃ©jÃ  en cours.";
+    voiceNoteStatus.textContent = "La dict?e est d?j? en cours.";
   }
 }
 
@@ -4049,7 +4065,7 @@ function clientAddressParts(client) {
 function getClientRouteAddress(client) {
   const parts = clientAddressParts(client);
   if (!parts.length) return "";
-  const country = /belg|belgi|bruxelles|brussel|herentals|anvers|antwerp/i.test(parts.join(" ")) ? "Belgique" : "France";
+  const country = /belg|belgi|bruxelles|brussel|herentals|anvers|antwerp/i.test(parts.join(" ")) ?"Belgique" : "France";
   return [...parts, country].join(", ");
 }
 
@@ -4089,7 +4105,7 @@ function getDepartmentFromZip(zip) {
   if (/^2A/.test(cleanZip)) return "2A";
   if (/^2B/.test(cleanZip)) return "2B";
   const match = cleanZip.match(/\d{2}/);
-  return match ? match[0] : "";
+  return match ?match[0] : "";
 }
 
 function hashClientCode(value) {
@@ -4117,7 +4133,7 @@ function getClientMapPosition(client, scopeClients = visibleClients) {
 function parseCoordinate(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(String(value).replace(",", "."));
-  return Number.isFinite(number) ? number : null;
+  return Number.isFinite(number) ?number : null;
 }
 
 function getClientCoordinates(client, scopeClients = visibleClients) {
@@ -4151,8 +4167,8 @@ function getSelectedTourStats(codes = Array.from(selectedTourCodes)) {
   for (let index = 1; index < coordinates.length; index += 1) {
     straightDistance += distanceKmBetweenPoints(coordinates[index - 1], coordinates[index]);
   }
-  const estimatedDistance = straightDistance ? Math.round(straightDistance * 1.28) : 0;
-  const estimatedMinutes = estimatedDistance ? Math.round((estimatedDistance / 55) * 60 + clients.length * 8) : 0;
+  const estimatedDistance = straightDistance ?Math.round(straightDistance * 1.28) : 0;
+  const estimatedMinutes = estimatedDistance ?Math.round((estimatedDistance / 55) * 60 + clients.length * 8) : 0;
   return {
     clients,
     clientCount: clients.length,
@@ -4173,7 +4189,7 @@ function formatDuration(minutes) {
 function initTourMap() {
   if (!tourMap) return false;
   if (!window.L) {
-    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. VÃ©rifiez la connexion internet puis rechargez la page.</div>`;
+    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. V?rifiez la connexion internet puis rechargez la page.</div>`;
     return false;
   }
   if (tourMapInstance) return true;
@@ -4203,18 +4219,18 @@ function renderInteractiveTourMap(clients) {
     if (!coordinates) return;
     const selected = selectedTourCodes.has(client.code);
     const marker = L.circleMarker([coordinates.lat, coordinates.lng], {
-      radius: selected ? 8 : 5,
-      color: selected ? "#e70013" : "#111827",
-      weight: selected ? 3 : 2,
-      fillColor: selected ? "#e70013" : "#111827",
-      fillOpacity: selected ? 0.9 : 0.75,
+      radius: selected ?8 : 5,
+      color: selected ?"#e70013" : "#111827",
+      weight: selected ?3 : 2,
+      fillColor: selected ?"#e70013" : "#111827",
+      fillOpacity: selected ?0.9 : 0.75,
     }).addTo(tourMarkersLayer);
     marker.bindTooltip(client.name, { direction: "top", sticky: true });
     marker.bindPopup(`
       <strong>${escapeHtml(client.name)}</strong><br>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
-      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</small><br>
-      <small>Position GPS vÃ©rifiÃ©e</small>
+      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incompl?te")}</small><br>
+      <small>Position GPS v?rifi?e</small>
     `);
     marker.on("click", () => toggleTourClient(client.code));
     tourMarkerByCode.set(client.code, marker);
@@ -4231,11 +4247,11 @@ function renderInteractiveTourMap(clients) {
     L.polyline(selectedCoordinates, { color: "#e70013", weight: 4, opacity: 0.72, dashArray: "8 8" }).addTo(tourRouteLayer);
   }
 
-  const fitPoints = selectedCoordinates.length ? selectedCoordinates : bounds;
+  const fitPoints = selectedCoordinates.length ?selectedCoordinates : bounds;
   if (fitPoints.length === 1) {
     tourMapInstance.setView(fitPoints[0], 11);
   } else if (fitPoints.length > 1) {
-    tourMapInstance.fitBounds(fitPoints, { padding: [26, 26], maxZoom: selectedCoordinates.length ? 12 : 8 });
+    tourMapInstance.fitBounds(fitPoints, { padding: [26, 26], maxZoom: selectedCoordinates.length ?12 : 8 });
   }
   updateTourRouteSummary();
 }
@@ -4243,11 +4259,11 @@ function renderInteractiveTourMap(clients) {
 function updateTourRouteSummary() {
   if (!tourRouteSummary) return;
   const stats = getSelectedTourStats();
-  const distanceText = stats.distanceKm && stats.gpsCount >= 2 ? `env. ${stats.distanceKm} km` : "--";
-  const timeText = stats.minutes && stats.gpsCount >= 2 ? formatDuration(stats.minutes) : "--";
-  const gpsText = stats.clientCount ? `${stats.gpsCount}/${stats.clientCount} avec GPS` : "Aucun client coche";
+  const distanceText = stats.distanceKm && stats.gpsCount >= 2 ?`env. ${stats.distanceKm} km` : "--";
+  const timeText = stats.minutes && stats.gpsCount >= 2 ?formatDuration(stats.minutes) : "--";
+  const gpsText = stats.clientCount ?`${stats.gpsCount}/${stats.clientCount} avec GPS` : "Aucun client coche";
   tourRouteSummary.innerHTML = `
-    <strong>${stats.clientCount} client${stats.clientCount > 1 ? "s" : ""}</strong>
+    <strong>${stats.clientCount} client${stats.clientCount > 1 ?"s" : ""}</strong>
     <span>Distance estimee : ${escapeHtml(distanceText)}</span>
     <span>Temps estime : ${escapeHtml(timeText)}</span>
     <small>${escapeHtml(gpsText)}</small>
@@ -4265,7 +4281,7 @@ function getAllSavedTours() {
 function getCurrentUserSavedTours() {
   if (!currentUser) return [];
   const saved = getAllSavedTours();
-  return Array.isArray(saved[currentUser.id]) ? saved[currentUser.id] : [];
+  return Array.isArray(saved[currentUser.id]) ?saved[currentUser.id] : [];
 }
 
 function saveCurrentUserTours(tours) {
@@ -4279,8 +4295,8 @@ function renderSavedTours() {
   if (!savedTourSelect) return;
   const tours = getCurrentUserSavedTours();
   savedTourSelect.innerHTML = tours.length
-    ? `<option value="">Choisir une tournÃ©e</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
-    : `<option value="">Aucune tournÃ©e enregistrÃ©e</option>`;
+    ?`<option value="">Choisir une tourn?e</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
+    : `<option value="">Aucune tourn?e enregistr?e</option>`;
   loadTourButton.disabled = tours.length === 0;
   deleteTourButton.disabled = tours.length === 0;
 }
@@ -4288,30 +4304,30 @@ function renderSavedTours() {
 function saveCurrentTour() {
   const codes = Array.from(selectedTourCodes);
   if (!codes.length) {
-    alert("SÃ©lectionnez au moins un client avant de sauvegarder une tournÃ©e.");
+    alert("S?lectionnez au moins un client avant de sauvegarder une tourn?e.");
     return;
   }
   const name = tourName.value.trim();
   if (!name) {
-    alert("Donnez un nom Ã  la tournÃ©e avant de la sauvegarder.");
+    alert("Donnez un nom ? la tourn?e avant de la sauvegarder.");
     tourName.focus();
     return;
   }
   const tours = getCurrentUserSavedTours();
   const existingIndex = tours.findIndex((tour) => normalize(tour.name) === normalize(name));
   const payload = {
-    id: existingIndex >= 0 ? tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: existingIndex >= 0 ?tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name,
     codes,
     updatedAt: new Date().toISOString(),
-    createdAt: existingIndex >= 0 ? tours[existingIndex].createdAt : new Date().toISOString(),
+    createdAt: existingIndex >= 0 ?tours[existingIndex].createdAt : new Date().toISOString(),
   };
   if (existingIndex >= 0) tours[existingIndex] = payload;
   else tours.push(payload);
   saveCurrentUserTours(tours.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })));
   renderSavedTours();
   savedTourSelect.value = payload.id;
-  recordActivity("TournÃ©e sauvegardÃ©e", `${payload.name} - ${payload.codes.length} client(s)`);
+  recordActivity("Tourn?e sauvegard?e", `${payload.name} - ${payload.codes.length} client(s)`);
 }
 
 function loadSavedTour() {
@@ -4322,7 +4338,7 @@ function loadSavedTour() {
   selectedTourCodes = new Set(tour.codes.filter((code) => allowedCodes.has(code)));
   tourName.value = tour.name;
   renderTourPlanner();
-  recordActivity("TournÃ©e chargÃ©e", `${tour.name} - ${selectedTourCodes.size} client(s)`);
+  recordActivity("Tourn?e charg?e", `${tour.name} - ${selectedTourCodes.size} client(s)`);
 }
 
 function deleteSavedTour() {
@@ -4330,11 +4346,11 @@ function deleteSavedTour() {
   const tours = getCurrentUserSavedTours();
   const tour = tours.find((item) => item.id === id);
   if (!tour) return;
-  if (!confirm(`Supprimer la tournÃ©e "${tour.name}" ?`)) return;
+  if (!confirm(`Supprimer la tourn?e "${tour.name}" ?`)) return;
   saveCurrentUserTours(tours.filter((item) => item.id !== id));
   savedTourSelect.value = "";
   renderSavedTours();
-  recordActivity("TournÃ©e supprimÃ©e", tour.name);
+  recordActivity("Tourn?e supprim?e", tour.name);
 }
 
 function focusTourClientOnMap(code) {
@@ -4350,9 +4366,9 @@ function renderSavedTours() {
   if (!savedTourSelect) return;
   const tours = getCurrentUserSavedTours();
   savedTourSelect.innerHTML = tours.length
-    ? `<option value="">Choisir une tournee</option>${tours.map((tour) => {
+    ?`<option value="">Choisir une tournee</option>${tours.map((tour) => {
         const stats = tour.stats || getSelectedTourStats(tour.codes);
-        const distance = stats.distanceKm ? ` - env. ${stats.distanceKm} km` : "";
+        const distance = stats.distanceKm ?` - env. ${stats.distanceKm} km` : "";
         return `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})${distance}</option>`;
       }).join("")}`
     : `<option value="">Aucune tournee enregistree</option>`;
@@ -4376,7 +4392,7 @@ function saveCurrentTour() {
   const existingIndex = tours.findIndex((tour) => normalize(tour.name) === normalize(name));
   const stats = getSelectedTourStats(codes);
   const payload = {
-    id: existingIndex >= 0 ? tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: existingIndex >= 0 ?tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name,
     codes,
     stats: {
@@ -4386,7 +4402,7 @@ function saveCurrentTour() {
       minutes: stats.minutes,
     },
     updatedAt: new Date().toISOString(),
-    createdAt: existingIndex >= 0 ? tours[existingIndex].createdAt : new Date().toISOString(),
+    createdAt: existingIndex >= 0 ?tours[existingIndex].createdAt : new Date().toISOString(),
   };
   if (existingIndex >= 0) tours[existingIndex] = payload;
   else tours.push(payload);
@@ -4406,43 +4422,43 @@ function renderTourPlanner() {
   const selectedCount = selectedClients.length;
   const mappedCount = filteredClients.filter((client) => getClientCoordinates(client)).length;
   if (tourMapTitle) {
-    tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
+    tourMapTitle.textContent = currentUser?.role === "admin" ?"Tous les clients France" : "Clients du secteur";
   }
-  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sÃ©lectionnÃ©${selectedCount > 1 ? "s" : ""}`;
-  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} Â· ${mappedCount} sur la carte`;
+  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ?"s" : ""} s?lectionn?${selectedCount > 1 ?"s" : ""}`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ?"s" : ""} ? ${mappedCount} sur la carte`;
   openGoogleMapsRoute.disabled = selectedCount === 0;
   openWazeRoute.disabled = selectedCount === 0;
   clearTourSelection.disabled = selectedCount === 0;
 
   tourSelectedList.innerHTML = selectedClients.length
-    ? selectedClients.map((client, index) => `
+    ?selectedClients.map((client, index) => `
         <article class="tour-route-item">
           <strong>${index + 1}. ${escapeHtml(client.name)}</strong>
-          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</span>
-          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">Ã—</button>
+          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incompl?te")}</span>
+          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">?</button>
         </article>
       `).join("")
-    : `<div class="tour-empty">Cochez les clients Ã  visiter. Ils apparaÃ®tront ici dans l'ordre de sÃ©lection.</div>`;
+    : `<div class="tour-empty">Cochez les clients ? visiter. Ils appara?tront ici dans l'ordre de s?lection.</div>`;
 
   tourClientList.innerHTML = filteredClients.length
-    ? filteredClients.map((client) => {
+    ?filteredClients.map((client) => {
         const selected = selectedTourCodes.has(client.code);
         const address = getClientRouteAddress(client);
         const hasGps = Boolean(getClientCoordinates(client));
         return `
-          <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}" data-tour-toggle="${escapeHtml(client.code)}">
+          <article class="tour-client-card ${selected ?"is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}" data-tour-toggle="${escapeHtml(client.code)}">
             <label>
-              <input type="checkbox" ${selected ? "checked" : ""} data-tour-toggle="${escapeHtml(client.code)}" />
+              <input type="checkbox" ${selected ?"checked" : ""} data-tour-toggle="${escapeHtml(client.code)}" />
               <span>
                 <strong>${escapeHtml(client.name)}</strong>
                 <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
               </span>
             </label>
-            <em>${escapeHtml(address || "Adresse incomplÃ¨te")}${hasGps ? "" : " Â· GPS Ã  corriger"}</em>
+            <em>${escapeHtml(address || "Adresse incompl?te")}${hasGps ?"" : " ? GPS ? corriger"}</em>
           </article>
         `;
       }).join("")
-    : `<div class="tour-empty">Aucun client trouvÃ©. Effacez la recherche pour revenir Ã  la liste complÃ¨te.</div>`;
+    : `<div class="tour-empty">Aucun client trouv?. Effacez la recherche pour revenir ? la liste compl?te.</div>`;
 
   renderInteractiveTourMap(filteredClients);
   renderSavedTours();
@@ -4467,8 +4483,8 @@ function openGoogleRoute() {
   const addresses = routeClients.map(getClientRouteAddress);
   const destination = addresses[addresses.length - 1];
   const waypoints = addresses.slice(0, -1).join("|");
-  const url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`;
-  recordActivity("TournÃ©e Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
+  const url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ?`&waypoints=${encodeURIComponent(waypoints)}` : ""}`;
+  recordActivity("Tourn?e Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -4476,7 +4492,7 @@ function openWazeNextClient() {
   const client = getSelectedTourClients().find((item) => getClientRouteAddress(item));
   if (!client) return;
   const url = `https://waze.com/ul?q=${encodeURIComponent(getClientRouteAddress(client))}&navigate=yes`;
-  recordActivity("TournÃ©e Waze ouverte", `${client.name} (${client.code})`);
+  recordActivity("Tourn?e Waze ouverte", `${client.name} (${client.code})`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -4519,8 +4535,8 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "TournÃ©es", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
-    recordActivity("Onglet consultÃ©", names[tabName] || tabName);
+    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tourn?es", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    recordActivity("Onglet consult?", names[tabName] || tabName);
   }
 
   if (showClient360) {
@@ -4593,7 +4609,7 @@ function downloadCsv(filename, rows) {
 }
 
 function buildErpCsvRows(validLines) {
-  const rows = ["RÃ©fÃ©rence (SKU)"];
+  const rows = ["R?f?rence (SKU)"];
   validLines.forEach((line) => {
     rows.push(line.product.ref);
   });
@@ -4611,9 +4627,9 @@ function pdfText(value) {
     .toString()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[â€™]/g, "'")
-    .replace(/[â‚¬]/g, "EUR")
-    .replace(/[Â°]/g, "o")
+    .replace(/[?]/g, "'")
+    .replace(/[?]/g, "EUR")
+    .replace(/[?]/g, "o")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -4655,7 +4671,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   }
 
   function textAt(x, currentY, size, value, options = {}) {
-    const font = options.bold ? "F2" : "F1";
+    const font = options.bold ?"F2" : "F1";
     commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
   }
 
@@ -4708,7 +4724,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
     fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
     strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
-    textAt(pageWidth - 190, pageHeight - 47, 8.5, `NÂ° ${orderNumber}`, { bold: true });
+    textAt(pageWidth - 190, pageHeight - 47, 8.5, `N? ${orderNumber}`, { bold: true });
     textAt(pageWidth - 190, pageHeight - 66, 8.5, `Date : ${orderDate}`);
     hline(margin, pageWidth - margin, pageHeight - 82, "#E30613");
     y = pageHeight - 104;
@@ -4752,11 +4768,11 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   function drawTableHeader() {
     fillRect(margin, y - 4, pageWidth - margin * 2, 21, "#E30613");
     setColor("#FFFFFF");
-    textAt(margin + 6, y + 3, 7.5, "RÃ©f.", { bold: true });
+    textAt(margin + 6, y + 3, 7.5, "R?f.", { bold: true });
     textAt(88, y + 3, 7.5, "Gencod", { bold: true });
-    textAt(172, y + 3, 7.5, "DÃ©signation", { bold: true });
+    textAt(172, y + 3, 7.5, "D?signation", { bold: true });
     textAt(382, y + 3, 7.5, "UDV", { bold: true });
-    textAt(417, y + 3, 7.5, "QtÃ©", { bold: true });
+    textAt(417, y + 3, 7.5, "Qt?", { bold: true });
     textAt(456, y + 3, 7.5, "Prix U.", { bold: true });
     textAt(515, y + 3, 7.5, "Total", { bold: true });
     setColor("#1E1E22");
@@ -4785,7 +4801,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
 
   addPage();
   drawInfoBoxes();
-  textLine(margin, 12, "Produits commandÃ©s", { bold: true, lineHeight: 17 });
+  textLine(margin, 12, "Produits command?s", { bold: true, lineHeight: 17 });
   drawTableHeader();
   validLines.forEach((line, index) => drawProductRow(line, index));
 
@@ -4795,7 +4811,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   fillRect(recapX, y - 55, 174, 66, "#F5F5F5");
   strokeRect(recapX, y - 55, 174, 66);
   fillRect(recapX, y - 55, 4, 66, "#E30613");
-  textAt(recapX + 14, y - 6, 9, "RÃ©capitulatif", { bold: true });
+  textAt(recapX + 14, y - 6, 9, "R?capitulatif", { bold: true });
   textAt(recapX + 14, y - 25, 8, "Total HT");
   textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
   textAt(recapX + 14, y - 42, 8, "Total TTC");
@@ -4811,8 +4827,8 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     y -= 48;
   }
 
-  textAt(margin, 74, 7, "Tous nos prix sont indiquÃ©s en Euros. Prix nets valables uniquement pour cette commande.");
-  textAt(margin, 64, 7, "Document gÃ©nÃ©rÃ© automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
+  textAt(margin, 74, 7, "Tous nos prix sont indiqu?s en Euros. Prix nets valables uniquement pour cette commande.");
+  textAt(margin, 64, 7, "Document g?n?r? automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
   setColor("#1E1E22");
 
   addPage();
@@ -4910,7 +4926,7 @@ function refreshNotesHistoryFromCurrentMode() {
 function updateOfflineStatus() {
   if (!offlineStatus) return;
   const online = navigator.onLine !== false;
-  offlineStatus.textContent = online ? "En ligne" : "Hors ligne";
+  offlineStatus.textContent = online ?"En ligne" : "Hors ligne";
   offlineStatus.classList.toggle("is-online", online);
   offlineStatus.classList.toggle("is-offline", !online);
 }
@@ -5008,7 +5024,7 @@ expensesLines.addEventListener("change", (event) => {
   if (field === "receipt") {
     const file = event.target.files?.[0] || null;
     line.receiptFile = file;
-    line.receiptName = file ? file.name : "";
+    line.receiptName = file ?file.name : "";
     line.receiptDataUrl = "";
     line.receiptMimeType = "";
     renderExpenses();
@@ -5051,7 +5067,7 @@ notesForm.addEventListener("click", (event) => {
   const templateButton = event.target.closest("[data-note-template]");
   if (!templateButton) return;
   const text = templateButton.dataset.noteTemplate;
-  const separator = notesText.value.trim() ? "\n" : "";
+  const separator = notesText.value.trim() ?"\n" : "";
   notesText.value = `${notesText.value.trimEnd()}${separator}${text}`;
   if (templateButton.dataset.templateReminder === "1") {
     setReminderFieldsEnabled(true);
@@ -5184,6 +5200,6 @@ setupVoiceNotes();
 updateOfflineStatus();
 window.addEventListener("online", updateOfflineStatus);
 window.addEventListener("offline", updateOfflineStatus);
-setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
+setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ?"tablet" : "pc");
 setVisitActionVisibility();
 restoreSession();

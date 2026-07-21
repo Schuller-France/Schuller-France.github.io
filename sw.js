@@ -1,10 +1,10 @@
-﻿const CACHE_NAME = "schuller-france-app-v20260721d";
+﻿const CACHE_NAME = "schuller-france-app-v20260721e";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260721d",
-  "./script.js?v=20260721d",
-  "./tarifs.js?v=20260721d",
+  "./style.css?v=20260721e",
+  "./script.js?v=20260721e",
+  "./tarifs.js?v=20260721e",
   "./tarifs.js?v=20260713c",
   "./manifest.webmanifest",
   "./assets/schuller-logo.png",
@@ -44,6 +44,7 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
   );
 });
+
 
 
 

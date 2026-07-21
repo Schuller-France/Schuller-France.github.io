@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260721d" />
+    <link rel="stylesheet" href="style.css?v=20260721e" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -30,7 +30,7 @@
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
-        <p class="login-intro">AccÃ©dez Ã  votre secteur client et prÃ©parez vos commandes terrain.</p>
+        <p class="login-intro">Acc?dez ? votre secteur client et pr?parez vos commandes terrain.</p>
 
         <label for="loginId">
           Identifiant
@@ -44,18 +44,18 @@
 
         <label class="remember-login" for="rememberLogin">
           <input id="rememberLogin" type="checkbox" />
-          <span>Rester connectÃ© sur cet ordinateur</span>
+          <span>Rester connect? sur cet ordinateur</span>
         </label>
 
         <p class="login-error" id="loginError" role="alert"></p>
         <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
-        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oubliÃ© ?</button>
+        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oubli? ?</button>
       </form>
 
       <section class="login-card is-hidden" id="passwordResetCard" aria-labelledby="passwordResetTitle">
-        <p class="eyebrow">AccÃ¨s sÃ©curisÃ©</p>
-        <h1 id="passwordResetTitle">RÃ©initialiser le mot de passe</h1>
-        <p class="login-intro">Recevez un code Ã  6 chiffres sur votre adresse enregistrÃ©e.</p>
+        <p class="eyebrow">Acc?s s?curis?</p>
+        <h1 id="passwordResetTitle">R?initialiser le mot de passe</h1>
+        <p class="login-intro">Recevez un code ? 6 chiffres sur votre adresse enregistr?e.</p>
 
         <form class="password-reset-form" id="passwordResetRequestForm">
           <label for="passwordResetEmail">
@@ -67,7 +67,7 @@
 
         <form class="password-reset-form is-hidden" id="passwordResetConfirmForm">
           <label for="passwordResetCode">
-            Code reÃ§u
+            Code re?u
             <input id="passwordResetCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
           </label>
           <label for="newPassword">
@@ -82,7 +82,7 @@
         </form>
 
         <p class="reset-status" id="passwordResetStatus" role="status"></p>
-        <button class="text-button" type="button" id="backToLoginButton">Retour Ã  la connexion</button>
+        <button class="text-button" type="button" id="backToLoginButton">Retour ? la connexion</button>
       </section>
     </section>
 
@@ -93,13 +93,13 @@
         </div>
         <div class="global-search" id="globalSearchBlock">
           <label for="globalSearchInput">Recherche globale</label>
-          <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Client, ville, rÃ©fÃ©rence, commande, note..." />
+          <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Client, ville, r?f?rence, commande, note..." />
           <div class="global-search-results is-hidden" id="globalSearchResults"></div>
         </div>
         <div class="header-actions">
           <span class="offline-status is-online" id="offlineStatus">En ligne</span>
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
-          <button class="ghost-button" type="button" id="logoutButton">DÃ©connexion</button>
+          <button class="ghost-button" type="button" id="logoutButton">D?connexion</button>
         </div>
       </header>
 
@@ -112,10 +112,10 @@
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
-        <button class="tab-button" type="button" id="tourTab">TournÃ©es</button>
+        <button class="tab-button" type="button" id="tourTab">Tourn?es</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
-        <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activitÃ©</button>
+        <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activit?</button>
       </nav>
 
       <main class="app-shell dashboard-shell" id="homeView">
@@ -123,25 +123,25 @@
           <div>
             <p class="step">Accueil</p>
             <h2 id="homeTitle">Tableau de bord commercial</h2>
-            <p id="dashboardPeriod">Vue synthÃ©tique de votre activitÃ© commerciale.</p>
+            <p id="dashboardPeriod">Vue synth?tique de votre activit? commerciale.</p>
             <div class="dashboard-sector-switch is-hidden" id="dashboardSectorSwitch" aria-label="Choisir le secteur du tableau de bord"></div>
           </div>
           <div class="dashboard-status">
-            <span>DonnÃ©es actualisÃ©es</span>
+            <span>Donn?es actualis?es</span>
             <strong id="dashboardUpdatedAt">En attente</strong>
           </div>
         </section>
 
         <section class="dashboard-grid" aria-label="Indicateurs principaux">
           <article class="panel metric-card">
-            <span>CA prÃ©visionnel</span>
+            <span>CA pr?visionnel</span>
             <strong id="metricOrders">--</strong>
             <small id="metricOrdersNote">Secteur du commercial</small>
           </article>
           <article class="panel metric-card">
             <span>Clients actifs</span>
             <strong id="metricRevenue">--</strong>
-            <small id="metricRevenueNote">Clients avec CA prÃ©visionnel</small>
+            <small id="metricRevenueNote">Clients avec CA pr?visionnel</small>
           </article>
           <article class="panel metric-card">
             <span>CA moyen / client</span>
@@ -153,7 +153,7 @@
         <section class="panel reminder-home-panel is-hidden" id="homeRemindersPanel" aria-labelledby="homeRemindersTitle">
           <div class="panel-heading">
             <div>
-              <p class="step">Ã€ ne pas oublier</p>
+              <p class="step">? ne pas oublier</p>
               <h2 id="homeRemindersTitle">Relances clients</h2>
             </div>
             <span class="status-pill" id="homeRemindersCount">0 relance</span>
@@ -172,7 +172,7 @@
             <button type="button" data-tablet-tab="notes">Prise de notes</button>
             <button type="button" data-tablet-tab="quote">Demande de devis</button>
             <button type="button" data-tablet-tab="expenses">Frais</button>
-            <button type="button" data-tablet-tab="tour">TournÃ©es</button>
+            <button type="button" data-tablet-tab="tour">Tourn?es</button>
             <button type="button" data-tablet-tab="backlog">Reliquats & reprise</button>
           </div>
         </section>
@@ -180,13 +180,13 @@
         <section class="dashboard-main-grid">
           <article class="panel dashboard-panel dashboard-chart-panel">
             <div class="panel-heading">
-              <div><p class="step">Territoire</p><h2>CA par dÃ©partement</h2></div>
+              <div><p class="step">Territoire</p><h2>CA par d?partement</h2></div>
               <span class="status-pill" id="trendTotal">--</span>
             </div>
-            <div class="sales-chart" id="salesChart" aria-label="Graphique d'Ã©volution des ventes"></div>
+            <div class="sales-chart" id="salesChart" aria-label="Graphique d'?volution des ventes"></div>
           </article>
           <article class="panel dashboard-panel">
-            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons clÃ©s</h2></div></div>
+            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons cl?s</h2></div></div>
             <div class="goal-list" id="goalList"></div>
           </article>
         </section>
@@ -194,7 +194,7 @@
         <section class="dashboard-ranking-grid dashboard-ranking-single">
           <article class="panel dashboard-panel">
             <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
-            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prÃ©visionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
+            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA pr?visionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
           </article>
         </section>
       </main>
@@ -227,21 +227,13 @@
           </section>
 
           <section class="client360-grid is-empty" id="client360Grid">
-            <article class="panel client360-card">
-              <div class="panel-heading"><div><p class="step">RDV</p><h3>Notes recentes</h3></div><span class="status-pill" id="client360NotesCount">0</span></div>
-              <div class="client360-list" id="client360Notes"></div>
-            </article>
-            <article class="panel client360-card">
-              <div class="panel-heading"><div><p class="step">Devis</p><h3>Demandes de devis</h3></div><span class="status-pill" id="client360QuotesCount">0</span></div>
-              <div class="client360-list" id="client360Quotes"></div>
+            <article class="panel client360-card client360-card-wide">
+              <div class="panel-heading"><div><p class="step">Achats</p><h3>Top articles client</h3></div><span class="status-pill" id="client360OrdersCount">Drive</span></div>
+              <div class="client360-list" id="client360Orders"></div>
             </article>
             <article class="panel client360-card">
               <div class="panel-heading"><div><p class="step">Tarif</p><h3>Prix nets</h3></div><span class="status-pill" id="client360PrenetCount">0</span></div>
               <div class="client360-list" id="client360Prenets"></div>
-            </article>
-            <article class="panel client360-card">
-              <div class="panel-heading"><div><p class="step">Achats</p><h3>Top articles client</h3></div><span class="status-pill" id="client360OrdersCount">Drive</span></div>
-              <div class="client360-list" id="client360Orders"></div>
             </article>
           </section>
         </section>
@@ -309,7 +301,7 @@
           </table>
         </div>
         <div class="order-actions">
-          <p>Une nouvelle ligne sâ€™ajoute automatiquement aprÃ¨s saisie dâ€™une rÃ©fÃ©rence valide et dâ€™une quantitÃ©.</p>
+          <p>Une nouvelle ligne s?ajoute automatiquement apr?s saisie d?une r?f?rence valide et d?une quantit?.</p>
           <button class="ghost-button compact" type="button" id="addLine">Ajouter une ligne vide</button>
         </div>
       </section>
@@ -333,7 +325,7 @@
           </div>
           <div>
             <dt>Total HT</dt>
-            <dd id="summaryTotal">0,00 â‚¬</dd>
+            <dd id="summaryTotal">0,00 ?</dd>
           </div>
         </dl>
 
@@ -343,10 +335,10 @@
         </label>
 
         <button class="primary-button full" type="button" id="generateOrderFiles">
-          TÃ©lÃ©charger CSV ERP + PDF
+          T?l?charger CSV ERP + PDF
         </button>
         <p class="helper-text">
-          Le CSV contient uniquement les rÃ©fÃ©rences. Le PDF contient la commande complÃ¨te.
+          Le CSV contient uniquement les r?f?rences. Le PDF contient la commande compl?te.
         </p>
       </aside>
 
@@ -354,7 +346,7 @@
           <div class="panel-heading">
             <div>
               <p class="step">Historique</p>
-              <h2 id="historyTitle">Commandes passÃ©es</h2>
+              <h2 id="historyTitle">Commandes pass?es</h2>
             </div>
             <div class="history-actions">
               <span class="status-pill" id="historyCount">0 commande</span>
@@ -364,7 +356,7 @@
           <div class="history-layout">
             <div class="history-list" id="historyList"></div>
             <article class="history-detail" id="historyDetail">
-              <span>SÃ©lectionnez une commande pour consulter le dÃ©tail.</span>
+              <span>S?lectionnez une commande pour consulter le d?tail.</span>
             </article>
           </div>
         </section>
@@ -382,14 +374,14 @@
 
           <div class="prenet-search-block">
             <label for="prenetClientSearch">Rechercher un client de votre secteur</label>
-            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code clientâ€¦" />
+            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code client?" />
             <div class="suggestions prenet-suggestions" id="prenetClientSuggestions" role="listbox"></div>
           </div>
 
           <article class="prenet-result" id="prenetResult" aria-live="polite">
             <div class="prenet-empty">
-              <strong>SÃ©lectionnez un client</strong>
-              <span>Ses nouveaux prix nets apparaÃ®tront ici, classÃ©s par rÃ©fÃ©rence.</span>
+              <strong>S?lectionnez un client</strong>
+              <span>Ses nouveaux prix nets appara?tront ici, class?s par r?f?rence.</span>
             </div>
           </article>
         </section>
@@ -402,7 +394,7 @@
               <p class="step">Demande commerciale</p>
               <h2 id="quoteTitle">Demande de devis</h2>
             </div>
-            <span class="status-pill" id="quoteStatus">Client non sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="quoteStatus">Client non s?lectionn?</span>
           </div>
 
           <div class="quote-layout">
@@ -451,7 +443,7 @@
                 <p class="step">Suivi commercial</p>
                 <h3 id="quoteHistoryTitle">Historique des devis</h3>
               </div>
-              <input id="quoteHistorySearch" type="search" autocomplete="off" placeholder="Rechercher client, rÃ©fÃ©rence, statut..." />
+              <input id="quoteHistorySearch" type="search" autocomplete="off" placeholder="Rechercher client, r?f?rence, statut..." />
             </div>
             <div class="quote-history-list" id="quoteHistoryList"></div>
           </section>
@@ -464,26 +456,26 @@
             <div>
               <p class="step">Note de frais</p>
               <h2 id="expensesTitle">Frais commerciaux</h2>
-              <p class="helper-text">Saisissez vos frais, ajoutez une photo du justificatif, puis envoyez le tableau complet Ã  l'administration.</p>
+              <p class="helper-text">Saisissez vos frais, ajoutez une photo du justificatif, puis envoyez le tableau complet ? l'administration.</p>
             </div>
-            <span class="status-pill" id="expensesStatus">En prÃ©paration</span>
+            <span class="status-pill" id="expensesStatus">En pr?paration</span>
           </div>
 
-          <section class="expenses-rules" aria-label="RÃ¨gles de remboursement">
-            <article><strong>Repas midi</strong><span>RemboursÃ© jusqu'Ã  20 â‚¬ TTC.</span></article>
-            <article><strong>Repas soir</strong><span>20 â‚¬ TTC sans hÃ´tel, inclus dans le plafond hÃ´tel si mÃªme date.</span></article>
-            <article><strong>HÃ´tel + dÃ®ner</strong><span>Plafond global 115 â‚¬ TTC par date.</span></article>
+          <section class="expenses-rules" aria-label="R?gles de remboursement">
+            <article><strong>Repas midi</strong><span>Rembours? jusqu'? 20 ? TTC.</span></article>
+            <article><strong>Repas soir</strong><span>20 ? TTC sans h?tel, inclus dans le plafond h?tel si m?me date.</span></article>
+            <article><strong>H?tel + d?ner</strong><span>Plafond global 115 ? TTC par date.</span></article>
             <article><strong>Invitation client</strong><span>Indiquez le client et le nombre de personnes.</span></article>
           </section>
 
           <div class="expenses-meta">
             <label>
-              Semaine / pÃ©riode
-              <input id="expensesPeriod" type="text" autocomplete="off" placeholder="Ex. Semaine 25-26-27, juillet 2026â€¦" />
+              Semaine / p?riode
+              <input id="expensesPeriod" type="text" autocomplete="off" placeholder="Ex. Semaine 25-26-27, juillet 2026?" />
             </label>
             <label>
-              Commentaire gÃ©nÃ©ral
-              <input id="expensesNote" type="text" autocomplete="off" placeholder="Optionnel : prÃ©cision pour la secrÃ©taireâ€¦" />
+              Commentaire g?n?ral
+              <input id="expensesNote" type="text" autocomplete="off" placeholder="Optionnel : pr?cision pour la secr?taire?" />
             </label>
           </div>
 
@@ -493,10 +485,10 @@
                 <tr>
                   <th>Date</th>
                   <th>Type de frais</th>
-                  <th>PrÃ©cision</th>
+                  <th>Pr?cision</th>
                   <th>Montant TTC</th>
                   <th>Dont TVA</th>
-                  <th>RemboursÃ©</th>
+                  <th>Rembours?</th>
                   <th>Justificatif</th>
                   <th></th>
                 </tr>
@@ -508,9 +500,9 @@
           <div class="expenses-actions">
             <button class="ghost-button compact" type="button" id="addExpenseLine">Ajouter une ligne</button>
             <dl class="expenses-summary">
-              <div><dt>Total TTC</dt><dd id="expensesTotalAmount">0,00 â‚¬</dd></div>
-              <div><dt>TVA</dt><dd id="expensesTotalVat">0,00 â‚¬</dd></div>
-              <div><dt>Net Ã  payer</dt><dd id="expensesTotalRefund">0,00 â‚¬</dd></div>
+              <div><dt>Total TTC</dt><dd id="expensesTotalAmount">0,00 ?</dd></div>
+              <div><dt>TVA</dt><dd id="expensesTotalVat">0,00 ?</dd></div>
+              <div><dt>Net ? payer</dt><dd id="expensesTotalRefund">0,00 ?</dd></div>
             </dl>
             <button class="ghost-button" type="button" id="newExpenseDraft">Nouvelle note</button>
             <button class="ghost-button" type="button" id="saveExpenseDraft">Enregistrer</button>
@@ -521,7 +513,7 @@
           <section class="expense-history-card" aria-labelledby="expenseHistoryTitle">
             <div class="expense-history-heading">
               <div>
-                <p class="step">Brouillons sauvegardÃ©s</p>
+                <p class="step">Brouillons sauvegard?s</p>
                 <h3 id="expenseHistoryTitle">Historique des frais</h3>
               </div>
               <input id="expenseHistorySearch" type="search" autocomplete="off" placeholder="Rechercher une semaine, un mois, une note..." />
@@ -538,12 +530,12 @@
               <p class="step">Rendez-vous clients</p>
               <h2 id="notesTitle">Prise de notes</h2>
             </div>
-            <span class="status-pill" id="notesStatus">Aucun client sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="notesStatus">Aucun client s?lectionn?</span>
           </div>
 
           <div class="notes-search">
             <label for="notesClientSearch">Rechercher un client</label>
-            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code clientâ€¦" />
+            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client?" />
             <button class="primary-button compact" type="button" id="showAllNotesButton">Mes notes</button>
             <div class="suggestions notes-suggestions" id="notesClientSuggestions" role="listbox"></div>
           </div>
@@ -553,7 +545,7 @@
           <div class="notes-layout">
             <aside class="notes-editor">
               <article class="notes-selected-client" id="notesSelectedClient">
-                <strong>SÃ©lectionnez un client</strong>
+                <strong>S?lectionnez un client</strong>
                 <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
               </article>
 
@@ -562,17 +554,17 @@
                 <input id="notesDate" type="date" required />
 
                 <label for="notesText">Note du rendez-vous</label>
-                <div class="quick-note-buttons" aria-label="ModÃ¨les de notes rapides">
-                  <button type="button" data-note-template="Promo prÃ©sentÃ©e">Promo prÃ©sentÃ©e</button>
-                  <button type="button" data-note-template="Client intÃ©ressÃ©">Client intÃ©ressÃ©</button>
-                  <button type="button" data-note-template="Ã€ relancer" data-template-reminder="1">Ã€ relancer</button>
+                <div class="quick-note-buttons" aria-label="Mod?les de notes rapides">
+                  <button type="button" data-note-template="Promo pr?sent?e">Promo pr?sent?e</button>
+                  <button type="button" data-note-template="Client int?ress?">Client int?ress?</button>
+                  <button type="button" data-note-template="? relancer" data-template-reminder="1">? relancer</button>
                   <button type="button" data-note-template="Commande probable">Commande probable</button>
-                  <button type="button" data-note-template="Devis Ã  faire">Devis Ã  faire</button>
-                  <button type="button" data-note-template="Pas intÃ©ressÃ©">Pas intÃ©ressÃ©</button>
-                  <button type="button" data-note-template="ProblÃ¨me tarif">ProblÃ¨me tarif</button>
+                  <button type="button" data-note-template="Devis ? faire">Devis ? faire</button>
+                  <button type="button" data-note-template="Pas int?ress?">Pas int?ress?</button>
+                  <button type="button" data-note-template="Probl?me tarif">Probl?me tarif</button>
                   <button type="button" data-note-template="Besoin catalogue">Besoin catalogue</button>
                 </div>
-                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits prÃ©sentÃ©s, prochaine action, objection clientâ€¦" required></textarea>
+                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits pr?sent?s, prochaine action, objection client?" required></textarea>
 
                 <button class="voice-note-button" type="button" id="startVoiceNote">
                   <span aria-hidden="true">ðŸŽ™ï¸</span>
@@ -583,7 +575,7 @@
                 <section class="note-reminder-box">
                   <label class="note-reminder-toggle" for="noteReminderEnabled">
                     <input id="noteReminderEnabled" type="checkbox" />
-                    <span>PrÃ©voir une relance client</span>
+                    <span>Pr?voir une relance client</span>
                   </label>
                   <div class="note-reminder-fields" id="noteReminderFields">
                     <label for="noteReminderDate">Date de relance</label>
@@ -617,7 +609,7 @@
 
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
-                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminÃ©</button>
+                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous termin?</button>
                   <button class="ghost-button compact" type="button" id="exportVisitReportButton">Exporter compte-rendu Excel</button>
                   <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
                 </div>
@@ -635,11 +627,11 @@
               <div class="notes-report-toolbar">
                 <label for="reportStartDate">Du <input id="reportStartDate" type="date" /></label>
                 <label for="reportEndDate">Au <input id="reportEndDate" type="date" /></label>
-                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la pÃ©riode</button>
+                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la p?riode</button>
                 <button class="primary-button compact" type="button" id="sendVisitReportButton">Envoyer mon compte-rendu</button>
               </div>
               <div class="notes-list" id="notesList">
-                <div class="notes-empty">Les notes du client sÃ©lectionnÃ© apparaÃ®tront ici.</div>
+                <div class="notes-empty">Les notes du client s?lectionn? appara?tront ici.</div>
               </div>
             </section>
           </div>
@@ -650,34 +642,34 @@
         <section class="panel tour-panel" aria-labelledby="tourTitle">
           <div class="panel-heading">
             <div>
-              <p class="step">PrÃ©paration terrain</p>
-              <h2 id="tourTitle">TournÃ©es clients</h2>
+              <p class="step">Pr?paration terrain</p>
+              <h2 id="tourTitle">Tourn?es clients</h2>
             </div>
-            <span class="status-pill" id="tourSelectionCount">0 client sÃ©lectionnÃ©</span>
+            <span class="status-pill" id="tourSelectionCount">0 client s?lectionn?</span>
           </div>
 
           <div class="tour-toolbar">
             <label for="tourSearch">
               Rechercher un client
-              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postalâ€¦" />
+              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postal?" />
             </label>
             <div class="tour-actions">
               <button class="primary-button compact" type="button" id="openGoogleMapsRoute">Ouvrir dans Google Maps</button>
               <button class="ghost-button compact" type="button" id="openWazeRoute">Waze prochain client</button>
-              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tournÃ©e</button>
+              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tourn?e</button>
             </div>
           </div>
 
           <div class="tour-savebar">
             <label for="tourName">
-              Nom de la tournÃ©e
-              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tournÃ©e mardiâ€¦" />
+              Nom de la tourn?e
+              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tourn?e mardi?" />
             </label>
             <button class="primary-button compact" type="button" id="saveTourButton">Sauvegarder</button>
             <label for="savedTourSelect">
-              TournÃ©es enregistrÃ©es
+              Tourn?es enregistr?es
               <select id="savedTourSelect">
-                <option value="">Aucune tournÃ©e enregistrÃ©e</option>
+                <option value="">Aucune tourn?e enregistr?e</option>
               </select>
             </label>
             <button class="ghost-button compact" type="button" id="loadTourButton">Charger</button>
@@ -694,15 +686,15 @@
                 <small>Carte interactive</small>
               </div>
               <div class="france-map" id="tourMap" aria-label="Carte interactive des clients"></div>
-              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter Ã  la tournÃ©e. Les coordonnÃ©es exactes seront utilisÃ©es dÃ¨s qu'elles seront prÃ©sentes dans le fichier clients.</p>
+              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter ? la tourn?e. Les coordonn?es exactes seront utilis?es d?s qu'elles seront pr?sentes dans le fichier clients.</p>
             </section>
 
             <aside class="tour-list-panel" aria-labelledby="tourListTitle">
               <div class="tour-selected-box">
                 <div class="tour-map-heading">
                   <div>
-                    <p class="step">ItinÃ©raire</p>
-                    <h3>Clients cochÃ©s</h3>
+                    <p class="step">Itin?raire</p>
+                    <h3>Clients coch?s</h3>
                   </div>
                 </div>
                 <div class="tour-selected-list" id="tourSelectedList"></div>
@@ -728,21 +720,21 @@
             <div>
               <p class="step">Suivi terrain</p>
               <h2 id="backlogTitle">Reliquats &amp; reprise</h2>
-              <p class="helper-text">Consultez les commandes en attente et les marchandises Ã  rÃ©cupÃ©rer chez les clients de votre secteur.</p>
+              <p class="helper-text">Consultez les commandes en attente et les marchandises ? r?cup?rer chez les clients de votre secteur.</p>
             </div>
-            <span class="status-pill" id="backlogStatus">Ã€ connecter au Drive</span>
+            <span class="status-pill" id="backlogStatus">? connecter au Drive</span>
           </div>
 
-          <section class="dashboard-grid backlog-metrics" aria-label="RÃ©sumÃ© reliquats et reprises">
+          <section class="dashboard-grid backlog-metrics" aria-label="R?sum? reliquats et reprises">
             <article class="panel metric-card"><span>Reliquats</span><strong id="backlogRemainderCount">0</strong><small>Commandes en attente</small></article>
-            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises Ã  rÃ©cupÃ©rer</small></article>
-            <article class="panel metric-card"><span>Total affichÃ©</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
+            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises ? r?cup?rer</small></article>
+            <article class="panel metric-card"><span>Total affich?</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
           </section>
 
           <div class="backlog-toolbar">
             <label for="backlogSearch">
               Rechercher
-              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, rÃ©fÃ©rence, villeâ€¦" />
+              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, r?f?rence, ville?" />
             </label>
             <label for="backlogTypeFilter">
               Type
@@ -761,10 +753,10 @@
                 <tr>
                   <th>Date</th>
                   <th>Type</th>
-                  <th>NÂ° commande</th>
+                  <th>N? commande</th>
                   <th>Client</th>
                   <th>Produit</th>
-                  <th>QuantitÃ©</th>
+                  <th>Quantit?</th>
                   <th>Commentaire</th>
                   <th>Fait</th>
                   <th></th>
@@ -781,7 +773,7 @@
           <div class="panel-heading">
             <div>
               <p class="step">Documents commerciaux</p>
-              <h2 id="tarifTitle">Tarifs Ã  envoyer</h2>
+              <h2 id="tarifTitle">Tarifs ? envoyer</h2>
             </div>
             <span class="status-pill">Envoi par e-mail</span>
           </div>
@@ -792,17 +784,17 @@
               <div class="tarif-card-copy">
                 <span>Tarif client</span>
                 <h3>Tarif 50 + 10</h3>
-                <p>Tarif NET applicable Ã  partir du 1er juillet 2026.</p>
+                <p>Tarif NET applicable ? partir du 1er juillet 2026.</p>
               </div>
               <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
             </article>
 
             <article class="tarif-card">
-              <div class="tarif-icon" aria-hidden="true">â‚¬</div>
+              <div class="tarif-icon" aria-hidden="true">?</div>
               <div class="tarif-card-copy">
                 <span>Tarif client</span>
                 <h3>Tarif de base</h3>
-                <p>Tarif de base applicable Ã  partir du 1er juillet 2026.</p>
+                <p>Tarif de base applicable ? partir du 1er juillet 2026.</p>
               </div>
               <button class="primary-button" type="button" id="selectTarifBase">Envoyer ce tarif</button>
             </article>
@@ -819,14 +811,14 @@
 
             <form class="tarif-send-form is-hidden" id="tarifSendForm">
               <div class="tarif-form-heading">
-                <div><span>Document sÃ©lectionnÃ©</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
-                <small>ExpÃ©diteur : Schuller â€“ Ne pas rÃ©pondre</small>
+                <div><span>Document s?lectionn?</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
+                <small>Exp?diteur : Schuller ? Ne pas r?pondre</small>
               </div>
               <label for="tarifRecipient">Adresse e-mail du client</label>
               <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
               <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
               <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
-              <p class="helper-text">Le client recevra le fichier en piÃ¨ce jointe avec la mention Â« Merci de ne pas rÃ©pondre Ã  ce message Â».</p>
+              <p class="helper-text">Le client recevra le fichier en pi?ce jointe avec la mention ? Merci de ne pas r?pondre ? ce message ?.</p>
             </form>
           </div>
         </section>
@@ -839,13 +831,13 @@
               <p class="step">Supports commerciaux</p>
               <h2 id="promotionTitle">Promotions</h2>
             </div>
-            <span class="status-pill">AperÃ§u tablette + envoi e-mail</span>
+            <span class="status-pill">Aper?u tablette + envoi e-mail</span>
           </div>
 
           <div class="promotion-toolbar">
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
-            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sÃ©lectionnÃ©es</button>
+            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions s?lectionn?es</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
 
@@ -858,15 +850,15 @@
           <strong id="promotionModalTitle">Promotion</strong>
           <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
         </div>
-        <iframe id="promotionPreviewFrame" title="AperÃ§u promotion"></iframe>
+        <iframe id="promotionPreviewFrame" title="Aper?u promotion"></iframe>
       </div>
 
       <main class="app-shell admin-shell is-hidden" id="adminView">
         <section class="panel admin-hero">
           <div>
             <p class="step">Administration</p>
-            <h2>Dashboard gÃ©rant</h2>
-            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoyÃ©s.</p>
+            <h2>Dashboard g?rant</h2>
+            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoy?s.</p>
           </div>
           <div class="admin-actions">
             <label for="adminScopeFilter">
@@ -875,58 +867,58 @@
                 <option value="all">Tous les commerciaux</option>
               </select>
             </label>
-            <button class="primary-button" type="button" id="adminOpenTourButton">Ouvrir la carte complÃ¨te</button>
+            <button class="primary-button" type="button" id="adminOpenTourButton">Ouvrir la carte compl?te</button>
             <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
-            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre Ã  zÃ©ro l'affichage</button>
+            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre ? z?ro l'affichage</button>
           </div>
         </section>
-        <section class="dashboard-grid admin-metrics" aria-label="RÃ©sumÃ© de l'activitÃ©">
-          <article class="panel metric-card"><span>ActivitÃ©s affichÃ©es</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sÃ©lectionnÃ©</small></article>
-          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes gÃ©nÃ©rÃ©es</small></article>
-          <article class="panel metric-card"><span>Documents envoyÃ©s</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
-          <article class="panel metric-card"><span>Clients consultÃ©s</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
-          <article class="panel metric-card"><span>Notes ajoutÃ©es</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
-          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminÃ©es</small></article>
-          <article class="panel metric-card"><span>Frais contrÃ´lÃ©s</span><strong id="adminExpenseCount">0</strong><small>Notes enregistrÃ©es / envoyÃ©es</small></article>
+        <section class="dashboard-grid admin-metrics" aria-label="R?sum? de l'activit?">
+          <article class="panel metric-card"><span>Activit?s affich?es</span><strong id="adminActivityCount">0</strong><small>Sur le filtre s?lectionn?</small></article>
+          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes g?n?r?es</small></article>
+          <article class="panel metric-card"><span>Documents envoy?s</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
+          <article class="panel metric-card"><span>Clients consult?s</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
+          <article class="panel metric-card"><span>Notes ajout?es</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
+          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions termin?es</small></article>
+          <article class="panel metric-card"><span>Frais contr?l?s</span><strong id="adminExpenseCount">0</strong><small>Notes enregistr?es / envoy?es</small></article>
         </section>
         <section class="panel admin-expense-panel">
           <div class="panel-heading">
             <div>
-              <p class="step">ContrÃ´le frais</p>
+              <p class="step">Contr?le frais</p>
               <h2>Notes de frais par secteur</h2>
-              <p class="helper-text">Vue de contrÃ´le uniquement : les commerciaux saisissent leurs frais dans leur session, vous les vÃ©rifiez ici.</p>
+              <p class="helper-text">Vue de contr?le uniquement : les commerciaux saisissent leurs frais dans leur session, vous les v?rifiez ici.</p>
             </div>
-            <span class="status-pill" id="adminExpenseTotal">0,00 â‚¬</span>
+            <span class="status-pill" id="adminExpenseTotal">0,00 ?</span>
           </div>
           <div class="admin-log-wrap">
             <table class="admin-log-table admin-expense-table">
-              <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Statut</th><th>Note</th><th>Total</th><th>DÃ©tail</th></tr></thead>
+              <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Statut</th><th>Note</th><th>Total</th><th>D?tail</th></tr></thead>
               <tbody id="adminExpenseBody"></tbody>
             </table>
           </div>
         </section>
         <section class="admin-dashboard-grid">
           <article class="panel admin-feed-panel">
-            <div class="panel-heading"><div><p class="step">Suivi</p><h2>ActivitÃ© rÃ©cente</h2></div><span class="status-pill" id="adminLogStatus">Actualisationâ€¦</span></div>
+            <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activit? r?cente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation?</span></div>
             <div id="adminActivityFeed" class="admin-activity-feed"></div>
           </article>
           <aside class="panel admin-summary-panel">
-            <div class="panel-heading"><div><p class="step">SynthÃ¨se</p><h2>Par type</h2></div></div>
+            <div class="panel-heading"><div><p class="step">Synth?se</p><h2>Par type</h2></div></div>
             <div id="adminTypeSummary" class="admin-type-summary"></div>
           </aside>
         </section>
         <section class="panel admin-log-panel">
-          <div class="panel-heading"><div><p class="step">DÃ©tail</p><h2>Table complÃ¨te</h2></div></div>
-          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>DÃ©tail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
+          <div class="panel-heading"><div><p class="step">D?tail</p><h2>Table compl?te</h2></div></div>
+          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>D?tail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
         </section>
       </main>
     </div>
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260721d" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260721e" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260721d" charset="UTF-8"></script>
+    <script src="script.js?v=20260721e" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -936,6 +928,7 @@
     </script>
   </body>
 </html>
+
 
 
 
