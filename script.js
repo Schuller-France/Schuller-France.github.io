@@ -55,6 +55,12 @@ const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
 });
+const wholeCurrencyFormatter = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+});
 const expenseTypes = ["HOTEL", "REPAS SOIR", "REPAS MIDI", "INVITATION CLIENT", "PARKING", "CARBURANT", "DIVERS"];
 const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
@@ -1378,6 +1384,18 @@ function formatCurrencyDelta(value) {
   return formatter.format(0);
 }
 
+function formatWholeCurrency(value) {
+  return wholeCurrencyFormatter.format(Number(value) || 0);
+}
+
+function formatWholeCurrencyDelta(value) {
+  const number = Number(value) || 0;
+  const label = wholeCurrencyFormatter.format(Math.abs(number));
+  if (number > 0) return `+${label}`;
+  if (number < 0) return `-${label}`;
+  return wholeCurrencyFormatter.format(0);
+}
+
 function formatNumberDelta(value) {
   const number = Number(value) || 0;
   const label = formatNumber(Math.abs(number));
@@ -1398,12 +1416,6 @@ function renderClient360ArticleStats(topArticles) {
       ? '<div class="dashboard-empty">Aucun achat trouve pour ce client dans le fichier Drive.</div>'
       : '<div class="dashboard-empty">Aucun fichier stats client/article charge depuis Drive.</div>';
   }
-  const totalCa2026 = topArticles.reduce((sum, article) => sum + (Number(article.ca2026) || 0), 0);
-  const totalCa2025 = topArticles.reduce((sum, article) => sum + (Number(article.ca2025) || 0), 0);
-  const totalQty2026 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2026) || 0), 0);
-  const totalQty2025 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2025) || 0), 0);
-  const totalGapCa = totalCa2026 - totalCa2025;
-  const totalGapQty = totalQty2026 - totalQty2025;
   const rows = topArticles.map((article, index) => {
     const gapCa = Number(article.gapCa) || ((Number(article.ca2026) || 0) - (Number(article.ca2025) || 0));
     const gapQty = Number(article.gapQuantity) || ((Number(article.quantity2026) || 0) - (Number(article.quantity2025) || 0));
@@ -1416,9 +1428,9 @@ function renderClient360ArticleStats(topArticles) {
           <small>${escapeHtml(article.articleName || "Article sans designation")}</small>
           ${article.family ? `<em>${escapeHtml(article.family)}</em>` : ""}
         </td>
-        <td class="numeric">${escapeHtml(formatter.format(Number(article.ca2026) || 0))}</td>
-        <td class="numeric muted">${escapeHtml(formatter.format(Number(article.ca2025) || 0))}</td>
-        <td class="numeric ${trendClass}">${escapeHtml(formatCurrencyDelta(gapCa))}</td>
+        <td class="numeric">${escapeHtml(formatWholeCurrency(article.ca2026))}</td>
+        <td class="numeric muted">${escapeHtml(formatWholeCurrency(article.ca2025))}</td>
+        <td class="numeric ${trendClass}">${escapeHtml(formatWholeCurrencyDelta(gapCa))}</td>
         <td class="numeric">${escapeHtml(formatNumber(article.quantity2026 || 0))}</td>
         <td class="numeric muted">${escapeHtml(formatNumber(article.quantity2025 || 0))}</td>
         <td class="numeric ${trendClass}">${escapeHtml(formatNumberDelta(gapQty))}</td>
@@ -1427,18 +1439,6 @@ function renderClient360ArticleStats(topArticles) {
   }).join("");
   return `
     <div class="client360-article-dashboard">
-      <div class="client360-article-hero">
-        <div>
-          <small>Top achats client</small>
-          <strong>${topArticles.length} références clés</strong>
-          <span>Comparaison des achats par article : chiffre d'affaires, quantités et écarts vs N-1.</span>
-        </div>
-        <div class="client360-article-mini-kpis">
-          <span><small>CA 2026</small><strong>${escapeHtml(formatter.format(totalCa2026))}</strong></span>
-          <span><small>CA N-1</small><strong>${escapeHtml(formatter.format(totalCa2025))}</strong></span>
-          <span class="${client360StatTrendClass(totalGapCa || totalGapQty)}"><small>Écart</small><strong>${escapeHtml(formatCurrencyDelta(totalGapCa))}</strong><em>${escapeHtml(formatNumberDelta(totalGapQty))} u.</em></span>
-        </div>
-      </div>
       <div class="client360-table-wrap">
         <table class="client360-article-table">
           <thead>
@@ -1468,10 +1468,10 @@ function selectClient360(client) {
   if (client360Status) client360Status.textContent = "Client selectionne";
   const data = getClient360Data(client);
   const articleSummary = data.articleStats?.summary || buildClientArticleFallbackSummary(data.articleStats) || null;
-  const caLabel = articleSummary ? formatter.format(Number(articleSummary.ca2026) || 0) : data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
-  const caPreviousLabel = articleSummary ? formatter.format(Number(articleSummary.ca2025) || 0) : "--";
+  const caLabel = articleSummary ? formatWholeCurrency(articleSummary.ca2026) : data.stats ? formatWholeCurrency(data.stats.revenue) : "--";
+  const caPreviousLabel = articleSummary ? formatWholeCurrency(articleSummary.ca2025) : "--";
   const gapCa = articleSummary ? Number(articleSummary.gapCa || ((Number(articleSummary.ca2026) || 0) - (Number(articleSummary.ca2025) || 0))) : null;
-  const evolutionLabel = articleSummary ? formatCurrencyDelta(gapCa) : "--";
+  const evolutionLabel = articleSummary ? formatWholeCurrencyDelta(gapCa) : "--";
   const topArticles = Array.isArray(data.articleStats?.topArticles) ? data.articleStats.topArticles : [];
   client360Summary.innerHTML = `
     <article class="selected-client client360-identity">
