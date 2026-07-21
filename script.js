@@ -1338,6 +1338,83 @@ function formatEvolutionPercent(value) {
   return `${percent >= 0 ? "+" : ""}${percent.toFixed(1).replace(".", ",")}%`;
 }
 
+function client360StatTrendClass(value) {
+  const number = Number(value);
+  if (!isFinite(number) || number === 0) return "is-neutral";
+  return number > 0 ? "is-up" : "is-down";
+}
+
+function client360ArticleMainMetric(article, showRevenue) {
+  if (showRevenue) return formatter.format(Number(article.ca2026) || 0);
+  return `${formatNumber(article.quantity2026 || 0)} u.`;
+}
+
+function renderClient360ArticleStats(topArticles) {
+  if (!topArticles.length) {
+    return clientArticleStats360?.available
+      ? '<div class="dashboard-empty">Aucun achat trouve pour ce client dans le fichier Drive.</div>'
+      : '<div class="dashboard-empty">Aucun fichier stats client/article charge depuis Drive.</div>';
+  }
+  const totalCa2026 = topArticles.reduce((sum, article) => sum + (Number(article.ca2026) || 0), 0);
+  const totalCa2025 = topArticles.reduce((sum, article) => sum + (Number(article.ca2025) || 0), 0);
+  const totalQty2026 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2026) || 0), 0);
+  const totalQty2025 = topArticles.reduce((sum, article) => sum + (Number(article.quantity2025) || 0), 0);
+  const showRevenue = totalCa2026 > 0 || totalCa2025 > 0;
+  const qtyEvolution = totalQty2025 ? (totalQty2026 - totalQty2025) / totalQty2025 : null;
+  const revenueEvolution = totalCa2025 ? (totalCa2026 - totalCa2025) / totalCa2025 : null;
+  const mainEvolution = showRevenue ? revenueEvolution : qtyEvolution;
+  const rows = topArticles.map((article, index) => {
+    const evolution = Number(article.evolutionPct);
+    const safeEvolution = isFinite(evolution) ? evolution : null;
+    const trendClass = client360StatTrendClass(safeEvolution);
+    return `
+      <tr>
+        <td><span class="client360-rank">${index + 1}</span></td>
+        <td>
+          <strong>${escapeHtml(article.articleCode || "")}</strong>
+          <small>${escapeHtml(article.articleName || "Article sans designation")}</small>
+          ${article.family ? `<em>${escapeHtml(article.family)}</em>` : ""}
+        </td>
+        <td class="numeric">${escapeHtml(formatNumber(article.quantity2026 || 0))}</td>
+        <td class="numeric muted">${escapeHtml(formatNumber(article.quantity2025 || 0))}</td>
+        <td class="numeric ${trendClass}">${escapeHtml(formatEvolutionPercent(safeEvolution))}</td>
+        <td class="numeric">${escapeHtml(client360ArticleMainMetric(article, showRevenue))}</td>
+      </tr>
+    `;
+  }).join("");
+  return `
+    <div class="client360-article-dashboard">
+      <div class="client360-article-hero">
+        <div>
+          <small>Top achats client</small>
+          <strong>${topArticles.length} références clés</strong>
+          <span>${showRevenue ? "Classées par montant acheté." : "Le fichier Drive ne donne pas de CA article exploitable : affichage prioritaire des quantités."}</span>
+        </div>
+        <div class="client360-article-mini-kpis">
+          <span><small>${showRevenue ? "CA 2026 top" : "Qté 2026 top"}</small><strong>${escapeHtml(showRevenue ? formatter.format(totalCa2026) : formatNumber(totalQty2026))}</strong></span>
+          <span><small>${showRevenue ? "CA N-1 top" : "Qté N-1 top"}</small><strong>${escapeHtml(showRevenue ? formatter.format(totalCa2025) : formatNumber(totalQty2025))}</strong></span>
+          <span class="${client360StatTrendClass(mainEvolution)}"><small>Évolution</small><strong>${escapeHtml(formatEvolutionPercent(mainEvolution))}</strong></span>
+        </div>
+      </div>
+      <div class="client360-table-wrap">
+        <table class="client360-article-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Article</th>
+              <th>Qté 2026</th>
+              <th>Qté N-1</th>
+              <th>Évol.</th>
+              <th>${showRevenue ? "CA 2026" : "Indicateur"}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
 function selectClient360(client) {
   selectedClient360 = client;
   if (client360Search) client360Search.value = client.name;
@@ -1390,12 +1467,7 @@ function selectClient360(client) {
       <span>${escapeHtml(entry.designation || "")}</span>
     </button>
   `);
-  renderClient360List(client360Orders, topArticles, clientArticleStats360?.available ? "Aucun achat trouve pour ce client dans le fichier Drive." : "Aucun fichier stats client/article charge depuis Drive.", (article) => `
-    <button class="client360-row client360-article-row" type="button">
-      <strong>${escapeHtml(article.articleCode || "")} - ${escapeHtml(article.articleName || "")}</strong>
-      <span>CA 2026 : ${escapeHtml(formatter.format(Number(article.ca2026) || 0))} Â· N-1 : ${escapeHtml(formatter.format(Number(article.ca2025) || 0))} Â· Qte ${escapeHtml(formatNumber(article.quantity2026 || 0))} / ${escapeHtml(formatNumber(article.quantity2025 || 0))} Â· ${escapeHtml(formatEvolutionPercent(article.evolutionPct))}</span>
-    </button>
-  `);
+  if (client360Orders) client360Orders.innerHTML = renderClient360ArticleStats(topArticles);
   recordActivity("Fiche client consultee", `${client.name} (${client.code})`);
 }
 
