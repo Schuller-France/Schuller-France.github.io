@@ -1208,13 +1208,12 @@ function getClientPrenet360(client) {
 function getClient360Data(client) {
   const notes = getVisibleVisitNotes().filter((note) => note.clientCode === client.code);
   const quotes = getQuoteHistory().filter((item) => item.clientCode === client.code || normalize(item.clientName || "") === normalize(client.name || ""));
-  const orders = getVisibleStoredOrders().filter((order) => order.client?.code === client.code || normalize(order.client?.name || "") === normalize(client.name || ""));
   const prenet = getClientPrenet360(client);
   return {
     stats: getClientStats360(client),
     notes,
     quotes,
-    orders,
+    orders: [],
     prenetEntries: prenet?.entries || [],
   };
 }
@@ -1302,7 +1301,7 @@ function selectClient360(client) {
   client360NotesCount.textContent = String(data.notes.length);
   client360QuotesCount.textContent = String(data.quotes.length);
   client360PrenetCount.textContent = String(data.prenetEntries.length);
-  client360OrdersCount.textContent = String(data.orders.length);
+  client360OrdersCount.textContent = "Drive";
   renderClient360List(client360Notes, data.notes.slice(0, 8), "Aucune note pour ce client.", (note) => `
     <button class="client360-row" type="button" data-client360-open="notes">
       <strong>${escapeHtml(formatNoteDate(note.date))}</strong>
@@ -1321,12 +1320,11 @@ function selectClient360(client) {
       <span>${escapeHtml(entry.designation || "")}</span>
     </button>
   `);
-  renderClient360List(client360Orders, data.orders.slice(0, 8), "Aucune commande locale pour ce client.", (order) => `
-    <button class="client360-row" type="button" data-client360-open="order" data-order-id="${escapeHtml(order.id || "")}">
-      <strong>${escapeHtml(order.orderNumber || "Commande")} - ${escapeHtml(formatStoredDate(order.dayKey || order.orderDate || ""))}</strong>
-      <span>${escapeHtml((order.lines || []).map((line) => `${line.ref} x${line.qty}`).join(", ") || "Sans ligne")}</span>
-    </button>
-  `);
+  client360Orders.innerHTML = `
+    <div class="dashboard-empty">
+      Ajoute un fichier Drive avec les achats par client et par reference pour afficher ici le top articles N / N-1.
+    </div>
+  `;
   recordActivity("Fiche client consultee", `${client.name} (${client.code})`);
 }
 

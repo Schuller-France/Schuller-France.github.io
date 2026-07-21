@@ -95,12 +95,14 @@
   background: #fff7ed;
 }
 
-.client360-panel { display: grid; gap: 18px; }
-.client360-search { position: relative; display: grid; gap: 8px; }
+.client360-panel { display: grid; gap: 18px; overflow: hidden; }
+.client360-search { position: relative; display: grid; gap: 8px; min-width: 0; }
 .client360-search label { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
 .client360-search input {
   min-height: 58px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 0 18px;
@@ -108,17 +110,27 @@
   font-weight: 800;
 }
 .client360-search input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: var(--red); }
-.client360-summary { display: grid; gap: 12px; }
+.client360-search .suggestions {
+  left: 0;
+  right: 0;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.client360-summary { display: grid; gap: 12px; min-width: 0; }
 .client360-identity {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, .7fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .65fr);
   gap: 18px;
   align-items: stretch;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .client360-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
   gap: 10px;
+  min-width: 0;
 }
 .client360-kpis span {
   display: grid;
@@ -127,19 +139,22 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fafbfc;
+  min-width: 0;
 }
 .client360-kpis small { color: var(--muted); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
-.client360-kpis strong { font-size: 20px; color: var(--dark); }
+.client360-kpis strong { font-size: 20px; color: var(--dark); overflow-wrap: anywhere; }
 .client360-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+  min-width: 0;
 }
-.client360-card { padding: 20px; }
+.client360-card { padding: 20px; min-width: 0; overflow: hidden; }
 .client360-card h3 { margin: 4px 0 0; font-size: 22px; }
-.client360-list { display: grid; gap: 10px; }
+.client360-list { display: grid; gap: 10px; min-width: 0; }
 .client360-row {
   width: 100%;
+  box-sizing: border-box;
   display: grid;
   gap: 5px;
   text-align: left;
@@ -150,8 +165,8 @@
   cursor: pointer;
 }
 .client360-row:hover { border-color: var(--red); box-shadow: 0 10px 24px rgba(227, 6, 19, .08); }
-.client360-row strong { color: var(--dark); font-size: 15px; }
-.client360-row span { color: var(--muted); font-weight: 750; line-height: 1.35; }
+.client360-row strong { color: var(--dark); font-size: 15px; overflow-wrap: anywhere; }
+.client360-row span { color: var(--muted); font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
 
 .expenses-panel { padding: 28px; display: grid; gap: 18px; }
 .expenses-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
