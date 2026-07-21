@@ -1355,6 +1355,11 @@ function renderClient360PrenetStats(entries) {
   return `
     <div class="client360-table-wrap">
       <table class="client360-prenet-table">
+        <colgroup>
+          <col class="prenet-ref-col" />
+          <col class="prenet-qty-col" />
+          <col class="prenet-price-col" />
+        </colgroup>
         <thead>
           <tr><th>Référence</th><th>Quantité</th><th>Prix net</th></tr>
         </thead>
@@ -1441,6 +1446,16 @@ function renderClient360ArticleStats(topArticles) {
     <div class="client360-article-dashboard">
       <div class="client360-table-wrap">
         <table class="client360-article-table">
+          <colgroup>
+            <col class="article-rank-col" />
+            <col class="article-name-col" />
+            <col class="article-ca-col" />
+            <col class="article-ca-col" />
+            <col class="article-gap-col" />
+            <col class="article-qty-col" />
+            <col class="article-qty-col" />
+            <col class="article-qty-gap-col" />
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
