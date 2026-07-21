@@ -1164,7 +1164,9 @@ function renderDashboard(user) {
     ? trend.map((item) => {
         const value = Number(item.value) || 0;
         const height = Math.max((value / maxTrend) * 100, value > 0 ? 6 : 0);
-        return `<div class="chart-column"><span class="chart-value">${escapeHtml(formatter.format(value))}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(item.label || "-")}</strong></div>`;
+        const label = item.label || "-";
+        const amount = formatter.format(value);
+        return `<div class="chart-column" title="${escapeHtml(label)} : ${escapeHtml(amount)}"><span class="chart-value">${escapeHtml(amount)}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(label)}</strong></div>`;
       }).join("")
     : '<div class="dashboard-empty">Aucune donnée géographique.</div>';
 

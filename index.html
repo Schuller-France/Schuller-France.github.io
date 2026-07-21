@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260721k" />
+    <link rel="stylesheet" href="style.css?v=20260721l" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -88,7 +88,8 @@
 
     <div class="app-view is-hidden" id="appView">
       <header class="app-header">
-        <div>
+        <div class="brand-lockup">
+          <img src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
           <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
         </div>
         <div class="global-search" id="globalSearchBlock">
@@ -916,9 +917,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260721k" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260721l" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260721k" charset="UTF-8"></script>
+    <script src="script.js?v=20260721l" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
