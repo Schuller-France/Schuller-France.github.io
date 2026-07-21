@@ -210,17 +210,23 @@
             <span class="status-pill" id="client360Status">Client non selectionne</span>
           </div>
 
+          <div class="client360-search-card">
+            <div>
+              <p class="step">Recherche client</p>
+              <h3>Choisir un client</h3>
+            </div>
           <div class="client360-search">
             <label for="client360Search">Rechercher le client</label>
             <input id="client360Search" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
             <div class="suggestions" id="client360Suggestions" role="listbox"></div>
+          </div>
           </div>
 
           <section class="client360-summary" id="client360Summary">
             <div class="dashboard-empty">Recherchez un client pour afficher sa vue complete.</div>
           </section>
 
-          <section class="client360-grid" id="client360Grid">
+          <section class="client360-grid is-empty" id="client360Grid">
             <article class="panel client360-card">
               <div class="panel-heading"><div><p class="step">RDV</p><h3>Notes recentes</h3></div><span class="status-pill" id="client360NotesCount">0</span></div>
               <div class="client360-list" id="client360Notes"></div>

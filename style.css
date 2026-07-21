@@ -95,7 +95,25 @@
   background: #fff7ed;
 }
 
-.client360-panel { display: grid; gap: 18px; overflow: hidden; }
+.client360-panel { display: grid; gap: 18px; overflow: hidden; padding: 24px; }
+.client360-panel > .panel-heading {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.client360-search-card {
+  display: grid;
+  grid-template-columns: minmax(220px, .28fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff 0%, #fff7f7 100%);
+}
+.client360-search-card h3 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
 .client360-search { position: relative; display: grid; gap: 8px; min-width: 0; }
 .client360-search label { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
 .client360-search input {
@@ -118,6 +136,29 @@
   box-sizing: border-box;
 }
 .client360-summary { display: grid; gap: 12px; min-width: 0; }
+.client360-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 34px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed #d8dee8;
+  border-radius: 20px;
+  background: #fafbfc;
+}
+.client360-empty-state strong {
+  color: var(--dark);
+  font-size: 24px;
+}
+.client360-empty-state span {
+  font-weight: 850;
+}
+.client360-empty-state small {
+  max-width: 620px;
+  line-height: 1.45;
+}
 .client360-identity {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, .65fr);
@@ -148,6 +189,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   min-width: 0;
+}
+.client360-grid.is-empty {
+  display: none;
 }
 .client360-card { padding: 20px; min-width: 0; overflow: hidden; }
 .client360-card h3 { margin: 4px 0 0; font-size: 22px; }
@@ -3694,6 +3738,11 @@ h2 {
 .tablet-mode .client360-panel {
   padding: 16px;
   gap: 16px;
+}
+.tablet-mode .client360-search-card {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px;
 }
 .tablet-mode .client360-search input {
   min-height: 64px;

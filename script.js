@@ -1221,7 +1221,14 @@ function getClient360Data(client) {
 function renderClient360Empty(message = "Recherchez un client pour afficher sa vue complete.") {
   selectedClient360 = null;
   if (client360Status) client360Status.textContent = "Client non selectionne";
-  if (client360Summary) client360Summary.innerHTML = `<div class="dashboard-empty">${escapeHtml(message)}</div>`;
+  document.querySelector("#client360Grid")?.classList.add("is-empty");
+  if (client360Summary) client360Summary.innerHTML = `
+    <div class="client360-empty-state">
+      <strong>Rechercher un client</strong>
+      <span>${escapeHtml(message)}</span>
+      <small>La fiche regroupera ensuite le CA, les notes, les devis, les prix nets et les futurs top articles.</small>
+    </div>
+  `;
   [client360Notes, client360Quotes, client360Prenets, client360Orders].forEach((container) => {
     if (container) container.innerHTML = '<div class="dashboard-empty">Aucune donnee.</div>';
   });
@@ -1279,6 +1286,7 @@ function selectClient360(client) {
   selectedClient360 = client;
   if (client360Search) client360Search.value = client.name;
   client360Suggestions?.classList.remove("is-open");
+  document.querySelector("#client360Grid")?.classList.remove("is-empty");
   if (client360Status) client360Status.textContent = "Client selectionne";
   const data = getClient360Data(client);
   const caLabel = data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
