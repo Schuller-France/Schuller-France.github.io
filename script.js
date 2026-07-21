@@ -1,8 +1,9 @@
-let allClients = [];
+﻿let allClients = [];
 let products = [];
 let prenetClients = [];
 let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
+let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -270,7 +271,7 @@ async function postService(parameters) {
     body: new URLSearchParams(payload),
   });
   const result = JSON.parse(await response.text());
-  if (!result.ok) throw new Error(result.message || "Opération impossible.");
+  if (!result.ok) throw new Error(result.message || "OpÃ©ration impossible.");
   return result;
 }
 
@@ -285,6 +286,7 @@ function applySecureAppData(result) {
     sourceFile: result.prenetData?.sourceFile || "",
   };
   localStatsData = result.stats || {};
+  clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   tariffConfig = {
     ...tariffConfig,
     ...(result.tariffConfig || {}),
@@ -338,9 +340,10 @@ async function refreshSecureAppDataInBackground(token, userId) {
       renderDashboard(currentUser);
       renderDashboardSectorSwitch(currentUser);
       renderPromotions();
+      if (selectedClient360) selectClient360(selectedClient360);
     }
   } catch (error) {
-    // La copie locale permet de continuer à travailler même si Google répond lentement.
+    // La copie locale permet de continuer Ã  travailler mÃªme si Google rÃ©pond lentement.
   }
 }
 
@@ -350,7 +353,7 @@ async function refreshPromotionsFromDrive(force = false) {
   promotionsRefreshInProgress = true;
   lastPromotionsRefreshAt = Date.now();
   if (promotionSendStatus) {
-    promotionSendStatus.textContent = "Actualisation des promotions Drive…";
+    promotionSendStatus.textContent = "Actualisation des promotions Driveâ€¦";
     promotionSendStatus.className = "tarif-send-status";
   }
   try {
@@ -358,12 +361,12 @@ async function refreshPromotionsFromDrive(force = false) {
     applySecureAppData(result);
     saveSecureDataCache(currentUser?.id || "", result);
     if (promotionSendStatus) {
-      promotionSendStatus.textContent = "Promotions Drive à jour.";
+      promotionSendStatus.textContent = "Promotions Drive Ã  jour.";
       promotionSendStatus.classList.add("is-success");
     }
   } catch (error) {
     if (promotionSendStatus) {
-      promotionSendStatus.textContent = "Impossible d'actualiser Drive pour l'instant. Dernière liste conservée.";
+      promotionSendStatus.textContent = "Impossible d'actualiser Drive pour l'instant. DerniÃ¨re liste conservÃ©e.";
       promotionSendStatus.classList.add("is-warning");
     }
   } finally {
@@ -376,6 +379,7 @@ function clearSecureAppData() {
   products = [];
   prenetClients = [];
   localStatsData = {};
+  clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   prenetDataMeta = { updatedAt: "" };
   tariffConfig = { endpoint: tariffConfig.endpoint || "" };
   secureDataLoaded = false;
@@ -400,7 +404,7 @@ function toggleDisplayMode() {
 
 async function loadAdminLogs() {
   if (currentUser?.role !== "admin") return;
-  adminLogStatus.textContent = "Actualisation…";
+  adminLogStatus.textContent = "Actualisationâ€¦";
   refreshAdminLogs.disabled = true;
   try {
     const [result, expenseResult] = await Promise.all([
@@ -411,9 +415,9 @@ async function loadAdminLogs() {
     adminExpenseReportsCache = expenseResult.reports || [];
     renderAdminScopeOptions(adminLogsCache, adminExpenseReportsCache);
     renderAdminDashboard();
-    adminLogStatus.textContent = "À jour";
+    adminLogStatus.textContent = "Ã€ jour";
   } catch (error) {
-    adminLogStatus.textContent = "Erreur d’actualisation";
+    adminLogStatus.textContent = "Erreur dâ€™actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
     adminExpenseBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Impossible de charger les frais. Reconnectez-vous.</td></tr>';
@@ -465,7 +469,7 @@ function parseFrenchDateTime(value = "") {
 function resetAdminLogDisplay() {
   localStorage.setItem(adminResetKey, String(Date.now()));
   renderAdminDashboard();
-  adminLogStatus.textContent = "Affichage remis à zéro";
+  adminLogStatus.textContent = "Affichage remis Ã  zÃ©ro";
 }
 
 function adminActionClass(type = "") {
@@ -480,7 +484,7 @@ function adminActionClass(type = "") {
 function renderAdminDashboard() {
   const logs = getFilteredAdminLogs();
   const counts = logs.reduce((result, log) => {
-    const type = log.type || "Activité";
+    const type = log.type || "ActivitÃ©";
     result[type] = (result[type] || 0) + 1;
     return result;
   }, {});
@@ -499,29 +503,29 @@ function renderAdminDashboard() {
         <span class="admin-action-badge ${adminActionClass(type)}">${escapeHtml(type)}</span>
         <strong>${count}</strong>
       </div>`).join("")
-    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
 
   adminActivityFeed.innerHTML = logs.length
     ? logs.slice(0, 40).map((log) => `
       <article class="admin-feed-item">
         <div class="admin-feed-top">
-          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span>
+          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span>
           <small>${escapeHtml(log.date || "-")}</small>
         </div>
         <strong>${escapeHtml(log.userName || log.userId || "-")}</strong>
         <p>${escapeHtml(log.detail || "-")}</p>
         <small>${escapeHtml(log.sectors || "-")}</small>
       </article>`).join("")
-    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
+    : '<div class="admin-empty">Aucune activitÃ© sur ce filtre.</div>';
 
   adminLogBody.innerHTML = logs.length ? logs.map((log) => `
     <tr>
       <td>${escapeHtml(log.date || "-")}</td>
       <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
       <td>${escapeHtml(log.sectors || "-")}</td>
-      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
+      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "ActivitÃ©")}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
-    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activitÃ© enregistrÃ©e pour ce filtre.</td></tr>';
 }
 
 function renderAdminExpenses() {
@@ -537,9 +541,9 @@ function renderAdminExpenses() {
         <ul>
           ${lines.map((line) => `
             <li>
-              <strong>${escapeHtml(line.date || "-")} · ${escapeHtml(line.type || "-")}</strong>
-              <span>${escapeHtml(line.precision || "Sans précision")}</span>
-              <em>${escapeHtml(formatter.format(roundMoney(line.refund || 0)))} / ${escapeHtml(formatter.format(roundMoney(line.amount || 0)))} TTC${line.receiptName ? ` · justificatif : ${escapeHtml(line.receiptName)}` : ""}</em>
+              <strong>${escapeHtml(line.date || "-")} Â· ${escapeHtml(line.type || "-")}</strong>
+              <span>${escapeHtml(line.precision || "Sans prÃ©cision")}</span>
+              <em>${escapeHtml(formatter.format(roundMoney(line.refund || 0)))} / ${escapeHtml(formatter.format(roundMoney(line.amount || 0)))} TTC${line.receiptName ? ` Â· justificatif : ${escapeHtml(line.receiptName)}` : ""}</em>
             </li>
           `).join("")}
         </ul>
@@ -550,13 +554,13 @@ function renderAdminExpenses() {
         <td>${escapeHtml(report.updatedAt || report.createdAt || "-")}</td>
         <td><strong>${escapeHtml(report.userName || report.userId || "-")}</strong></td>
         <td>${escapeHtml(report.sectors || "-")}</td>
-        <td><span class="admin-action-badge ${normalize(report.status || "").includes("envoye") ? "is-document" : "is-navigation"}">${escapeHtml(report.status || "Enregistré")}</span></td>
+        <td><span class="admin-action-badge ${normalize(report.status || "").includes("envoye") ? "is-document" : "is-navigation"}">${escapeHtml(report.status || "EnregistrÃ©")}</span></td>
         <td><strong>${escapeHtml(report.title || "Note de frais")}</strong><br><small>${escapeHtml(report.note || "")}</small></td>
         <td><strong>${escapeHtml(formatter.format(roundMoney(report.totals?.refund || 0)))}</strong><br><small>TVA ${escapeHtml(formatter.format(roundMoney(report.totals?.vat || 0)))}</small></td>
         <td>${lineDetails}</td>
       </tr>
     `;
-  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrée pour ce filtre.</td></tr>';
+  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrÃ©e pour ce filtre.</td></tr>';
 }
 
 function resetTarifForm() {
@@ -575,7 +579,7 @@ function openTarifForm(tariffId) {
   tarifSendForm.classList.remove("is-hidden");
   tarifSendStatus.textContent = tariffConfig.endpoint
     ? ""
-    : "L’envoi sera disponible après l’autorisation Google de l’adresse expéditrice.";
+    : "Lâ€™envoi sera disponible aprÃ¨s lâ€™autorisation Google de lâ€™adresse expÃ©ditrice.";
   requestAnimationFrame(() => tarifRecipient.focus());
 }
 
@@ -592,23 +596,23 @@ async function sendTarif(event) {
   }
 
   if (!tariffConfig.endpoint) {
-    tarifSendStatus.textContent = "L’adresse d’envoi doit d’abord être autorisée par Google.";
+    tarifSendStatus.textContent = "Lâ€™adresse dâ€™envoi doit dâ€™abord Ãªtre autorisÃ©e par Google.";
     tarifSendStatus.classList.add("is-warning");
     return;
   }
 
   sendTarifButton.disabled = true;
-  sendTarifButton.textContent = "Envoi en cours…";
+  sendTarifButton.textContent = "Envoi en coursâ€¦";
   tarifSendStatus.textContent = "";
 
   try {
     await postService({ action: "sendTariff", recipient, tariff: selectedTariff?.id || "" });
-    tarifSendStatus.textContent = `${selectedTariff.name} envoyé à ${recipient}.`;
+    tarifSendStatus.textContent = `${selectedTariff.name} envoyÃ© Ã  ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
-    recordActivity("Document envoyé", `${selectedTariff.name} envoyé à ${recipient}`);
+    recordActivity("Document envoyÃ©", `${selectedTariff.name} envoyÃ© Ã  ${recipient}`);
     tarifRecipient.value = "";
   } catch (error) {
-    tarifSendStatus.textContent = "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
+    tarifSendStatus.textContent = "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. RÃ©essayez dans quelques instants.";
     tarifSendStatus.classList.add("is-error");
   } finally {
     sendTarifButton.disabled = false;
@@ -631,7 +635,7 @@ function renderPromotions() {
   if (!promotions.length) {
     promotionGrid.innerHTML = `
       <div class="promotion-empty">
-        <strong>Aucune promotion configurée pour le moment.</strong>
+        <strong>Aucune promotion configurÃ©e pour le moment.</strong>
         <span>Ajoute les PDF dans le Drive, puis indique leurs fichiers dans la configuration pour les afficher ici.</span>
       </div>`;
     return;
@@ -641,7 +645,7 @@ function renderPromotions() {
     <article class="promotion-card">
       <label class="promotion-check">
         <input type="checkbox" value="${escapeHtml(promotion.id)}" />
-        <span>Sélectionner</span>
+        <span>SÃ©lectionner</span>
       </label>
       <div class="promotion-preview-thumb">
         <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
@@ -649,10 +653,10 @@ function renderPromotions() {
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
-        <p>${escapeHtml(promotion.description || "PDF promotionnel prêt à présenter ou envoyer.")}</p>
+        <p>${escapeHtml(promotion.description || "PDF promotionnel prÃªt Ã  prÃ©senter ou envoyer.")}</p>
       </div>
       <div class="promotion-card-actions">
-        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">Aperçu plein écran</button>
+        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">AperÃ§u plein Ã©cran</button>
         <button class="primary-button compact" type="button" data-send-promotion="${escapeHtml(promotion.id)}">Envoyer</button>
       </div>
     </article>`).join("");
@@ -669,7 +673,7 @@ function openPromotionPreview(promotionId) {
   promotionModalTitle.textContent = promotion.name;
   promotionPreviewFrame.src = drivePreviewUrl(promotion.driveFileId);
   promotionModal.classList.remove("is-hidden");
-  recordActivity("Promotion consultée", promotion.name);
+  recordActivity("Promotion consultÃ©e", promotion.name);
 }
 
 function closePromotionPreview() {
@@ -688,22 +692,22 @@ async function sendPromotions(forcedId = "") {
     return;
   }
   if (!ids.length) {
-    promotionSendStatus.textContent = "Sélectionnez au moins une promotion.";
+    promotionSendStatus.textContent = "SÃ©lectionnez au moins une promotion.";
     promotionSendStatus.classList.add("is-error");
     return;
   }
 
   sendSelectedPromotions.disabled = true;
-  promotionSendStatus.textContent = "Envoi en cours…";
+  promotionSendStatus.textContent = "Envoi en coursâ€¦";
   try {
     await postService({ action: "sendDocuments", recipient, documents: ids.join(",") });
     const names = getPromotions().filter((item) => ids.includes(item.id)).map((item) => item.name).join(", ");
-    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyée${ids.length > 1 ? "s" : ""} à ${recipient}.`;
+    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyÃ©e${ids.length > 1 ? "s" : ""} Ã  ${recipient}.`;
     promotionSendStatus.classList.add("is-success");
-    recordActivity("Promotion envoyée", `${names} envoyé à ${recipient}`);
+    recordActivity("Promotion envoyÃ©e", `${names} envoyÃ© Ã  ${recipient}`);
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
   } catch (error) {
-    promotionSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
+    promotionSendStatus.textContent = error.message || "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. VÃ©rifiez que les promotions sont bien activÃ©es cÃ´tÃ© Drive.";
     promotionSendStatus.classList.add("is-error");
   } finally {
     sendSelectedPromotions.disabled = false;
@@ -729,8 +733,8 @@ function renderPrenetEmpty() {
   prenetSector.textContent = currentUser?.sectors?.join(" + ") || currentUser?.sector || "Secteur";
   prenetResult.innerHTML = `
     <div class="prenet-empty">
-      <strong>Sélectionnez un client</strong>
-      <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
+      <strong>SÃ©lectionnez un client</strong>
+      <span>Ses nouveaux prix nets apparaÃ®tront ici, classÃ©s par rÃ©fÃ©rence.</span>
     </div>`;
 }
 
@@ -770,11 +774,11 @@ function renderPrenetTable(title, entries, statusClass) {
     <section class="prenet-group">
       <div class="prenet-group-heading">
         <h3>${escapeHtml(title)}</h3>
-        <span class="prenet-count">${entries.length} référence${entries.length > 1 ? "s" : ""}</span>
+        <span class="prenet-count">${entries.length} rÃ©fÃ©rence${entries.length > 1 ? "s" : ""}</span>
       </div>
       <div class="prenet-table-wrap">
         <table class="prenet-table">
-          <thead><tr><th>Référence</th><th>Quantité</th><th>Prix net</th><th>Statut</th></tr></thead>
+          <thead><tr><th>RÃ©fÃ©rence</th><th>QuantitÃ©</th><th>Prix net</th><th>Statut</th></tr></thead>
           <tbody>${entries.map((entry) => `
             <tr>
               <td><strong>${escapeHtml(entry.ref || "-")}</strong>${entry.designation ? `<small>${escapeHtml(entry.designation)}</small>` : ""}</td>
@@ -812,26 +816,26 @@ function renderPrenetReferenceResults(client, query = "") {
     return '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>';
   }
   if (!visibleEntries.length) {
-    return '<div class="prenet-empty"><strong>Aucune référence trouvée</strong><span>Essayez une autre référence ou une partie du nom produit.</span></div>';
+    return '<div class="prenet-empty"><strong>Aucune rÃ©fÃ©rence trouvÃ©e</strong><span>Essayez une autre rÃ©fÃ©rence ou une partie du nom produit.</span></div>';
   }
   return renderPrenetTable("Nouveaux prix nets", visibleEntries, "is-new");
 }
 
 function selectPrenetClient(client) {
   selectedPrenetClient = client;
-  prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
+  prenetClientSearch.value = `${client.name || ""}${client.code ? ` Â· ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
   const newEntries = getPrenetNewEntries(client);
-  recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
+  recordActivity("Prix nets consultÃ©s", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} rÃ©fÃ©rence(s)`);
 
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
       <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
-      <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
+      <div class="prenet-update"><span>Mise Ã  jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
     <div class="prenet-reference-search">
-      <label for="prenetReferenceSearch">Rechercher une référence</label>
-      <input id="prenetReferenceSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou un nom produit…" />
+      <label for="prenetReferenceSearch">Rechercher une rÃ©fÃ©rence</label>
+      <input id="prenetReferenceSearch" type="search" autocomplete="off" placeholder="Tapez une rÃ©fÃ©rence ou un nom produitâ€¦" />
     </div>
     <div id="prenetReferenceResults">
       ${renderPrenetReferenceResults(client)}
@@ -871,6 +875,17 @@ function formatSignedPercent(value) {
   return `${amount >= 0 ? "+" : "-"}${Math.abs(amount).toFixed(1).replace(".", ",")}%`;
 }
 
+function monthNameFromObjectiveLabel(label) {
+  return String(label || "mois").replace(/\s+20\d{2}\b/g, "").trim() || "mois";
+}
+
+function buildComparisonNote(current, target, suffix) {
+  const diff = Number(current || 0) - Number(target || 0);
+  const pct = target ? (diff / Number(target || 0)) * 100 : 0;
+  const sign = diff >= 0 ? "+" : "";
+  return `${sign}${formatter.format(diff)} - ${sign}${pct.toFixed(1).replace(".", ",")}% ${suffix || ""}`.trim();
+}
+
 function buildGoal(label, current, target, options = {}) {
   const diff = Number(current || 0) - Number(target || 0);
   const percent = target ? (Number(current || 0) / Number(target || 0)) * 100 : 0;
@@ -883,7 +898,7 @@ function buildGoal(label, current, target, options = {}) {
     percent: typeof options.percent === "number" ? options.percent : percent,
     format: options.format || "currency",
     valueLabel: options.valueLabel || `${formatter.format(Number(current) || 0)} / ${formatter.format(Number(target) || 0)}`,
-    note: options.note || `${sign}${formatter.format(diff)} · ${sign}${percent.toFixed(1).replace(".", ",")}%`,
+    note: options.note || `${sign}${formatter.format(diff)} Â· ${sign}${percent.toFixed(1).replace(".", ",")}%`,
     remaining,
   };
 }
@@ -900,15 +915,18 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   let totalRevenue = 0;
   let totalObjective = 0;
   let totalPrevious = 0;
+  let totalPreviousMonth = 0;
 
   rows.forEach((row) => {
     const client = row.__client || findStatsClient(row);
     const revenue = Number(row.revenue) || 0;
     const objective = Number(row.objective) || 0;
     const previous = Number(row.previousRevenue) || 0;
+    const previousMonth = Number(row.previousMonthRevenue) || 0;
     totalRevenue += revenue;
     totalObjective += objective;
     totalPrevious += previous;
+    totalPreviousMonth += previousMonth;
     const code = client?.code || row.clientCode || row.id;
     const existing = clientTotals.get(code) || {
       code,
@@ -932,48 +950,59 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
   const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
   const objectiveMonthLabel = sourceInfo.objectiveMonthLabel || "mois";
-  if (monthlyObjective > 0) {
-    goals.push(buildGoal(`Objectif ${objectiveMonthLabel}`, totalRevenue, monthlyObjective, {
-      note: `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`,
-    }));
-  } else if (totalObjective > 0) {
-    goals.push(buildGoal("Objectif du fichier CA", totalRevenue, totalObjective, {
-      note: `Reste ${formatter.format(Math.max(0, totalObjective - totalRevenue))}`,
+  const monthName = monthNameFromObjectiveLabel(objectiveMonthLabel);
+  const monthTitle = `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)}`;
+  const cumulativeLabel = `janvier-${monthName}`;
+  const projectionValue = totalObjective > 0 ? totalObjective : totalRevenue;
+
+  if (ytdObjective > 0 || projectionValue > 0) {
+    goals.push(buildGoal(`Projection ${cumulativeLabel}`, projectionValue, ytdObjective, {
+      note: ytdObjective > 0 ? buildComparisonNote(projectionValue, ytdObjective, "vs objectif") : "Objectif cumule absent du fichier previsionnel.",
     }));
   }
   if (totalPrevious > 0) {
-    const previousDiff = totalRevenue - totalPrevious;
-    const previousPercent = totalPrevious > 0 ? (previousDiff / totalPrevious) * 100 : 0;
-    goals.push(buildGoal(`${objectiveMonthLabel} vs N-1`, totalRevenue, totalPrevious, {
-      valueLabel: `N-1 : ${formatter.format(totalPrevious)}`,
-      note: `${previousDiff >= 0 ? "Avance" : "Retard"} : ${formatSignedCurrency(previousDiff)} · ${formatSignedPercent(previousPercent)}`,
+    goals.push(buildGoal(`Comparaison N-1 ${cumulativeLabel}`, projectionValue, totalPrevious, {
+      note: buildComparisonNote(projectionValue, totalPrevious, "vs 2025"),
     }));
   } else {
-    goals.push(buildGoal(`${objectiveMonthLabel} vs N-1`, 0, 0, {
+    goals.push(buildGoal(`Comparaison N-1 ${cumulativeLabel}`, 0, 0, {
       percent: 0,
-      valueLabel: "Donnée N-1 absente",
-      note: "Le fichier CA actualisé ne contient pas de colonne N-1 / 2025 exploitable.",
+      valueLabel: "Donnee N-1 absente",
+      note: "Le fichier CA actualise ne contient pas de colonne N-1 cumulee exploitable.",
     }));
   }
-  if (ytdObjective > 0) {
-    const ytdRemaining = Math.max(0, ytdObjective - totalRevenue);
-    const ytdProgress = ytdObjective > 0 ? Math.min((totalRevenue / ytdObjective) * 100, 100) : 0;
-    goals.push(buildGoal("Objectif cumulé janv. → mois en cours", totalRevenue, ytdObjective, {
-      percent: ytdProgress,
-      valueLabel: `Objectif : ${formatter.format(ytdObjective)}`,
-      note: `Reste à couvrir selon le CA chargé : ${formatter.format(ytdRemaining)}`,
+  if (monthlyObjective > 0) {
+    goals.push(buildGoal(`Previsionnel ${monthName}`, totalRevenue, monthlyObjective, {
+      note: buildComparisonNote(totalRevenue, monthlyObjective, "vs objectif"),
+    }));
+  } else if (totalRevenue > 0) {
+    goals.push(buildGoal(`Previsionnel ${monthName}`, totalRevenue, 0, {
+      percent: 0,
+      valueLabel: "Objectif mois absent",
+      note: "Ajoute le mois dans le fichier Previsionnel 2026 pour afficher l objectif.",
+    }));
+  }
+  if (totalPreviousMonth > 0) {
+    goals.push(buildGoal(`${monthTitle} vs N-1`, totalRevenue, totalPreviousMonth, {
+      note: buildComparisonNote(totalRevenue, totalPreviousMonth, "vs 2025"),
+    }));
+  } else {
+    goals.push(buildGoal(`${monthTitle} vs N-1`, 0, 0, {
+      percent: 0,
+      valueLabel: "Donnee N-1 mois absente",
+      note: "Il faut une colonne N-1 du mois dans le fichier CA pour cette ligne.",
     }));
   }
   const safeGoals = goals.length
     ? goals
     : (Array.isArray(fallbackStats.goals) ? fallbackStats.goals.map((goal) => ({
         ...goal,
-        note: goal.note ? `${goal.note} · référence prévisionnelle` : "Référence prévisionnelle",
+        note: goal.note ? `${goal.note} Â· rÃ©fÃ©rence prÃ©visionnelle` : "RÃ©fÃ©rence prÃ©visionnelle",
       })) : []);
 
   return {
     updatedAt: sourceInfo.updatedAt || "Drive",
-    periodLabel: `CA depuis le début du mois · ${sector} · ${sourceInfo.sourceFile || "fichier Drive"}`,
+    periodLabel: `CA depuis le dÃ©but du mois Â· ${sector} Â· ${sourceInfo.sourceFile || "fichier Drive"}`,
     kpis: {
       revenue: totalRevenue,
       clients: topClients.length,
@@ -987,9 +1016,9 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       medianClient: median,
       revenueNote: "CA fichier Drive",
       clientsNote: monthlyObjective > 0
-        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
+        ? `${Math.min(999, Math.max(0, objectivePercent)).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
         : `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
-      averageNote: `Médiane : ${formatter.format(median)}`,
+      averageNote: `MÃ©diane : ${formatter.format(median)}`,
     },
     salesTrend: [...departmentTotals.entries()]
       .map(([label, value]) => ({ label, value }))
@@ -1026,7 +1055,7 @@ async function loadDashboardStatsFromDrive() {
   if (!currentSessionToken || dashboardStatsLoading || currentUser?.role === "admin") return;
   dashboardStatsLoading = true;
   const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
-  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
+  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Driveâ€¦";
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -1041,9 +1070,20 @@ async function loadDashboardStatsFromDrive() {
     renderDashboardSectorSwitch(currentUser);
     renderDashboard(currentUser);
   } catch (error) {
-    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
+    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "DonnÃ©es locales";
   } finally {
     dashboardStatsLoading = false;
+  }
+}
+
+async function loadClientArticleStatsFromDrive() {
+  if (!currentSessionToken) return;
+  try {
+    const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
+    clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+    if (selectedClient360) selectClient360(selectedClient360);
+  } catch (error) {
+    // On garde la derniere version chargee pour ne pas bloquer le terrain.
   }
 }
 
@@ -1053,8 +1093,8 @@ function getDashboardStats(user) {
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
   return {
-    updatedAt: "À venir",
-    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichées dès leur import.`,
+    updatedAt: "Ã€ venir",
+    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichÃ©es dÃ¨s leur import.`,
     kpis: { revenue: 0, clients: visibleClients.length, averageClient: 0 },
     salesTrend: [],
     goals: [],
@@ -1094,8 +1134,8 @@ function renderDashboard(user) {
   const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
 
   document.querySelector("#dashboardUpdatedAt").textContent = stats.updatedAt || "En attente";
-  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthétique de votre activité commerciale.";
-  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA réalisé";
+  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthÃ©tique de votre activitÃ© commerciale.";
+  document.querySelector("#metricOrders").previousElementSibling.textContent = "CA rÃ©alisÃ©";
   document.querySelector("#metricOrders").textContent = formatter.format(Number(kpis.revenue) || 0);
   const monthlyObjective = Number(kpis.monthlyObjective) || 0;
   const objectivePercent = Number(kpis.objectivePercent) || 0;
@@ -1104,23 +1144,23 @@ function renderDashboard(user) {
   document.querySelector("#metricRevenue").textContent = monthlyObjective ? formatter.format(monthlyObjective) : "--";
   document.querySelector("#metricClients").textContent = formatter.format(Number(kpis.averageClient) || 0);
   document.querySelector("#metricOrdersNote").textContent = kpis.revenueNote || "Secteur du commercial";
-  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prévisionnel";
+  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prÃ©visionnel";
   document.querySelector("#metricClientsNote").textContent = kpis.averageNote || "Valeur moyenne du portefeuille";
   document.querySelector("#metricRevenueNote").textContent = monthlyObjective
-    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint · reste ${formatter.format(objectiveRemaining)}`
-    : (kpis.clientsNote || "Objectif mensuel non trouvé");
+    ? `${Math.max(0, objectivePercent).toFixed(1).replace(".", ",")}% atteint Â· reste ${formatter.format(objectiveRemaining)}`
+    : (kpis.clientsNote || "Objectif mensuel non trouvÃ©");
 
   const maxTrend = Math.max(...trend.map((item) => Number(item.value) || 0), 1);
   document.querySelector("#trendTotal").textContent = trend.length
     ? formatter.format(trend.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
-    : "Aucune donnée";
+    : "Aucune donnÃ©e";
   document.querySelector("#salesChart").innerHTML = trend.length
     ? trend.map((item) => {
         const value = Number(item.value) || 0;
         const height = Math.max((value / maxTrend) * 100, value > 0 ? 6 : 0);
         return `<div class="chart-column"><span class="chart-value">${escapeHtml(formatter.format(value))}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(item.label || "-")}</strong></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucune donnée géographique.</div>';
+    : '<div class="dashboard-empty">Aucune donnÃ©e gÃ©ographique.</div>';
 
   document.querySelector("#goalList").innerHTML = goals.length
     ? goals.map((goal) => {
@@ -1132,11 +1172,11 @@ function renderDashboard(user) {
         const valueLabel = goal.valueLabel || `${displayCurrent} / ${displayTarget}`;
         return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(valueLabel)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
       }).join("")
-    : '<div class="dashboard-empty">Aucun objectif renseigné.</div>';
+    : '<div class="dashboard-empty">Aucun objectif renseignÃ©.</div>';
 
   document.querySelector("#topClientsBody").innerHTML = topClients.length
     ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
-    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
+    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnÃ©e client.</td></tr>';
 
   renderHomeReminders();
 }
@@ -1198,6 +1238,15 @@ function getClientStats360(client) {
   return list.find((item) => normalize(item.code || "") === normalize(client.code || "") || normalize(item.name || "") === normalize(client.name || ""));
 }
 
+function getClientArticleStats360(client) {
+  const byClient = clientArticleStats360?.byClient || {};
+  const codeKey = normalize(client.code || "");
+  if (codeKey && byClient[codeKey]) return byClient[codeKey];
+  const nameKey = normalize(client.name || "");
+  if (nameKey && byClient[nameKey]) return byClient[nameKey];
+  return null;
+}
+
 function getClientPrenet360(client) {
   return getVisiblePrenetClients().find((item) =>
     normalize(item.code || "") === normalize(client.code || "") ||
@@ -1211,6 +1260,7 @@ function getClient360Data(client) {
   const prenet = getClientPrenet360(client);
   return {
     stats: getClientStats360(client),
+    articleStats: getClientArticleStats360(client),
     notes,
     quotes,
     orders: [],
@@ -1282,6 +1332,12 @@ function renderClient360List(container, items, emptyText, renderer) {
     : `<div class="dashboard-empty">${escapeHtml(emptyText)}</div>`;
 }
 
+function formatEvolutionPercent(value) {
+  if (value === null || value === undefined || !isFinite(Number(value))) return "--";
+  const percent = Number(value) * 100;
+  return `${percent >= 0 ? "+" : ""}${percent.toFixed(1).replace(".", ",")}%`;
+}
+
 function selectClient360(client) {
   selectedClient360 = client;
   if (client360Search) client360Search.value = client.name;
@@ -1289,7 +1345,11 @@ function selectClient360(client) {
   document.querySelector("#client360Grid")?.classList.remove("is-empty");
   if (client360Status) client360Status.textContent = "Client selectionne";
   const data = getClient360Data(client);
-  const caLabel = data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
+  const articleSummary = data.articleStats?.summary || null;
+  const caLabel = articleSummary ? formatter.format(Number(articleSummary.ca2026) || 0) : data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
+  const caPreviousLabel = articleSummary ? formatter.format(Number(articleSummary.ca2025) || 0) : "--";
+  const evolutionLabel = articleSummary ? formatEvolutionPercent(articleSummary.evolutionPct) : "--";
+  const topArticles = Array.isArray(data.articleStats?.topArticles) ? data.articleStats.topArticles : [];
   client360Summary.innerHTML = `
     <article class="selected-client client360-identity">
       <div>
@@ -1299,7 +1359,9 @@ function selectClient360(client) {
         <span>${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</span>
       </div>
       <div class="client360-kpis">
-        <span><small>CA charge</small><strong>${escapeHtml(caLabel)}</strong></span>
+        <span><small>CA 2026</small><strong>${escapeHtml(caLabel)}</strong></span>
+        <span><small>CA N-1</small><strong>${escapeHtml(caPreviousLabel)}</strong></span>
+        <span><small>Evolution</small><strong>${escapeHtml(evolutionLabel)}</strong></span>
         <span><small>Notes</small><strong>${data.notes.length}</strong></span>
         <span><small>Devis</small><strong>${data.quotes.length}</strong></span>
         <span><small>Prix nets</small><strong>${data.prenetEntries.length}</strong></span>
@@ -1309,7 +1371,7 @@ function selectClient360(client) {
   client360NotesCount.textContent = String(data.notes.length);
   client360QuotesCount.textContent = String(data.quotes.length);
   client360PrenetCount.textContent = String(data.prenetEntries.length);
-  client360OrdersCount.textContent = "Drive";
+  client360OrdersCount.textContent = String(topArticles.length);
   renderClient360List(client360Notes, data.notes.slice(0, 8), "Aucune note pour ce client.", (note) => `
     <button class="client360-row" type="button" data-client360-open="notes">
       <strong>${escapeHtml(formatNoteDate(note.date))}</strong>
@@ -1328,11 +1390,12 @@ function selectClient360(client) {
       <span>${escapeHtml(entry.designation || "")}</span>
     </button>
   `);
-  client360Orders.innerHTML = `
-    <div class="dashboard-empty">
-      Ajoute un fichier Drive avec les achats par client et par reference pour afficher ici le top articles N / N-1.
-    </div>
-  `;
+  renderClient360List(client360Orders, topArticles, clientArticleStats360?.available ? "Aucun achat trouve pour ce client dans le fichier Drive." : "Aucun fichier stats client/article charge depuis Drive.", (article) => `
+    <button class="client360-row client360-article-row" type="button">
+      <strong>${escapeHtml(article.articleCode || "")} - ${escapeHtml(article.articleName || "")}</strong>
+      <span>CA 2026 : ${escapeHtml(formatter.format(Number(article.ca2026) || 0))} Â· N-1 : ${escapeHtml(formatter.format(Number(article.ca2025) || 0))} Â· Qte ${escapeHtml(formatNumber(article.quantity2026 || 0))} / ${escapeHtml(formatNumber(article.quantity2025 || 0))} Â· ${escapeHtml(formatEvolutionPercent(article.evolutionPct))}</span>
+    </button>
+  `);
   recordActivity("Fiche client consultee", `${client.name} (${client.code})`);
 }
 
@@ -1726,7 +1789,7 @@ function renderBacklog() {
   backlogTotalCount.textContent = String(filteredItems.length);
 
   if (!backlogItemsCache.length) {
-    backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
+    backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donnÃ©e chargÃ©e pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
     return;
   }
 
@@ -1749,22 +1812,22 @@ function renderBacklog() {
         <td class="backlog-action-cell"><button class="icon-button backlog-delete-button" type="button" data-backlog-hide="${escapeHtml(item.id)}" aria-label="Masquer cette ligne">&times;</button></td>
       </tr>
     `).join("")
-    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
+    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvÃ© avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems(silent = false) {
   if (!backlogStatus || !refreshBacklog) return;
   if (!silent) {
-    backlogStatus.textContent = "Actualisation…";
+    backlogStatus.textContent = "Actualisationâ€¦";
     refreshBacklog.disabled = true;
   }
   try {
     const result = await postService({ action: "getReliquatsReprises", token: currentSessionToken });
     backlogItemsCache = Array.isArray(result.items) ? result.items : [];
     const updatedAt = result.updatedAt || window.RELIQUATS_DATA?.updatedAt || "Drive";
-    backlogStatus.textContent = `À jour · ${updatedAt}`;
+    backlogStatus.textContent = `Ã€ jour Â· ${updatedAt}`;
   } catch (error) {
-    if (!silent) backlogStatus.textContent = backlogItemsCache.length ? "Données locales" : "Drive à connecter";
+    if (!silent) backlogStatus.textContent = backlogItemsCache.length ? "DonnÃ©es locales" : "Drive Ã  connecter";
   } finally {
     if (!silent) refreshBacklog.disabled = false;
     renderBacklog();
@@ -1785,6 +1848,7 @@ function startDriveAutoRefresh() {
     if (document.hidden || !currentSessionToken || currentUser?.role === "admin") return;
     loadDashboardStatsFromDrive();
     loadBacklogItems(true);
+    loadClientArticleStatsFromDrive();
   }, driveAutoRefreshMs);
 }
 
@@ -1885,7 +1949,7 @@ async function submitLogin() {
   loginError.textContent = "";
   loginError.className = "login-error";
   loginSubmitButton.disabled = true;
-  loginSubmitButton.textContent = "Connexion…";
+  loginSubmitButton.textContent = "Connexionâ€¦";
   try {
     const result = await postService({
       action: "login",
@@ -1895,7 +1959,7 @@ async function submitLogin() {
     });
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
-      loginSubmitButton.textContent = "Chargement des données…";
+      loginSubmitButton.textContent = "Chargement des donnÃ©esâ€¦";
       await loadSecureAppData(result.token, result.user?.id || "");
     }
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
@@ -1914,7 +1978,7 @@ async function requestPasswordReset(event) {
   passwordResetStatus.textContent = "";
   passwordResetStatus.className = "reset-status";
   requestResetButton.disabled = true;
-  requestResetButton.textContent = "Envoi en cours…";
+  requestResetButton.textContent = "Envoi en coursâ€¦";
   try {
     const result = await postService({ action: "requestReset", email: passwordResetEmail.value.trim() });
     passwordResetStatus.textContent = result.message;
@@ -1923,7 +1987,7 @@ async function requestPasswordReset(event) {
     passwordResetConfirmForm.classList.remove("is-hidden");
     requestAnimationFrame(() => passwordResetCode.focus());
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "La demande n’a pas pu être envoyée.";
+    passwordResetStatus.textContent = error.message || "La demande nâ€™a pas pu Ãªtre envoyÃ©e.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     requestResetButton.disabled = false;
@@ -1943,7 +2007,7 @@ async function confirmPasswordReset(event) {
   }
 
   confirmResetButton.disabled = true;
-  confirmResetButton.textContent = "Modification…";
+  confirmResetButton.textContent = "Modificationâ€¦";
   try {
     const result = await postService({
       action: "confirmReset",
@@ -1953,11 +2017,11 @@ async function confirmPasswordReset(event) {
     });
     loginId.value = result.identifier || passwordResetEmail.value.trim();
     closePasswordReset();
-    loginError.textContent = "Mot de passe modifié. Vous pouvez vous connecter.";
+    loginError.textContent = "Mot de passe modifiÃ©. Vous pouvez vous connecter.";
     loginError.classList.add("is-success");
     loginPassword.focus();
   } catch (error) {
-    passwordResetStatus.textContent = error.message || "Le mot de passe n’a pas pu être modifié.";
+    passwordResetStatus.textContent = error.message || "Le mot de passe nâ€™a pas pu Ãªtre modifiÃ©.";
     passwordResetStatus.classList.add("is-error");
   } finally {
     confirmResetButton.disabled = false;
@@ -1970,7 +2034,7 @@ async function restoreSession() {
     const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
     if (savedUser?.id) {
       rememberLogin.checked = Boolean(savedUser.remember);
-      loginError.textContent = "Reconnexion sécurisée...";
+      loginError.textContent = "Reconnexion sÃ©curisÃ©e...";
       loginError.className = "login-error";
       const cached = restoreSecureDataCache(savedUser.id);
       if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
@@ -1993,7 +2057,7 @@ function selectClient(client) {
   selectedClient = client;
   clientSearch.value = client.name;
   clientSuggestions.classList.remove("is-open");
-  recordActivity("Client sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
   clientStatus.textContent = "Client selectionne";
   clientStatus.classList.add("is-ready");
   selectedClientBox.innerHTML = `
@@ -2064,7 +2128,7 @@ function selectQuoteClient(client) {
   selectedQuoteClient = client;
   quoteClientSearch.value = client.name;
   quoteClientSuggestions.classList.remove("is-open");
-  quoteStatus.textContent = "Client sélectionné";
+  quoteStatus.textContent = "Client sÃ©lectionnÃ©";
   quoteStatus.classList.add("is-ready");
   quoteSelectedClient.innerHTML = `
     <strong>${escapeHtml(client.name)}</strong>
@@ -2074,12 +2138,12 @@ function selectQuoteClient(client) {
     <span>${escapeHtml(client.sector)}</span>
   `;
   quoteSendStatus.textContent = "";
-  recordActivity("Client devis sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
+  recordActivity("Client devis sÃ©lectionnÃ©", `${client.name} (${client.code}) - ${client.sector}`);
 }
 
 function resetQuoteRequest() {
   selectedQuoteClient = null;
-  quoteStatus.textContent = "Client non sélectionné";
+  quoteStatus.textContent = "Client non sÃ©lectionnÃ©";
   quoteStatus.classList.remove("is-ready");
   quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   quoteSendStatus.textContent = "";
@@ -2128,7 +2192,7 @@ function applyQuoteReference(id, value) {
   line.ref = product ? product.ref : value;
   if (product) {
     line.qty = defaultQuantityForProduct(product);
-    recordActivity("Référence devis consultée", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
+    recordActivity("RÃ©fÃ©rence devis consultÃ©e", `${product.ref} - ${product.name} - UDV ${product.udv || 1}`);
   }
   renderQuoteLines();
 }
@@ -2140,13 +2204,13 @@ function renderQuoteLines() {
       ${(() => {
         const product = findProduct(line.ref);
         return `
-          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-quote-field="ref" /></td>
-          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
+          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="RÃ©fÃ©rence ${index + 1}" data-quote-field="ref" /></td>
+          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une rÃ©fÃ©rence"}</td>
           <td class="quote-udv-cell">${product ? escapeHtml(product.udv || "-") : "-"}</td>
         `;
       })()}
-      <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-quote-field="qty" aria-label="Quantité" /></td>
-      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, précision..." data-quote-field="comment" /></td>
+      <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-quote-field="qty" aria-label="QuantitÃ©" /></td>
+      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Option, couleur, prÃ©cision..." data-quote-field="comment" /></td>
       <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
     </tr>
   `).join("");
@@ -2274,12 +2338,12 @@ function renderExpenses() {
   expensesLines.innerHTML = expenseLineItems.map((line, index) => {
     const refunded = refunds[index] || 0;
     const amount = parseAmount(line.amount);
-    const warning = amount && refunded < amount ? `<small class="expense-warning">Plafond appliqué : ${escapeHtml(formatter.format(refunded))}</small>` : "";
+    const warning = amount && refunded < amount ? `<small class="expense-warning">Plafond appliquÃ© : ${escapeHtml(formatter.format(refunded))}</small>` : "";
     return `
       <tr data-expense-line="${escapeHtml(line.id)}">
         <td><input type="date" value="${escapeHtml(line.date)}" data-expense-field="date" /></td>
         <td><select data-expense-field="type">${expenseTypes.map((type) => `<option value="${escapeHtml(type)}" ${line.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></td>
-        <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, hôtel, détail..." data-expense-field="precision" /></td>
+        <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, hÃ´tel, dÃ©tail..." data-expense-field="precision" /></td>
         <td><input type="text" inputmode="decimal" value="${escapeHtml(line.amount)}" placeholder="0,00" data-expense-field="amount" /></td>
         <td><input type="text" inputmode="decimal" value="${escapeHtml(line.vat)}" placeholder="0,00" data-expense-field="vat" /></td>
         <td><strong>${escapeHtml(formatter.format(refunded))}</strong>${warning}</td>
@@ -2303,7 +2367,7 @@ function updateExpenseSummary() {
   expensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
   expensesTotalRefund.textContent = formatter.format(roundMoney(totals.refund));
   const filledCount = expenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
-  const draftLabel = activeExpenseDraftId ? " · brouillon ouvert" : "";
+  const draftLabel = activeExpenseDraftId ? " Â· brouillon ouvert" : "";
   expensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}${draftLabel}`;
 }
 
@@ -2326,7 +2390,7 @@ function renderExpenseHistory() {
     .filter((draft) => !query || normalize(`${draft.title} ${draft.note} ${draft.updatedLabel}`).includes(query))
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
   if (!drafts.length) {
-    expenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais enregistrée pour le moment.</p>`;
+    expenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais enregistrÃ©e pour le moment.</p>`;
     return;
   }
   expenseHistoryList.innerHTML = drafts.map((draft) => {
@@ -2337,8 +2401,8 @@ function renderExpenseHistory() {
       <article class="expense-history-item${active}" data-expense-draft="${escapeHtml(draft.id)}">
         <button class="expense-history-open" type="button" data-open-expense-draft="${escapeHtml(draft.id)}">
           <strong>${escapeHtml(draft.title || "Note de frais")}</strong>
-          <span>${escapeHtml(draft.updatedLabel || "Non datée")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
-          <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net à payer</em>
+          <span>${escapeHtml(draft.updatedLabel || "Non datÃ©e")} Â· ${(draft.lines || []).length} ligne(s) Â· ${receiptCount} justificatif(s)</span>
+          <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net Ã  payer</em>
         </button>
         <div class="expense-history-actions">
           <button type="button" data-rename-expense-draft="${escapeHtml(draft.id)}">Renommer</button>
@@ -2388,7 +2452,7 @@ async function hydrateExpenseLineForDraft(line) {
 async function saveCurrentExpenseDraft() {
   if (!currentUser || currentUser.role === "admin") return;
   if (expensesSendStatus) {
-    expensesSendStatus.textContent = "Enregistrement de la note de frais…";
+    expensesSendStatus.textContent = "Enregistrement de la note de fraisâ€¦";
     expensesSendStatus.className = "tarif-send-status";
   }
   try {
@@ -2432,10 +2496,10 @@ async function saveCurrentExpenseDraft() {
         }),
       });
     } catch (error) {
-      // Le brouillon reste sauvegardé localement même si Google répond lentement.
+      // Le brouillon reste sauvegardÃ© localement mÃªme si Google rÃ©pond lentement.
     }
     if (expensesSendStatus) {
-      expensesSendStatus.textContent = `Note de frais enregistrée : ${title}.`;
+      expensesSendStatus.textContent = `Note de frais enregistrÃ©e : ${title}.`;
       expensesSendStatus.classList.add("is-success");
     }
     renderExpenses();
@@ -2543,8 +2607,8 @@ async function sendExpenseReportDraft() {
     return;
   }
   sendExpenseReport.disabled = true;
-  sendExpenseReport.textContent = "Envoi en cours…";
-  expensesSendStatus.textContent = "Préparation du fichier Excel et des justificatifs…";
+  sendExpenseReport.textContent = "Envoi en coursâ€¦";
+  expensesSendStatus.textContent = "PrÃ©paration du fichier Excel et des justificatifsâ€¦";
   expensesSendStatus.className = "tarif-send-status";
   try {
     const refunds = getExpenseRefunds(expenseLineItems);
@@ -2570,13 +2634,13 @@ async function sendExpenseReportDraft() {
       lines: JSON.stringify(payloadLines),
       receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
     });
-    const successMessage = result.message || "Frais envoyés.";
-    recordActivity("Frais envoyés", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
+    const successMessage = result.message || "Frais envoyÃ©s.";
+    recordActivity("Frais envoyÃ©s", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
     resetExpenses();
     expensesSendStatus.textContent = successMessage;
     expensesSendStatus.classList.add("is-success");
   } catch (error) {
-    expensesSendStatus.textContent = error.message || "L'envoi des frais a échoué.";
+    expensesSendStatus.textContent = error.message || "L'envoi des frais a Ã©chouÃ©.";
     expensesSendStatus.classList.add("is-error");
   } finally {
     sendExpenseReport.disabled = false;
@@ -2604,9 +2668,9 @@ function saveQuoteHistory(items) {
 function quoteStatusLabel(status) {
   return {
     pending: "En attente",
-    relaunched: "Relancé",
-    accepted: "Validé",
-    refused: "Refusé",
+    relaunched: "RelancÃ©",
+    accepted: "ValidÃ©",
+    refused: "RefusÃ©",
   }[status] || "En attente";
 }
 
@@ -2652,7 +2716,7 @@ function updateQuoteHistoryStatus(id, status) {
   item.statusUpdatedAt = new Date().toISOString();
   saveQuoteHistory(items);
   renderQuoteHistory();
-  recordActivity("Statut devis modifié", `${item.clientName} - ${quoteStatusLabel(status)}`);
+  recordActivity("Statut devis modifiÃ©", `${item.clientName} - ${quoteStatusLabel(status)}`);
 }
 
 function deleteQuoteHistoryItem(id) {
@@ -2685,21 +2749,21 @@ function renderQuoteHistory() {
             <div class="quote-history-main">
               <span class="quote-status-pill ${quoteStatusClass(item.status)}">${escapeHtml(quoteStatusLabel(item.status))}</span>
               <strong>${escapeHtml(item.clientName || "Client")}</strong>
-              <small>${escapeHtml(item.date || "")} · ${escapeHtml(item.clientCode || "")} · ${escapeHtml(item.sector || "")}</small>
-              <p>${escapeHtml(refs || "Aucune référence")}</p>
+              <small>${escapeHtml(item.date || "")} Â· ${escapeHtml(item.clientCode || "")} Â· ${escapeHtml(item.sector || "")}</small>
+              <p>${escapeHtml(refs || "Aucune rÃ©fÃ©rence")}</p>
               ${item.note ? `<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
             </div>
             <div class="quote-history-actions">
               <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="pending">En attente</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="relaunched">Relancé</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="accepted">Validé</button>
-              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="refused">Refusé</button>
-              <button class="quote-history-delete" type="button" data-quote-delete="${escapeHtml(item.id)}">×</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="relaunched">RelancÃ©</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="accepted">ValidÃ©</button>
+              <button type="button" data-quote-status="${escapeHtml(item.id)}" data-status="refused">RefusÃ©</button>
+              <button class="quote-history-delete" type="button" data-quote-delete="${escapeHtml(item.id)}">Ã—</button>
             </div>
           </article>
         `;
       }).join("")
-    : '<div class="dashboard-empty">Aucune demande de devis enregistrée pour le moment.</div>';
+    : '<div class="dashboard-empty">Aucune demande de devis enregistrÃ©e pour le moment.</div>';
 }
 
 async function sendQuoteRequestDraft() {
@@ -2719,14 +2783,14 @@ async function sendQuoteRequestDraft() {
     .filter((line) => line.ref);
 
   if (!selectedQuoteClient) {
-    quoteSendStatus.textContent = "Sélectionnez d’abord le client.";
+    quoteSendStatus.textContent = "SÃ©lectionnez dâ€™abord le client.";
     quoteSendStatus.classList.add("is-error");
     quoteClientSearch.focus();
     return;
   }
 
   if (!validLines.length) {
-    quoteSendStatus.textContent = "Ajoutez au moins une référence à chiffrer.";
+    quoteSendStatus.textContent = "Ajoutez au moins une rÃ©fÃ©rence Ã  chiffrer.";
     quoteSendStatus.classList.add("is-error");
     quoteLines.querySelector("input")?.focus();
     return;
@@ -2735,13 +2799,13 @@ async function sendQuoteRequestDraft() {
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
   if (!tariffConfig.endpoint) {
-    quoteSendStatus.textContent = "L’envoi doit d’abord être autorisé côté Google.";
+    quoteSendStatus.textContent = "Lâ€™envoi doit dâ€™abord Ãªtre autorisÃ© cÃ´tÃ© Google.";
     quoteSendStatus.classList.add("is-warning");
     return;
   }
 
   sendQuoteRequest.disabled = true;
-  sendQuoteRequest.textContent = "Envoi en cours…";
+  sendQuoteRequest.textContent = "Envoi en coursâ€¦";
   quoteSendStatus.textContent = "";
 
   try {
@@ -2758,12 +2822,12 @@ async function sendQuoteRequestDraft() {
       lines: JSON.stringify(validLines),
       note: quoteNote.value.trim(),
     });
-    recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
+    recordActivity("Demande de devis envoyÃ©e", `${selectedQuoteClient.name} - ${refs}${more} - envoyÃ© Ã  flogilet44@gmail.com`);
     addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
-    quoteSendStatus.textContent = "Demande envoyée à flogilet44@gmail.com avec le fichier Excel.";
+    quoteSendStatus.textContent = "Demande envoyÃ©e Ã  flogilet44@gmail.com avec le fichier Excel.";
     quoteSendStatus.classList.add("is-success");
   } catch (error) {
-    quoteSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
+    quoteSendStatus.textContent = error.message || "Lâ€™envoi nâ€™a pas pu Ãªtre effectuÃ©. RÃ©essayez dans quelques instants.";
     quoteSendStatus.classList.add("is-error");
   } finally {
     sendQuoteRequest.disabled = false;
@@ -2806,7 +2870,7 @@ function setLineReference(id, ref) {
     };
   });
   const product = findProduct(ref);
-  if (product) recordActivity("Référence consultée", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
+  if (product) recordActivity("RÃ©fÃ©rence consultÃ©e", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderLines();
 }
 
@@ -3019,7 +3083,7 @@ function storeOrder(order) {
   saveStoredOrders(orders);
   const refs = order.lines.slice(0, 8).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = order.lines.length > 8 ? ` + ${order.lines.length - 8} autre(s)` : "";
-  recordActivity("Commande enregistrée", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
+  recordActivity("Commande enregistrÃ©e", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
   activeHistoryOrderId = order.id;
   renderOrderHistory();
 }
@@ -3046,8 +3110,8 @@ function renderOrderHistory() {
   historyList.innerHTML = "";
 
   if (!orders.length) {
-    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrée</div>';
-    historyDetail.innerHTML = "<span>Les commandes générées apparaîtront ici.</span>";
+    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrÃ©e</div>';
+    historyDetail.innerHTML = "<span>Les commandes gÃ©nÃ©rÃ©es apparaÃ®tront ici.</span>";
     return;
   }
 
@@ -3070,7 +3134,7 @@ function renderOrderHistory() {
         <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
       </span>
       <span class="history-item-total">${formatter.format(order.total)}</span>
-      <span class="history-delete" title="Effacer cette commande">×</span>
+      <span class="history-delete" title="Effacer cette commande">Ã—</span>
     `;
     button.addEventListener("click", () => {
       activeHistoryOrderId = order.id;
@@ -3114,9 +3178,9 @@ function renderOrderDetail(order) {
     <table class="history-table">
       <thead>
         <tr>
-          <th>Réf.</th>
-          <th>Désignation</th>
-          <th>Qté</th>
+          <th>RÃ©f.</th>
+          <th>DÃ©signation</th>
+          <th>QtÃ©</th>
           <th>Prix U.</th>
           <th>Total</th>
         </tr>
@@ -3180,11 +3244,11 @@ function exportVisitReport(clientOnly = false) {
     .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
     .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrée pour ce client sur cette période." : "Aucune visite enregistrée à exporter sur cette période.");
+    alert(clientOnly ? "Aucune visite enregistrÃ©e pour ce client sur cette pÃ©riode." : "Aucune visite enregistrÃ©e Ã  exporter sur cette pÃ©riode.");
     return;
   }
   const rows = [
-    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prévue", "Motif relance", "Relance faite"],
+    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prÃ©vue", "Motif relance", "Relance faite"],
     ...notes.map((note) => [
       note.userName || currentUser.name,
       note.clientSector || "",
@@ -3199,7 +3263,7 @@ function exportVisitReport(clientOnly = false) {
   ];
   const scope = clientOnly && selectedNotesClient ? selectedNotesClient.code : currentUser.id;
   downloadCsv(`compte-rendu-visites-${scope}-${todayInputDate()}.csv`, rows);
-  recordActivity("Compte-rendu exporté", `${notes.length} visite(s) exportée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+  recordActivity("Compte-rendu exportÃ©", `${notes.length} visite(s) exportÃ©e(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
 }
 
 async function sendVisitReport(clientOnly = false) {
@@ -3208,13 +3272,13 @@ async function sendVisitReport(clientOnly = false) {
     .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
     .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrée pour ce client sur cette période." : "Aucune visite enregistrée à envoyer sur cette période.");
+    alert(clientOnly ? "Aucune visite enregistrÃ©e pour ce client sur cette pÃ©riode." : "Aucune visite enregistrÃ©e Ã  envoyer sur cette pÃ©riode.");
     return;
   }
   sendVisitReportButton.disabled = true;
   const previousText = sendVisitReportButton.textContent;
-  sendVisitReportButton.textContent = "Envoi…";
-  notesStatus.textContent = "Envoi du compte-rendu en cours…";
+  sendVisitReportButton.textContent = "Envoiâ€¦";
+  notesStatus.textContent = "Envoi du compte-rendu en coursâ€¦";
   try {
     const result = await postService({
       action: "sendVisitReport",
@@ -3234,8 +3298,8 @@ async function sendVisitReport(clientOnly = false) {
         reminderDone: Boolean(note.reminderDone),
       }))),
     });
-    notesStatus.textContent = result.message || "Compte-rendu envoyé.";
-    recordActivity("Compte-rendu envoyé", `${notes.length} visite(s) envoyée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+    notesStatus.textContent = result.message || "Compte-rendu envoyÃ©.";
+    recordActivity("Compte-rendu envoyÃ©", `${notes.length} visite(s) envoyÃ©e(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
   } catch (error) {
     notesStatus.textContent = error.message || "Envoi impossible pour le moment.";
   } finally {
@@ -3246,14 +3310,14 @@ async function sendVisitReport(clientOnly = false) {
 
 function finishVisit() {
   if (!selectedNotesClient) {
-    notesStatus.textContent = "Sélectionnez un client avant de terminer le rendez-vous.";
+    notesStatus.textContent = "SÃ©lectionnez un client avant de terminer le rendez-vous.";
     notesClientSearch.focus();
     return;
   }
   if (!notesText.value.trim()) {
-    notesText.value = "Rendez-vous terminé";
+    notesText.value = "Rendez-vous terminÃ©";
   }
-  recordActivity("Rendez-vous terminé", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+  recordActivity("Rendez-vous terminÃ©", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   notesForm.requestSubmit();
 }
 
@@ -3370,7 +3434,7 @@ function renderHomeReminders() {
   homeRemindersList.innerHTML = reminders
     .map((note) => {
       const status = reminderStatus(note);
-      const label = status === "late" ? "En retard" : "Aujourd’hui";
+      const label = status === "late" ? "En retard" : "Aujourdâ€™hui";
       return `
         <article class="home-reminder-card ${status}">
           <div>
@@ -3443,16 +3507,16 @@ function renderNotesReminderInbox() {
   notesReminderFocus.innerHTML = `
     <div class="notes-reminder-inbox-header">
       <div>
-        <span class="reminder-pill">${reminders.length} à traiter</span>
+        <span class="reminder-pill">${reminders.length} Ã  traiter</span>
         <strong>Relances clients</strong>
-        <small>Voici les clients à rappeler aujourd’hui ou en retard.</small>
+        <small>Voici les clients Ã  rappeler aujourdâ€™hui ou en retard.</small>
       </div>
     </div>
     <div class="notes-reminder-inbox-list">
       ${reminders.map((note) => `
         <article class="home-reminder-card ${reminderStatus(note)}">
           <div>
-            <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Aujourd’hui"}</span>
+            <span class="reminder-pill">${reminderStatus(note) === "late" ? "En retard" : "Aujourdâ€™hui"}</span>
             <strong>${escapeHtml(note.clientName)}</strong>
             <small>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</small>
           </div>
@@ -3540,7 +3604,7 @@ function selectNotesClient(client) {
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   renderClientNotes();
-  recordActivity("Client consulté en notes", `${client.name} (${client.code})`);
+  recordActivity("Client consultÃ© en notes", `${client.name} (${client.code})`);
   requestAnimationFrame(() => notesText.focus());
 }
 
@@ -3549,11 +3613,11 @@ function renderNotesEmpty(message = "Recherchez un client pour afficher ses note
   editingNoteId = null;
   notesHistoryMode = "client";
   hideReminderFocus();
-  notesStatus.textContent = "Aucun client sélectionné";
+  notesStatus.textContent = "Aucun client sÃ©lectionnÃ©";
   notesCount.textContent = "0 note";
   notesHistoryTitle.textContent = "Notes du client";
   notesSelectedClient.innerHTML = `
-    <strong>Sélectionnez un client</strong>
+    <strong>SÃ©lectionnez un client</strong>
     <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
   `;
   notesList.innerHTML = `<div class="notes-empty">${escapeHtml(message)}</div>`;
@@ -3580,8 +3644,8 @@ function renderAllNotes() {
   if (!notes.length) {
     notesList.innerHTML = `
       <div class="notes-empty">
-        <strong>Aucune note trouvée.</strong>
-        <span>Modifiez la période ou sélectionnez un client pour ajouter une nouvelle note.</span>
+        <strong>Aucune note trouvÃ©e.</strong>
+        <span>Modifiez la pÃ©riode ou sÃ©lectionnez un client pour ajouter une nouvelle note.</span>
       </div>
     `;
     return;
@@ -3597,14 +3661,14 @@ function renderAllNotes() {
         </div>
         <div class="note-actions">
           <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
+          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
         </div>
       </div>
       <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
       ${note.reminderDate ? `
         <div class="note-reminder ${reminderStatus(note)}">
           <div>
-            <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
+            <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
             <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
           </div>
           ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
@@ -3629,7 +3693,7 @@ function renderClientNotes() {
     notesList.innerHTML = `
       <div class="notes-empty">
         <strong>Aucune note pour ce client.</strong>
-        <span>Ajoutez le compte-rendu du rendez-vous à gauche.</span>
+        <span>Ajoutez le compte-rendu du rendez-vous Ã  gauche.</span>
       </div>
     `;
     return;
@@ -3641,18 +3705,18 @@ function renderClientNotes() {
         <div class="note-card-header">
           <div>
             <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
-            <small>Ajoutée le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
+            <small>AjoutÃ©e le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
           </div>
           <div class="note-actions">
             <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
-            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
+            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">Ã—</button>
           </div>
         </div>
         <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
         ${note.reminderDate ? `
           <div class="note-reminder ${reminderStatus(note)}">
             <div>
-              <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
+              <strong>${note.reminderDone ? "Relance faite" : "Relance prÃ©vue"}</strong>
               <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
             </div>
             ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
@@ -3666,7 +3730,7 @@ function renderClientNotes() {
 function saveClientNote(event) {
   event.preventDefault();
   if (!currentUser || !selectedNotesClient) {
-    notesStatus.textContent = "Sélectionnez un client avant d’enregistrer.";
+    notesStatus.textContent = "SÃ©lectionnez un client avant dâ€™enregistrer.";
     requestAnimationFrame(() => notesClientSearch.focus());
     return;
   }
@@ -3694,7 +3758,7 @@ function saveClientNote(event) {
         reminderDoneAt: noteReminderEnabled.checked && !reminderChanged ? (notes[index].reminderDoneAt || "") : "",
         updatedAt: now,
       };
-      recordActivity("Note client modifiée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+      recordActivity("Note client modifiÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
     }
   } else {
     notes.push({
@@ -3713,7 +3777,7 @@ function saveClientNote(event) {
       createdAt: now,
       updatedAt: now,
     });
-    recordActivity("Note client ajoutée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
+    recordActivity("Note client ajoutÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
   }
 
   saveStoredNotes(notes);
@@ -3781,7 +3845,7 @@ function deleteClientNote(noteId) {
   if (!confirm(`Supprimer la note du ${formatNoteDate(note.date)} pour ${selectedNotesClient.name} ?`)) return;
   saveStoredNotes(getStoredNotes().filter((item) => item.id !== noteId));
   if (editingNoteId === noteId) cancelNoteEdit();
-  recordActivity("Note client supprimée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
+  recordActivity("Note client supprimÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
   renderClientNotes();
   if (wasAllNotes) renderAllNotes();
   renderHomeReminders();
@@ -3792,7 +3856,7 @@ function setupVoiceNotes() {
   if (!SpeechRecognition) {
     startVoiceNote.disabled = true;
     startVoiceNote.classList.add("is-disabled");
-    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
     return;
   }
 
@@ -3804,8 +3868,8 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("start", () => {
     voiceNoteListening = true;
     startVoiceNote.classList.add("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">🔴</span> Arrêter la dictée';
-    voiceNoteStatus.textContent = "J’écoute… parlez clairement, le texte s’ajoute à la note.";
+    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸ”´</span> ArrÃªter la dictÃ©e';
+    voiceNoteStatus.textContent = "Jâ€™Ã©couteâ€¦ parlez clairement, le texte sâ€™ajoute Ã  la note.";
   });
 
   voiceRecognition.addEventListener("result", (event) => {
@@ -3825,41 +3889,41 @@ function setupVoiceNotes() {
       notesText.value = `${notesText.value.trimEnd()}${separator}${finalText.trim()}`;
       notesText.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "J’écoute…";
+    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "Jâ€™Ã©couteâ€¦";
   });
 
   voiceRecognition.addEventListener("end", () => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
     if (voiceNoteStatus.textContent.startsWith("En cours")) {
-      voiceNoteStatus.textContent = "Dictée terminée. Relisez puis enregistrez la note.";
+      voiceNoteStatus.textContent = "DictÃ©e terminÃ©e. Relisez puis enregistrez la note.";
     } else if (!voiceNoteStatus.textContent.includes("non disponible")) {
-      voiceNoteStatus.textContent = "Dictée arrêtée. Vous pouvez relire puis enregistrer.";
+      voiceNoteStatus.textContent = "DictÃ©e arrÃªtÃ©e. Vous pouvez relire puis enregistrer.";
     }
   });
 
   voiceRecognition.addEventListener("error", (event) => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
     const messages = {
-      "not-allowed": "Micro refusé. Autorisez le micro dans Chrome pour utiliser la dictée.",
-      "no-speech": "Je n’ai pas entendu de voix. Réessayez en parlant plus près de la tablette.",
-      "audio-capture": "Aucun micro détecté sur cet appareil.",
-      network: "La dictée vocale a besoin d’une connexion internet.",
+      "not-allowed": "Micro refusÃ©. Autorisez le micro dans Chrome pour utiliser la dictÃ©e.",
+      "no-speech": "Je nâ€™ai pas entendu de voix. RÃ©essayez en parlant plus prÃ¨s de la tablette.",
+      "audio-capture": "Aucun micro dÃ©tectÃ© sur cet appareil.",
+      network: "La dictÃ©e vocale a besoin dâ€™une connexion internet.",
     };
-    voiceNoteStatus.textContent = messages[event.error] || "La dictée vocale s’est arrêtée. Réessayez.";
+    voiceNoteStatus.textContent = messages[event.error] || "La dictÃ©e vocale sâ€™est arrÃªtÃ©e. RÃ©essayez.";
   });
 }
 
 function toggleVoiceNote() {
   if (!voiceRecognition) {
-    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "DictÃ©e vocale non disponible sur ce navigateur.";
     return;
   }
   if (!selectedNotesClient) {
-    voiceNoteStatus.textContent = "Sélectionnez d’abord un client avant de dicter une note.";
+    voiceNoteStatus.textContent = "SÃ©lectionnez dâ€™abord un client avant de dicter une note.";
     notesClientSearch.focus();
     return;
   }
@@ -3869,9 +3933,9 @@ function toggleVoiceNote() {
   }
   try {
     voiceRecognition.start();
-    recordActivity("Dictée vocale lancée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+    recordActivity("DictÃ©e vocale lancÃ©e", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
   } catch {
-    voiceNoteStatus.textContent = "La dictée est déjà en cours.";
+    voiceNoteStatus.textContent = "La dictÃ©e est dÃ©jÃ  en cours.";
   }
 }
 
@@ -4037,7 +4101,7 @@ function formatDuration(minutes) {
 function initTourMap() {
   if (!tourMap) return false;
   if (!window.L) {
-    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. Vérifiez la connexion internet puis rechargez la page.</div>`;
+    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. VÃ©rifiez la connexion internet puis rechargez la page.</div>`;
     return false;
   }
   if (tourMapInstance) return true;
@@ -4077,8 +4141,8 @@ function renderInteractiveTourMap(clients) {
     marker.bindPopup(`
       <strong>${escapeHtml(client.name)}</strong><br>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
-      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</small><br>
-      <small>Position GPS vérifiée</small>
+      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</small><br>
+      <small>Position GPS vÃ©rifiÃ©e</small>
     `);
     marker.on("click", () => toggleTourClient(client.code));
     tourMarkerByCode.set(client.code, marker);
@@ -4143,8 +4207,8 @@ function renderSavedTours() {
   if (!savedTourSelect) return;
   const tours = getCurrentUserSavedTours();
   savedTourSelect.innerHTML = tours.length
-    ? `<option value="">Choisir une tournée</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
-    : `<option value="">Aucune tournée enregistrée</option>`;
+    ? `<option value="">Choisir une tournÃ©e</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
+    : `<option value="">Aucune tournÃ©e enregistrÃ©e</option>`;
   loadTourButton.disabled = tours.length === 0;
   deleteTourButton.disabled = tours.length === 0;
 }
@@ -4152,12 +4216,12 @@ function renderSavedTours() {
 function saveCurrentTour() {
   const codes = Array.from(selectedTourCodes);
   if (!codes.length) {
-    alert("Sélectionnez au moins un client avant de sauvegarder une tournée.");
+    alert("SÃ©lectionnez au moins un client avant de sauvegarder une tournÃ©e.");
     return;
   }
   const name = tourName.value.trim();
   if (!name) {
-    alert("Donnez un nom à la tournée avant de la sauvegarder.");
+    alert("Donnez un nom Ã  la tournÃ©e avant de la sauvegarder.");
     tourName.focus();
     return;
   }
@@ -4175,7 +4239,7 @@ function saveCurrentTour() {
   saveCurrentUserTours(tours.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })));
   renderSavedTours();
   savedTourSelect.value = payload.id;
-  recordActivity("Tournée sauvegardée", `${payload.name} - ${payload.codes.length} client(s)`);
+  recordActivity("TournÃ©e sauvegardÃ©e", `${payload.name} - ${payload.codes.length} client(s)`);
 }
 
 function loadSavedTour() {
@@ -4186,7 +4250,7 @@ function loadSavedTour() {
   selectedTourCodes = new Set(tour.codes.filter((code) => allowedCodes.has(code)));
   tourName.value = tour.name;
   renderTourPlanner();
-  recordActivity("Tournée chargée", `${tour.name} - ${selectedTourCodes.size} client(s)`);
+  recordActivity("TournÃ©e chargÃ©e", `${tour.name} - ${selectedTourCodes.size} client(s)`);
 }
 
 function deleteSavedTour() {
@@ -4194,11 +4258,11 @@ function deleteSavedTour() {
   const tours = getCurrentUserSavedTours();
   const tour = tours.find((item) => item.id === id);
   if (!tour) return;
-  if (!confirm(`Supprimer la tournée "${tour.name}" ?`)) return;
+  if (!confirm(`Supprimer la tournÃ©e "${tour.name}" ?`)) return;
   saveCurrentUserTours(tours.filter((item) => item.id !== id));
   savedTourSelect.value = "";
   renderSavedTours();
-  recordActivity("Tournée supprimée", tour.name);
+  recordActivity("TournÃ©e supprimÃ©e", tour.name);
 }
 
 function focusTourClientOnMap(code) {
@@ -4272,8 +4336,8 @@ function renderTourPlanner() {
   if (tourMapTitle) {
     tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
   }
-  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
-  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} · ${mappedCount} sur la carte`;
+  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sÃ©lectionnÃ©${selectedCount > 1 ? "s" : ""}`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} Â· ${mappedCount} sur la carte`;
   openGoogleMapsRoute.disabled = selectedCount === 0;
   openWazeRoute.disabled = selectedCount === 0;
   clearTourSelection.disabled = selectedCount === 0;
@@ -4282,11 +4346,11 @@ function renderTourPlanner() {
     ? selectedClients.map((client, index) => `
         <article class="tour-route-item">
           <strong>${index + 1}. ${escapeHtml(client.name)}</strong>
-          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</span>
-          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">×</button>
+          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplÃ¨te")}</span>
+          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">Ã—</button>
         </article>
       `).join("")
-    : `<div class="tour-empty">Cochez les clients à visiter. Ils apparaîtront ici dans l'ordre de sélection.</div>`;
+    : `<div class="tour-empty">Cochez les clients Ã  visiter. Ils apparaÃ®tront ici dans l'ordre de sÃ©lection.</div>`;
 
   tourClientList.innerHTML = filteredClients.length
     ? filteredClients.map((client) => {
@@ -4302,11 +4366,11 @@ function renderTourPlanner() {
                 <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
               </span>
             </label>
-            <em>${escapeHtml(address || "Adresse incomplète")}${hasGps ? "" : " · GPS à corriger"}</em>
+            <em>${escapeHtml(address || "Adresse incomplÃ¨te")}${hasGps ? "" : " Â· GPS Ã  corriger"}</em>
           </article>
         `;
       }).join("")
-    : `<div class="tour-empty">Aucun client trouvé. Effacez la recherche pour revenir à la liste complète.</div>`;
+    : `<div class="tour-empty">Aucun client trouvÃ©. Effacez la recherche pour revenir Ã  la liste complÃ¨te.</div>`;
 
   renderInteractiveTourMap(filteredClients);
   renderSavedTours();
@@ -4332,7 +4396,7 @@ function openGoogleRoute() {
   const destination = addresses[addresses.length - 1];
   const waypoints = addresses.slice(0, -1).join("|");
   const url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`;
-  recordActivity("Tournée Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
+  recordActivity("TournÃ©e Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -4340,7 +4404,7 @@ function openWazeNextClient() {
   const client = getSelectedTourClients().find((item) => getClientRouteAddress(item));
   if (!client) return;
   const url = `https://waze.com/ul?q=${encodeURIComponent(getClientRouteAddress(client))}&navigate=yes`;
-  recordActivity("Tournée Waze ouverte", `${client.name} (${client.code})`);
+  recordActivity("TournÃ©e Waze ouverte", `${client.name} (${client.code})`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -4383,11 +4447,12 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
-    recordActivity("Onglet consulté", names[tabName] || tabName);
+    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "TournÃ©es", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    recordActivity("Onglet consultÃ©", names[tabName] || tabName);
   }
 
   if (showClient360) {
+    loadClientArticleStatsFromDrive();
     if (selectedClient360) selectClient360(selectedClient360);
     else renderClient360Empty();
     requestAnimationFrame(() => client360Search?.focus());
@@ -4456,7 +4521,7 @@ function downloadCsv(filename, rows) {
 }
 
 function buildErpCsvRows(validLines) {
-  const rows = ["Référence (SKU)"];
+  const rows = ["RÃ©fÃ©rence (SKU)"];
   validLines.forEach((line) => {
     rows.push(line.product.ref);
   });
@@ -4474,9 +4539,9 @@ function pdfText(value) {
     .toString()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’]/g, "'")
-    .replace(/[€]/g, "EUR")
-    .replace(/[°]/g, "o")
+    .replace(/[â€™]/g, "'")
+    .replace(/[â‚¬]/g, "EUR")
+    .replace(/[Â°]/g, "o")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -4571,7 +4636,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
     fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
     strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
-    textAt(pageWidth - 190, pageHeight - 47, 8.5, `N° ${orderNumber}`, { bold: true });
+    textAt(pageWidth - 190, pageHeight - 47, 8.5, `NÂ° ${orderNumber}`, { bold: true });
     textAt(pageWidth - 190, pageHeight - 66, 8.5, `Date : ${orderDate}`);
     hline(margin, pageWidth - margin, pageHeight - 82, "#E30613");
     y = pageHeight - 104;
@@ -4615,11 +4680,11 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   function drawTableHeader() {
     fillRect(margin, y - 4, pageWidth - margin * 2, 21, "#E30613");
     setColor("#FFFFFF");
-    textAt(margin + 6, y + 3, 7.5, "Réf.", { bold: true });
+    textAt(margin + 6, y + 3, 7.5, "RÃ©f.", { bold: true });
     textAt(88, y + 3, 7.5, "Gencod", { bold: true });
-    textAt(172, y + 3, 7.5, "Désignation", { bold: true });
+    textAt(172, y + 3, 7.5, "DÃ©signation", { bold: true });
     textAt(382, y + 3, 7.5, "UDV", { bold: true });
-    textAt(417, y + 3, 7.5, "Qté", { bold: true });
+    textAt(417, y + 3, 7.5, "QtÃ©", { bold: true });
     textAt(456, y + 3, 7.5, "Prix U.", { bold: true });
     textAt(515, y + 3, 7.5, "Total", { bold: true });
     setColor("#1E1E22");
@@ -4648,7 +4713,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
 
   addPage();
   drawInfoBoxes();
-  textLine(margin, 12, "Produits commandés", { bold: true, lineHeight: 17 });
+  textLine(margin, 12, "Produits commandÃ©s", { bold: true, lineHeight: 17 });
   drawTableHeader();
   validLines.forEach((line, index) => drawProductRow(line, index));
 
@@ -4658,7 +4723,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   fillRect(recapX, y - 55, 174, 66, "#F5F5F5");
   strokeRect(recapX, y - 55, 174, 66);
   fillRect(recapX, y - 55, 4, 66, "#E30613");
-  textAt(recapX + 14, y - 6, 9, "Récapitulatif", { bold: true });
+  textAt(recapX + 14, y - 6, 9, "RÃ©capitulatif", { bold: true });
   textAt(recapX + 14, y - 25, 8, "Total HT");
   textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
   textAt(recapX + 14, y - 42, 8, "Total TTC");
@@ -4674,8 +4739,8 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     y -= 48;
   }
 
-  textAt(margin, 74, 7, "Tous nos prix sont indiqués en Euros. Prix nets valables uniquement pour cette commande.");
-  textAt(margin, 64, 7, "Document généré automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
+  textAt(margin, 74, 7, "Tous nos prix sont indiquÃ©s en Euros. Prix nets valables uniquement pour cette commande.");
+  textAt(margin, 64, 7, "Document gÃ©nÃ©rÃ© automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
   setColor("#1E1E22");
 
   addPage();
