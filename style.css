@@ -186,7 +186,7 @@
 .client360-kpis strong { font-size: 20px; color: var(--dark); overflow-wrap: anywhere; }
 .client360-grid {
   display: grid;
-  grid-template-columns: minmax(280px, .34fr) minmax(0, 1.66fr);
+  grid-template-columns: minmax(330px, .40fr) minmax(0, 1.60fr);
   gap: 18px;
   min-width: 0;
 }
@@ -282,13 +282,13 @@
 }
 .client360-article-table {
   width: 100%;
-  min-width: 880px;
+  min-width: 820px;
   table-layout: fixed;
   border-collapse: collapse;
 }
 .client360-prenet-table {
   width: 100%;
-  min-width: 380px;
+  min-width: 330px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -296,7 +296,7 @@
 .client360-article-table td,
 .client360-prenet-table th,
 .client360-prenet-table td {
-  padding: 12px 10px;
+  padding: 11px 8px;
   border-bottom: 1px solid #eef1f5;
   text-align: left;
   vertical-align: middle;
@@ -317,25 +317,25 @@
 .client360-article-table th:nth-child(1),
 .client360-article-table td:nth-child(1) { width: 38px; }
 .client360-article-table th:nth-child(2),
-.client360-article-table td:nth-child(2) { width: 240px; }
+.client360-article-table td:nth-child(2) { width: 190px; }
 .client360-article-table th:nth-child(3),
 .client360-article-table td:nth-child(3),
 .client360-article-table th:nth-child(4),
 .client360-article-table td:nth-child(4),
 .client360-article-table th:nth-child(5),
-.client360-article-table td:nth-child(5) { width: 100px; }
+.client360-article-table td:nth-child(5) { width: 92px; }
 .client360-article-table th:nth-child(6),
 .client360-article-table td:nth-child(6),
 .client360-article-table th:nth-child(7),
 .client360-article-table td:nth-child(7),
 .client360-article-table th:nth-child(8),
-.client360-article-table td:nth-child(8) { width: 78px; }
+.client360-article-table td:nth-child(8) { width: 72px; }
 .client360-prenet-table th:nth-child(1),
-.client360-prenet-table td:nth-child(1) { width: 56%; }
+.client360-prenet-table td:nth-child(1) { width: 52%; }
 .client360-prenet-table th:nth-child(2),
-.client360-prenet-table td:nth-child(2) { width: 18%; }
+.client360-prenet-table td:nth-child(2) { width: 20%; }
 .client360-prenet-table th:nth-child(3),
-.client360-prenet-table td:nth-child(3) { width: 26%; }
+.client360-prenet-table td:nth-child(3) { width: 28%; }
 .client360-article-table td:nth-child(2) {
   display: grid;
   gap: 3px;
