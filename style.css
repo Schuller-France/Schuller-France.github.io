@@ -336,30 +336,27 @@
 .client360-prenet-table td:nth-child(2) { width: 24%; }
 .client360-prenet-table th:nth-child(3),
 .client360-prenet-table td:nth-child(3) { width: 28%; }
-.client360-article-table td:nth-child(2) {
-  display: grid;
-  gap: 3px;
-}
-.client360-prenet-table td:first-child {
-  display: grid;
-  gap: 3px;
-}
 .client360-article-table td strong,
 .client360-prenet-table td strong {
+  display: block;
   color: var(--dark);
   font-size: 14px;
 }
 .client360-article-table td small,
 .client360-prenet-table td small {
+  display: block;
   color: #343946;
   font-weight: 900;
   line-height: 1.25;
+  margin-top: 3px;
 }
 .client360-article-table td em {
+  display: block;
   color: var(--muted);
   font-size: 12px;
   font-style: normal;
   font-weight: 750;
+  margin-top: 3px;
 }
 .client360-article-table .numeric,
 .client360-prenet-table .numeric {
