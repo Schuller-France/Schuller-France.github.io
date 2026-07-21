@@ -76,6 +76,83 @@
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
 
+.offline-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+.offline-status.is-offline {
+  border-color: #fed7aa;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.client360-panel { display: grid; gap: 18px; }
+.client360-search { position: relative; display: grid; gap: 8px; }
+.client360-search label { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.client360-search input {
+  min-height: 58px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0 18px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.client360-search input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: var(--red); }
+.client360-summary { display: grid; gap: 12px; }
+.client360-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .7fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.client360-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.client360-kpis span {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafbfc;
+}
+.client360-kpis small { color: var(--muted); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+.client360-kpis strong { font-size: 20px; color: var(--dark); }
+.client360-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.client360-card { padding: 20px; }
+.client360-card h3 { margin: 4px 0 0; font-size: 22px; }
+.client360-list { display: grid; gap: 10px; }
+.client360-row {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+  cursor: pointer;
+}
+.client360-row:hover { border-color: var(--red); box-shadow: 0 10px 24px rgba(227, 6, 19, .08); }
+.client360-row strong { color: var(--dark); font-size: 15px; }
+.client360-row span { color: var(--muted); font-weight: 750; line-height: 1.35; }
+
 .expenses-panel { padding: 28px; display: grid; gap: 18px; }
 .expenses-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .expenses-rules article { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #e1e5eb; border-radius: 16px; background: #fff7f7; }
@@ -3592,6 +3669,37 @@ h2 {
 .tablet-mode .backlog-table-wrap,
 .tablet-mode .prenet-table-wrap {
   overflow: visible !important;
+}
+
+.tablet-mode .offline-status {
+  width: 100%;
+  min-height: 44px;
+  font-size: 14px;
+}
+.tablet-mode .client360-panel {
+  padding: 16px;
+  gap: 16px;
+}
+.tablet-mode .client360-search input {
+  min-height: 64px;
+  font-size: 20px;
+}
+.tablet-mode .client360-identity,
+.tablet-mode .client360-grid {
+  grid-template-columns: 1fr;
+}
+.tablet-mode .client360-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tablet-mode .client360-card {
+  padding: 16px;
+}
+.tablet-mode .client360-row {
+  min-height: 72px;
+  padding: 16px;
+}
+.tablet-mode .client360-row strong {
+  font-size: 17px;
 }
 
 .tablet-mode .order-table thead,

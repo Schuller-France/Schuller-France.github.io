@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260717e" />
+    <link rel="stylesheet" href="style.css?v=20260721a" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -97,6 +97,7 @@
           <div class="global-search-results is-hidden" id="globalSearchResults"></div>
         </div>
         <div class="header-actions">
+          <span class="offline-status is-online" id="offlineStatus">En ligne</span>
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
           <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
         </div>
@@ -104,6 +105,7 @@
 
       <nav class="app-tabs" aria-label="Navigation application">
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
+        <button class="tab-button" type="button" id="client360Tab">Fiche client 360&deg;</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="expensesTab">Frais</button>
@@ -194,6 +196,48 @@
             <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
             <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
           </article>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="client360View">
+        <section class="panel client360-panel" aria-labelledby="client360Title">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Vision terrain</p>
+              <h2 id="client360Title">Fiche client 360&deg;</h2>
+              <p class="helper-text">Une seule recherche pour retrouver notes, devis, commandes et prix nets du client.</p>
+            </div>
+            <span class="status-pill" id="client360Status">Client non selectionne</span>
+          </div>
+
+          <div class="client360-search">
+            <label for="client360Search">Rechercher le client</label>
+            <input id="client360Search" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+            <div class="suggestions" id="client360Suggestions" role="listbox"></div>
+          </div>
+
+          <section class="client360-summary" id="client360Summary">
+            <div class="dashboard-empty">Recherchez un client pour afficher sa vue complete.</div>
+          </section>
+
+          <section class="client360-grid" id="client360Grid">
+            <article class="panel client360-card">
+              <div class="panel-heading"><div><p class="step">RDV</p><h3>Notes recentes</h3></div><span class="status-pill" id="client360NotesCount">0</span></div>
+              <div class="client360-list" id="client360Notes"></div>
+            </article>
+            <article class="panel client360-card">
+              <div class="panel-heading"><div><p class="step">Devis</p><h3>Demandes de devis</h3></div><span class="status-pill" id="client360QuotesCount">0</span></div>
+              <div class="client360-list" id="client360Quotes"></div>
+            </article>
+            <article class="panel client360-card">
+              <div class="panel-heading"><div><p class="step">Tarif</p><h3>Prix nets</h3></div><span class="status-pill" id="client360PrenetCount">0</span></div>
+              <div class="client360-list" id="client360Prenets"></div>
+            </article>
+            <article class="panel client360-card">
+              <div class="panel-heading"><div><p class="step">Historique</p><h3>Commandes locales</h3></div><span class="status-pill" id="client360OrdersCount">0</span></div>
+              <div class="client360-list" id="client360Orders"></div>
+            </article>
+          </section>
         </section>
       </main>
 
@@ -874,9 +918,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260717e" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260721a" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260717e" charset="UTF-8"></script>
+    <script src="script.js?v=20260721a" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
