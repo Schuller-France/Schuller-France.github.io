@@ -68,8 +68,9 @@ const expenseTypes = ["HOTEL", "REPAS SOIR", "REPAS MIDI", "INVITATION CLIENT", 
 const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
 const expenseHotelDinnerLimit = 115;
+const purecreaAdminSectors = ["Secteur 20", "Secteur 21", "Secteur 22", "Secteur 23", "Secteur 24", "Secteur 25", "Secteur 26"];
 const adminCommercials = [
-  { id: "flo", name: "Flo", sectors: ["Secteur 9"] },
+  { id: "agilet", name: "Alain Gilet", sectors: ["Secteur 1"] },
   { id: "arey", name: "Alain Rey", sectors: ["Secteur 2"] },
   { id: "ployer", name: "Pierre Loyer", sectors: ["Secteur 3", "Secteur 5A"] },
   { id: "bollagnon", name: "Bruno Ollagnon", sectors: ["Secteur 4", "Secteur 4A"] },
@@ -77,6 +78,9 @@ const adminCommercials = [
   { id: "rlambert", name: "Rémi Lambert", sectors: ["Secteur 6"] },
   { id: "gsylvestre", name: "Guy Sylvestre", sectors: ["Secteur 7"] },
   { id: "secteur 8", name: "Secteur 8", sectors: ["Secteur 8"] },
+  { id: "flo", name: "Flo", sectors: ["Secteur 9"] },
+  { id: "purecrea", name: "Purecrea", sectors: ["Purecrea"], revenueSectors: purecreaAdminSectors, objectiveSectors: ["Purecrea"] },
+  { id: "belgique", name: "Belgique", sectors: ["Belgique"], revenueSectors: ["Belgique"], objectiveSectors: ["Belgique"] },
 ];
 
 const clientSearch = document.querySelector("#clientSearch");
@@ -690,6 +694,8 @@ function clearDashboardStatsCache() {
 
 function getFirstSectorRank(commercial) {
   const raw = normalize(commercial.sectors?.[0] || commercial.sector || commercial.name || "");
+  if (raw.includes("purecrea") || raw.includes("purcrea")) return 90;
+  if (raw.includes("belgique")) return 91;
   const match = raw.match(/(\d+)/);
   return match ? Number(match[1]) : 999;
 }
@@ -699,7 +705,23 @@ function getGoalByLabel(sectorStats, text) {
 }
 
 function sumCommercialGoal(commercial, label, key = "current") {
-  return commercial.sectors.reduce((sum, sector) => sum + (Number(getGoalByLabel(getSectorStats(sector), label)?.[key]) || 0), 0);
+  return getCommercialObjectiveSectors(commercial).reduce((sum, sector) => sum + (Number(getGoalByLabel(getSectorStats(sector), label)?.[key]) || 0), 0);
+}
+
+function getCommercialRevenueSectors(commercial) {
+  return (commercial.revenueSectors || commercial.sectors || []).map(normalizeStatsSector);
+}
+
+function getCommercialObjectiveSectors(commercial) {
+  return (commercial.objectiveSectors || commercial.sectors || []).map(normalizeStatsSector);
+}
+
+function sumCommercialRevenue(commercial) {
+  return getCommercialRevenueSectors(commercial).reduce((sum, sector) => sum + (Number(getSectorStats(sector)?.kpis?.revenue) || 0), 0);
+}
+
+function sumCommercialObjectiveStat(commercial, key) {
+  return getCommercialObjectiveSectors(commercial).reduce((sum, sector) => sum + (Number(getSectorStats(sector)?.kpis?.[key]) || 0), 0);
 }
 
 function formatAdminDelta(value) {
@@ -718,7 +740,7 @@ function getAdminStatsMonthLabel(stats) {
 
 function isAdminRevenueSector(sector) {
   const clean = normalizeStatsSector(sector);
-  return /^Secteur (1|2|3|4|4A|5|5A|6|7|8|9)$/.test(clean);
+  return /^Secteur [0-9]+A?$/.test(clean);
 }
 
 function getAdminTotalRevenueFromDrive(stats) {
@@ -732,6 +754,32 @@ function getAdminTotalRevenueFromDrive(stats) {
     if (!isAdminRevenueSector(sector)) return sum;
     return sum + (Number(sectorStats?.kpis?.revenue) || 0);
   }, 0);
+}
+
+function getAssignedAdminSectors() {
+  return new Set(adminCommercials.flatMap((commercial) => getCommercialRevenueSectors(commercial)));
+}
+
+function buildUnassignedAdminStatsRow(stats) {
+  const assigned = getAssignedAdminSectors();
+  const entries = Object.entries(stats.sectorRevenue || {})
+    .map(([sector, revenue]) => ({ sector: normalizeStatsSector(sector), revenue: Number(revenue) || 0 }))
+    .filter((item) => item.sector && isAdminRevenueSector(item.sector) && !assigned.has(item.sector) && item.revenue);
+  if (!entries.length) return null;
+  const revenue = entries.reduce((sum, item) => sum + item.revenue, 0);
+  return {
+    commercial: { name: "Autres secteurs", sectors: entries.map((item) => item.sector).sort((a, b) => getFirstSectorRank({ sectors: [a] }) - getFirstSectorRank({ sectors: [b] })) },
+    revenue,
+    monthlyObjective: 0,
+    monthDelta: revenue,
+    ytdObjective: 0,
+    ytdActual: 0,
+    previousYtd: 0,
+    ytdDelta: 0,
+    ok: true,
+    detail: "Secteurs présents dans le fichier CA mais sans compte commercial dédié sur le site",
+    isUnassigned: true,
+  };
 }
 
 function renderAdminCheckingError() {
@@ -761,9 +809,9 @@ function renderAdminChecking() {
       if (!hasPreviousYtd) missing.push(`${sector} N-1 cumulé absent`);
       return { sector, ok: hasMonthObjective && hasYtdObjective && hasPreviousYtd };
     });
-    const revenue = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.revenue);
-    const monthlyObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.monthlyObjective);
-    const ytdObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.ytdObjective);
+    const revenue = sumCommercialRevenue(commercial);
+    const monthlyObjective = sumCommercialObjectiveStat(commercial, "monthlyObjective");
+    const ytdObjective = sumCommercialObjectiveStat(commercial, "ytdObjective");
     const ytdActual = sumCommercialGoal(commercial, "projection", "current");
     const previousYtd = sumCommercialGoal(commercial, "comparaison n-1", "target");
     const monthDelta = revenue - monthlyObjective;
@@ -771,8 +819,10 @@ function renderAdminChecking() {
     const ok = sectorStatuses.every((item) => item.ok) && monthDelta >= 0 && ytdDelta >= 0;
     return { commercial, revenue, monthlyObjective, monthDelta, ytdObjective, ytdActual, previousYtd, ytdDelta, ok, detail: missing.join(" · ") };
   });
+  const unassignedRow = buildUnassignedAdminStatsRow(stats);
+  if (unassignedRow) rows.push(unassignedRow);
 
-  const warnCount = rows.filter((row) => !row.ok).length;
+  const warnCount = rows.filter((row) => !row.ok && !row.isUnassigned).length;
   const revenueTotal = getAdminTotalRevenueFromDrive(stats);
   if (checkingOkCount) checkingOkCount.textContent = String(rows.length);
   if (checkingWarnCount) checkingWarnCount.textContent = String(warnCount);
@@ -786,11 +836,11 @@ function renderAdminChecking() {
       <td><strong>${escapeHtml(row.commercial.name)}</strong></td>
       <td>${escapeHtml(row.commercial.sectors.join(" + "))}</td>
       <td><strong>${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.revenue)))}</strong></td>
-      <td>${escapeHtml(row.monthlyObjective ? wholeCurrencyFormatter.format(roundMoney(row.monthlyObjective)) : "--")}</td>
-      <td>${formatAdminDelta(row.monthDelta)}</td>
-      <td>${escapeHtml(row.ytdObjective ? wholeCurrencyFormatter.format(roundMoney(row.ytdObjective)) : "--")}<small>${row.ytdActual ? `Actuel ${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.ytdActual)))}` : ""}</small></td>
-      <td>${escapeHtml(row.previousYtd ? wholeCurrencyFormatter.format(roundMoney(row.previousYtd)) : "--")}</td>
-      <td>${row.previousYtd ? formatAdminDelta(row.ytdDelta) : "--"}</td>
+      <td>${row.isUnassigned ? "Non affecté" : escapeHtml(row.monthlyObjective ? wholeCurrencyFormatter.format(roundMoney(row.monthlyObjective)) : "--")}</td>
+      <td>${row.isUnassigned ? "Inclus total" : formatAdminDelta(row.monthDelta)}</td>
+      <td>${row.isUnassigned ? escapeHtml(row.detail) : `${escapeHtml(row.ytdObjective ? wholeCurrencyFormatter.format(roundMoney(row.ytdObjective)) : "--")}<small>${row.ytdActual ? `Actuel ${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.ytdActual)))}` : ""}</small>`}</td>
+      <td>${row.isUnassigned ? "--" : escapeHtml(row.previousYtd ? wholeCurrencyFormatter.format(roundMoney(row.previousYtd)) : "--")}</td>
+      <td>${row.isUnassigned ? "--" : (row.previousYtd ? formatAdminDelta(row.ytdDelta) : "--")}</td>
     </tr>
   `).join("");
 }
@@ -1084,7 +1134,10 @@ function findStatsClient(row) {
 }
 
 function normalizeStatsSector(value) {
-  const clean = normalize(value || "").replace(/^secteur\s*/, "").replace(/^0+/, "");
+  const base = normalize(value || "");
+  if (base.includes("purecrea") || base.includes("purcrea")) return "Purecrea";
+  if (base.includes("belgique")) return "Belgique";
+  const clean = base.replace(/^secteur\s*/, "").replace(/^0+/, "");
   if (!clean) return "";
   if (clean.endsWith("a")) return `Secteur ${clean.slice(0, -1).toUpperCase()}A`;
   return `Secteur ${clean.toUpperCase()}`;
@@ -1291,6 +1344,19 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
     const normalizedSector = normalizeStatsSector(sector);
     if (!normalizedSector || bySector[normalizedSector]) return;
     bySector[normalizedSector] = buildStatsForSector(normalizedSector, [], sourceInfo, getFallbackStatsForSector(normalizedSector));
+  });
+  [
+    sourceInfo.monthlyObjectives || {},
+    sourceInfo.ytdObjectives || {},
+    sourceInfo.annualObjectives || {},
+    sourceInfo.realizedYtd || {},
+    sourceInfo.previousYtd || {},
+  ].forEach((map) => {
+    Object.keys(map).forEach((sector) => {
+      const normalizedSector = normalizeStatsSector(sector);
+      if (!normalizedSector || bySector[normalizedSector]) return;
+      bySector[normalizedSector] = buildStatsForSector(normalizedSector, [], sourceInfo, getFallbackStatsForSector(normalizedSector));
+    });
   });
 
   return {
