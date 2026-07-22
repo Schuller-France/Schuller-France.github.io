@@ -4198,9 +4198,10 @@ body:not(.tablet-mode) .app-tabs .tab-button.is-hidden {
 
 body:not(.tablet-mode) .app-shell {
   grid-column: 2;
-  width: min(1320px, 100%);
+  width: 100%;
+  max-width: none;
   margin: 0;
-  padding: 28px 40px 44px;
+  padding: 28px clamp(28px, 2.4vw, 52px) 44px;
 }
 
 body:not(.tablet-mode) .panel {
@@ -4243,6 +4244,18 @@ body:not(.tablet-mode) .metric-card {
 body:not(.tablet-mode) .metric-card strong {
   color: #050505;
   letter-spacing: -.04em;
+}
+
+body:not(.tablet-mode) .dashboard-main-grid {
+  grid-template-columns: minmax(0, 1.8fr) minmax(420px, .75fr);
+}
+
+body:not(.tablet-mode) .dashboard-grid {
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+}
+
+body:not(.tablet-mode) .sales-chart {
+  min-height: 340px;
 }
 
 /* Priorité finale du mode tablette : ces règles ne changent jamais la version PC. */
