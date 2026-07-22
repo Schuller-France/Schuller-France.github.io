@@ -644,9 +644,28 @@ function renderAdminExpenses() {
         <td><strong>${escapeHtml(report.title || "Note de frais")}</strong><br><small>${escapeHtml(report.note || "")}</small></td>
         <td><strong>${escapeHtml(formatter.format(roundMoney(report.totals?.refund || 0)))}</strong><br><small>TVA ${escapeHtml(formatter.format(roundMoney(report.totals?.vat || 0)))}</small></td>
         <td>${lineDetails}</td>
+        <td class="admin-expense-action-cell"><button class="icon-button admin-expense-delete" type="button" data-delete-admin-expense="${escapeHtml(report.id || "")}" aria-label="Supprimer cette note de frais">&times;</button></td>
       </tr>
     `;
-  }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrée pour ce filtre.</td></tr>';
+  }).join("") : '<tr><td colspan="8" class="admin-empty">Aucune note de frais enregistrée pour ce filtre.</td></tr>';
+}
+
+async function deleteAdminExpenseReport(reportId) {
+  const report = adminExpenseReportsCache.find((item) => item.id === reportId);
+  if (!report) return;
+  const title = report.title || "Note de frais";
+  if (!window.confirm(`Supprimer définitivement la note de frais "${title}" ?`)) return;
+  const previousReports = adminExpenseReportsCache.slice();
+  adminExpenseReportsCache = adminExpenseReportsCache.filter((item) => item.id !== reportId);
+  renderAdminDashboard();
+  try {
+    await postService({ action: "deleteExpenseReport", token: currentSessionToken, id: reportId });
+    recordActivity("Note de frais supprimée", `${report.userName || report.userId || "-"} - ${title}`);
+  } catch (error) {
+    adminExpenseReportsCache = previousReports;
+    renderAdminDashboard();
+    window.alert(error.message || "Impossible de supprimer cette note de frais. Réessayez dans quelques instants.");
+  }
 }
 
 function getSectorStats(sector) {
@@ -5455,6 +5474,11 @@ expenseHistoryList.addEventListener("click", (event) => {
   }
   const deleteButton = event.target.closest("[data-delete-expense-draft]");
   if (deleteButton) deleteExpenseDraft(deleteButton.dataset.deleteExpenseDraft);
+});
+adminExpenseBody?.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-admin-expense]");
+  if (!deleteButton) return;
+  deleteAdminExpenseReport(deleteButton.dataset.deleteAdminExpense);
 });
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 showAllNotesButton.addEventListener("click", renderAllNotes);

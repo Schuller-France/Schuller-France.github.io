@@ -3505,6 +3505,29 @@ h2 {
 .admin-expense-details li { display: grid; gap: 3px; padding: 10px; background: #fafbfc; border: 1px solid var(--line); border-radius: 12px; }
 .admin-expense-details span { color: var(--muted); }
 .admin-expense-details em { color: var(--dark); font-style: normal; font-weight: 900; }
+.admin-expense-action-cell {
+  width: 54px;
+  text-align: center !important;
+}
+.admin-expense-delete {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #dc2626;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+}
+.admin-expense-delete:hover {
+  color: #fff;
+  background: #e30613;
+  border-color: #e30613;
+}
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 
 .tablet-mode {
