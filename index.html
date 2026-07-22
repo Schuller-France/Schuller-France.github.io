@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722q" />
+    <link rel="stylesheet" href="style.css?v=20260722r" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -48,6 +48,21 @@
         </label>
 
         <p class="login-error" id="loginError" role="alert"></p>
+        <div class="login-progress is-hidden" id="loginProgress" aria-live="polite">
+          <div class="login-progress-head">
+            <span id="loginProgressTitle">Connexion sécurisée</span>
+            <strong id="loginProgressPercent">0%</strong>
+          </div>
+          <div class="login-progress-track">
+            <span id="loginProgressBar"></span>
+          </div>
+          <p id="loginProgressDetail">Préparation de votre espace commercial...</p>
+          <div class="login-progress-steps">
+            <span class="is-active" data-login-step="auth">Connexion</span>
+            <span data-login-step="data">Données</span>
+            <span data-login-step="dashboard">Tableau de bord</span>
+          </div>
+        </div>
         <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
         <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oublié ?</button>
       </form>
@@ -966,9 +981,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260722q" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260722r" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722q" charset="UTF-8"></script>
+    <script src="script.js?v=20260722r" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -38,6 +38,9 @@ let tourMarkersLayer = null;
 let tourRouteLayer = null;
 let tourMarkerByCode = new Map();
 let driveAutoRefreshTimer = null;
+let loginProgressTimer = null;
+let loginProgressValue = 0;
+let loginProgressTarget = 0;
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
@@ -101,6 +104,12 @@ const loginPassword = document.querySelector("#loginPassword");
 const rememberLogin = document.querySelector("#rememberLogin");
 const loginError = document.querySelector("#loginError");
 const loginSubmitButton = document.querySelector("#loginSubmitButton");
+const loginProgress = document.querySelector("#loginProgress");
+const loginProgressTitle = document.querySelector("#loginProgressTitle");
+const loginProgressPercent = document.querySelector("#loginProgressPercent");
+const loginProgressBar = document.querySelector("#loginProgressBar");
+const loginProgressDetail = document.querySelector("#loginProgressDetail");
+const loginProgressSteps = Array.from(document.querySelectorAll("[data-login-step]"));
 const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
 const passwordResetCard = document.querySelector("#passwordResetCard");
 const passwordResetRequestForm = document.querySelector("#passwordResetRequestForm");
@@ -2379,6 +2388,7 @@ function showLogin() {
   rememberLogin.checked = false;
   loginError.textContent = "";
   loginError.className = "login-error";
+  resetLoginProgress();
   closePasswordReset();
   resetOrder();
   renderPrenetEmpty();
@@ -2444,11 +2454,69 @@ function showApp(user, token = user.token || "") {
   renderOrderHistory();
 }
 
+function setLoginProgressStep(activeStep) {
+  const order = ["auth", "data", "dashboard"];
+  const activeIndex = order.indexOf(activeStep);
+  loginProgressSteps.forEach((step) => {
+    const stepIndex = order.indexOf(step.dataset.loginStep);
+    step.classList.toggle("is-active", step.dataset.loginStep === activeStep);
+    step.classList.toggle("is-done", stepIndex > -1 && activeIndex > -1 && stepIndex < activeIndex);
+  });
+}
+
+function paintLoginProgress() {
+  if (loginProgressBar) loginProgressBar.style.width = `${Math.round(loginProgressValue)}%`;
+  if (loginProgressPercent) loginProgressPercent.textContent = `${Math.round(loginProgressValue)}%`;
+}
+
+function updateLoginProgress(target, title, detail, activeStep) {
+  loginProgressTarget = Math.max(loginProgressTarget, Math.min(100, target));
+  if (loginProgressTitle && title) loginProgressTitle.textContent = title;
+  if (loginProgressDetail && detail) loginProgressDetail.textContent = detail;
+  if (activeStep) setLoginProgressStep(activeStep);
+  paintLoginProgress();
+}
+
+function startLoginProgress() {
+  clearInterval(loginProgressTimer);
+  loginProgressValue = 6;
+  loginProgressTarget = 18;
+  loginProgress?.classList.remove("is-hidden");
+  setLoginProgressStep("auth");
+  updateLoginProgress(18, "Connexion sécurisée", "Vérification de l'identifiant et du mot de passe...", "auth");
+  loginProgressTimer = setInterval(() => {
+    const maxSoftValue = Math.max(12, loginProgressTarget - 2);
+    if (loginProgressValue < maxSoftValue) {
+      loginProgressValue += Math.max(0.35, (maxSoftValue - loginProgressValue) * 0.08);
+      paintLoginProgress();
+    }
+  }, 120);
+}
+
+function finishLoginProgress() {
+  updateLoginProgress(100, "Ouverture du tableau de bord", "Votre espace est prêt.", "dashboard");
+  loginProgressValue = 100;
+  paintLoginProgress();
+  clearInterval(loginProgressTimer);
+  loginProgressTimer = null;
+}
+
+function resetLoginProgress() {
+  clearInterval(loginProgressTimer);
+  loginProgressTimer = null;
+  loginProgressValue = 0;
+  loginProgressTarget = 0;
+  loginProgress?.classList.add("is-hidden");
+  paintLoginProgress();
+  setLoginProgressStep("auth");
+}
+
 async function submitLogin() {
   loginError.textContent = "";
   loginError.className = "login-error";
   loginSubmitButton.disabled = true;
   loginSubmitButton.textContent = "Connexion…";
+  startLoginProgress();
   try {
     const result = await postService({
       action: "login",
@@ -2456,14 +2524,22 @@ async function submitLogin() {
       password: loginPassword.value,
       remember: rememberLogin.checked ? "1" : "",
     });
+    loginProgressValue = Math.max(loginProgressValue, 32);
+    updateLoginProgress(58, "Compte reconnu", "Chargement des clients, articles, tarifs et secteurs...", "data");
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
       loginSubmitButton.textContent = "Chargement des données…";
+      updateLoginProgress(82, "Chargement Drive", "Récupération des données commerciales sécurisées...", "data");
       await loadSecureAppData(result.token, result.user?.id || "");
+    } else {
+      updateLoginProgress(82, "Données locales prêtes", "Ouverture rapide avec les dernières données connues...", "data");
     }
+    updateLoginProgress(94, "Préparation de l'interface", "Mise en place des onglets et du tableau de bord...", "dashboard");
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
+    finishLoginProgress();
     if (cached) refreshSecureAppDataInBackground(result.token, result.user?.id || "");
   } catch (error) {
+    resetLoginProgress();
     loginError.textContent = error.message || "Connexion impossible.";
     loginPassword.select();
   } finally {
