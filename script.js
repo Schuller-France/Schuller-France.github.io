@@ -514,7 +514,7 @@ function renderAdminScopeOptions(logs, expenseReports = []) {
     users.set(commercial.id, commercial.name);
   });
   [...logs, ...expenseReports].forEach((item) => {
-    if (item.userId) users.set(item.userId, item.userName || item.userId);
+    if (item.userId && !users.has(item.userId)) users.set(item.userId, item.userName || item.userId);
   });
   [...users.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr")).forEach(([id, name]) => options.push({ value: `user:${id}`, label: name }));
   adminScopeFilter.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
@@ -653,6 +653,34 @@ function sumCommercialStat(commercial, getter) {
   return commercial.sectors.reduce((sum, sector) => sum + (Number(getter(getSectorStats(sector), sector)) || 0), 0);
 }
 
+function getFirstSectorRank(commercial) {
+  const raw = normalize(commercial.sectors?.[0] || commercial.sector || commercial.name || "");
+  const match = raw.match(/(\d+)/);
+  return match ? Number(match[1]) : 999;
+}
+
+function getGoalByLabel(sectorStats, text) {
+  return (sectorStats?.goals || []).find((goal) => normalize(goal.label || "").includes(normalize(text)));
+}
+
+function sumCommercialGoal(commercial, label, key = "current") {
+  return commercial.sectors.reduce((sum, sector) => sum + (Number(getGoalByLabel(getSectorStats(sector), label)?.[key]) || 0), 0);
+}
+
+function formatAdminDelta(value) {
+  const rounded = roundMoney(Number(value) || 0);
+  const className = rounded >= 0 ? "is-positive" : "is-negative";
+  const sign = rounded > 0 ? "+" : "";
+  return `<strong class="admin-stat-delta ${className}">${escapeHtml(`${sign}${wholeCurrencyFormatter.format(rounded)}`)}</strong>`;
+}
+
+function getAdminStatsMonthLabel(stats) {
+  const sectorStats = Object.values(stats.bySector || {})[0] || {};
+  const label = sectorStats.kpis?.objectiveMonthLabel || "";
+  if (!label) return "Juillet 2026";
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function renderAdminCheckingError() {
   if (checkingStatus) checkingStatus.textContent = "Erreur Drive";
   if (adminCheckingBody) {
@@ -663,7 +691,7 @@ function renderAdminCheckingError() {
 function renderAdminChecking() {
   if (!adminCheckingBody) return;
   const stats = dashboardStatsOverride || localStatsData || {};
-  const rows = adminCommercials.map((commercial) => {
+  const rows = [...adminCommercials].sort((a, b) => getFirstSectorRank(a) - getFirstSectorRank(b)).map((commercial) => {
     const missing = [];
     const sectorStatuses = commercial.sectors.map((sector) => {
       const sectorStats = getSectorStats(sector);
@@ -683,34 +711,33 @@ function renderAdminChecking() {
     const revenue = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.revenue);
     const monthlyObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.monthlyObjective);
     const ytdObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.ytdObjective);
-    const previousYtd = sumCommercialStat(commercial, (sectorStats) => {
-      const comparison = (sectorStats?.goals || []).find((goal) => normalize(goal.label || "").includes("comparaison n-1"));
-      return comparison?.target;
-    });
-    const ok = sectorStatuses.every((item) => item.ok);
-    return { commercial, revenue, monthlyObjective, ytdObjective, previousYtd, ok, detail: ok ? "Dashboard exploitable" : missing.join(" · ") };
+    const ytdActual = sumCommercialGoal(commercial, "projection", "current");
+    const previousYtd = sumCommercialGoal(commercial, "comparaison n-1", "target");
+    const monthDelta = revenue - monthlyObjective;
+    const ytdDelta = ytdActual - previousYtd;
+    const ok = sectorStatuses.every((item) => item.ok) && monthDelta >= 0 && ytdDelta >= 0;
+    return { commercial, revenue, monthlyObjective, monthDelta, ytdObjective, ytdActual, previousYtd, ytdDelta, ok, detail: missing.join(" · ") };
   });
 
-  const okCount = rows.filter((row) => row.ok).length;
-  const warnCount = rows.length - okCount;
+  const warnCount = rows.filter((row) => !row.ok).length;
   const revenueTotal = rows.reduce((sum, row) => sum + row.revenue, 0);
-  checkingOkCount.textContent = String(okCount);
+  checkingOkCount.textContent = String(rows.length);
   checkingWarnCount.textContent = String(warnCount);
   checkingRevenueTotal.textContent = wholeCurrencyFormatter.format(roundMoney(revenueTotal));
-  checkingSource.textContent = Object.values(stats.bySector || {})[0]?.periodLabel?.split("·").pop()?.trim() || "Drive";
-  checkingUpdatedAt.textContent = Object.values(stats.bySector || {})[0]?.updatedAt || "Données chargées";
-  checkingStatus.textContent = warnCount ? `${warnCount} à vérifier` : "Tout est OK";
+  if (checkingSource) checkingSource.textContent = getAdminStatsMonthLabel(stats);
+  checkingUpdatedAt.textContent = getAdminStatsMonthLabel(stats);
+  checkingStatus.textContent = warnCount ? `${warnCount} à surveiller` : "Tout est OK";
 
   adminCheckingBody.innerHTML = rows.map((row) => `
     <tr>
-      <td><strong>${escapeHtml(row.commercial.name)}</strong><small>${escapeHtml(row.commercial.id)}</small></td>
+      <td><strong>${escapeHtml(row.commercial.name)}</strong></td>
       <td>${escapeHtml(row.commercial.sectors.join(" + "))}</td>
       <td><strong>${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.revenue)))}</strong></td>
       <td>${escapeHtml(row.monthlyObjective ? wholeCurrencyFormatter.format(roundMoney(row.monthlyObjective)) : "--")}</td>
-      <td>${escapeHtml(row.ytdObjective ? wholeCurrencyFormatter.format(roundMoney(row.ytdObjective)) : "--")}</td>
+      <td>${formatAdminDelta(row.monthDelta)}</td>
+      <td>${escapeHtml(row.ytdObjective ? wholeCurrencyFormatter.format(roundMoney(row.ytdObjective)) : "--")}<small>${row.ytdActual ? `Actuel ${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.ytdActual)))}` : ""}</small></td>
       <td>${escapeHtml(row.previousYtd ? wholeCurrencyFormatter.format(roundMoney(row.previousYtd)) : "--")}</td>
-      <td><span class="admin-action-badge ${row.ok ? "is-document" : "is-navigation"}">${row.ok ? "OK" : "À vérifier"}</span></td>
-      <td>${escapeHtml(row.detail)}</td>
+      <td>${row.previousYtd ? formatAdminDelta(row.ytdDelta) : "--"}</td>
     </tr>
   `).join("");
 }
@@ -1246,7 +1273,7 @@ async function loadDashboardStatsFromDrive() {
   } catch (error) {
     if (isSessionError(error)) {
       expireCurrentSession(currentUser?.role === "admin"
-        ? "Votre session admin a expiré. Reconnectez-vous pour charger le checking stats."
+        ? "Votre session admin a expiré. Reconnectez-vous pour charger les statistiques."
         : "Votre session a expiré. Reconnectez-vous pour actualiser les statistiques.");
       return;
     }

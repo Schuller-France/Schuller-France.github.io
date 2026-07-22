@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722n" />
+    <link rel="stylesheet" href="style.css?v=20260722o" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -122,7 +122,7 @@
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
-        <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Checking stats</button>
+        <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Statistiques</button>
       </nav>
 
       <main class="app-shell dashboard-shell" id="homeView">
@@ -922,25 +922,24 @@
       <main class="app-shell admin-shell is-hidden" id="adminCheckingView">
         <section class="panel admin-hero">
           <div>
-            <p class="step">Contrôle admin</p>
-            <h2>Checking stats</h2>
-            <p>Vérifiez en un coup d'œil si les chiffres Drive, objectifs et comparaisons N-1 sont exploitables pour chaque commercial.</p>
+            <p class="step">Statistiques admin</p>
+            <h2>Statistiques</h2>
+            <p>Suivez en un coup d'œil le chiffre d'affaires, les objectifs et les écarts par commercial.</p>
           </div>
           <div class="admin-actions">
             <button class="ghost-button" type="button" id="refreshAdminChecking">Actualiser les stats</button>
           </div>
         </section>
-        <section class="dashboard-grid admin-metrics" aria-label="Résumé checking statistiques">
-          <article class="panel metric-card"><span>Commerciaux OK</span><strong id="checkingOkCount">0</strong><small>Données complètes</small></article>
-          <article class="panel metric-card"><span>À vérifier</span><strong id="checkingWarnCount">0</strong><small>Données absentes ou incomplètes</small></article>
-          <article class="panel metric-card"><span>CA Drive total</span><strong id="checkingRevenueTotal">0 €</strong><small>Mois en cours affiché</small></article>
-          <article class="panel metric-card"><span>Source</span><strong id="checkingSource">Drive</strong><small id="checkingUpdatedAt">En attente</small></article>
+        <section class="dashboard-grid admin-metrics" aria-label="Résumé statistiques">
+          <article class="panel metric-card"><span>Commerciaux suivis</span><strong id="checkingOkCount">0</strong><small>Données complètes</small></article>
+          <article class="panel metric-card"><span>À surveiller</span><strong id="checkingWarnCount">0</strong><small>Écart négatif ou donnée manquante</small></article>
+          <article class="panel metric-card"><span>CA Drive total</span><strong id="checkingRevenueTotal">0 €</strong><small id="checkingUpdatedAt">Juillet 2026</small></article>
         </section>
         <section class="panel admin-log-panel">
           <div class="panel-heading">
             <div>
-              <p class="step">Contrôle secteurs</p>
-              <h2>État des dashboards commerciaux</h2>
+              <p class="step">Vue gérant</p>
+              <h2>Statistiques par commercial</h2>
             </div>
             <span class="status-pill" id="checkingStatus">En attente</span>
           </div>
@@ -950,16 +949,16 @@
                 <tr>
                   <th>Commercial</th>
                   <th>Secteur(s)</th>
-                  <th>CA mois Drive</th>
+                  <th>CA mois en cours</th>
                   <th>Objectif mois</th>
+                  <th>Écart mois</th>
                   <th>Objectif cumulé</th>
                   <th>N-1 cumulé</th>
-                  <th>Statut</th>
-                  <th>Détail</th>
+                  <th>Écart cumulé vs N-1</th>
                 </tr>
               </thead>
               <tbody id="adminCheckingBody">
-                <tr><td colspan="8" class="admin-empty">Cliquez sur Actualiser les stats pour lancer le contrôle.</td></tr>
+                <tr><td colspan="8" class="admin-empty">Cliquez sur Actualiser les stats pour charger les statistiques.</td></tr>
               </tbody>
             </table>
           </div>
@@ -969,9 +968,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260722n" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260722o" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722n" charset="UTF-8"></script>
+    <script src="script.js?v=20260722o" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
