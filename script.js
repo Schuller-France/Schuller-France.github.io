@@ -2113,9 +2113,9 @@ function arrangeTabsForUser(user) {
   if (!appTabs) return;
   if (user?.role === "admin") {
     const firstTab = appTabs.querySelector(".tab-button");
-    appTabs.insertBefore(adminTab, firstTab);
-    appTabs.insertBefore(adminCheckingTab, adminTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminCheckingTab.nextSibling);
+    appTabs.insertBefore(adminCheckingTab, firstTab);
+    appTabs.insertBefore(adminTab, adminCheckingTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminTab.nextSibling);
     return;
   }
   [
@@ -2396,7 +2396,7 @@ function showApp(user, token = user.token || "") {
   if (isAdmin) {
     selectedTourCodes = new Set();
     renderTourPlanner();
-    setActiveTab("admin");
+    setActiveTab("adminChecking");
     restoreDashboardStatsCache();
     loadDashboardStatsFromDrive();
     startDriveAutoRefresh();
