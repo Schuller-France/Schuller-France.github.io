@@ -4826,3 +4826,654 @@ body:not(.tablet-mode) .client360-article-table .article-qty-gap-col { width: 90
   border: 0 !important;
   text-align: left !important;
 }
+
+/* Version tablette terrain — refonte inspirée des maquettes Claude Design.
+   Scope strict : uniquement quand l'utilisateur active "Mode tablette". */
+body.tablet-mode {
+  --tablet-sidebar: 244px;
+  --tablet-page: 760px;
+  background: #f5f6f8;
+  font-size: 16px;
+}
+
+body.tablet-mode .app-view:not(.is-hidden) {
+  display: grid;
+  grid-template-columns: var(--tablet-sidebar) minmax(0, 1fr);
+  grid-template-rows: 72px 1fr;
+  min-height: 100vh;
+  background: #f5f6f8;
+}
+
+body.tablet-mode .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 72px;
+  padding: 12px 28px;
+  background: rgba(245, 246, 248, .95);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+body.tablet-mode .brand-lockup {
+  display: none;
+}
+
+body.tablet-mode .global-search {
+  order: 0;
+  flex: 1 1 520px;
+  width: auto;
+  max-width: 640px;
+}
+
+body.tablet-mode .global-search label {
+  display: none;
+}
+
+body.tablet-mode .global-search input {
+  min-height: 42px;
+  border-radius: 999px;
+  background: #fff;
+  border-color: #e1e5eb;
+  font-size: 15px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+body.tablet-mode .header-actions {
+  gap: 8px;
+}
+
+body.tablet-mode .header-actions .ghost-button,
+body.tablet-mode .offline-status {
+  width: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+body.tablet-mode .app-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column !important;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: var(--tablet-sidebar);
+  height: 100vh;
+  margin: 0;
+  padding: 24px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #171717;
+  border-right: 1px solid rgba(255, 255, 255, .06);
+  counter-reset: tablet-nav;
+  scrollbar-width: thin;
+}
+
+body.tablet-mode .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 42px;
+  margin: 0 0 26px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -.02em;
+}
+
+body.tablet-mode .sidebar-logo {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+}
+
+body.tablet-mode .sidebar-logo img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+body.tablet-mode .app-tabs .tab-button {
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 11px;
+  color: #cbd5e1;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: normal;
+  counter-increment: tablet-nav;
+}
+
+body.tablet-mode .app-tabs .tab-button::before {
+  content: counter(tablet-nav) " ·";
+  display: inline;
+  width: auto;
+  height: auto;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+body.tablet-mode .app-tabs .tab-button:hover {
+  transform: none;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: none;
+}
+
+body.tablet-mode .app-tabs .tab-button.is-active {
+  color: #fff;
+  background: #e30613;
+  box-shadow: none;
+}
+
+body.tablet-mode .app-tabs .tab-button.is-hidden {
+  display: none !important;
+}
+
+body.tablet-mode .app-shell {
+  grid-column: 2;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px 34px 48px;
+  align-content: start;
+}
+
+body.tablet-mode .app-shell > .panel,
+body.tablet-mode .dashboard-grid,
+body.tablet-mode .dashboard-main-grid,
+body.tablet-mode .dashboard-ranking-grid {
+  width: min(var(--tablet-page), 100%);
+}
+
+body.tablet-mode .panel {
+  border-color: #dde2ea;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+body.tablet-mode .panel-heading {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body.tablet-mode h2 {
+  font-size: 26px;
+  letter-spacing: -.03em;
+}
+
+body.tablet-mode .step,
+body.tablet-mode .eyebrow {
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+body.tablet-mode .primary-button,
+body.tablet-mode .ghost-button,
+body.tablet-mode button {
+  border-radius: 8px;
+  font-weight: 950;
+}
+
+body.tablet-mode .primary-button {
+  min-height: 58px;
+  background: #e30613;
+  border-color: #e30613;
+  box-shadow: none;
+}
+
+body.tablet-mode .ghost-button {
+  background: #fff;
+  border-color: #dde2ea;
+}
+
+body.tablet-mode input,
+body.tablet-mode textarea,
+body.tablet-mode select {
+  min-height: 52px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+body.tablet-mode textarea {
+  min-height: 150px;
+}
+
+body.tablet-mode .dashboard-hero {
+  flex-direction: row;
+  align-items: center;
+  padding: 24px;
+  background: #fff;
+  border-left: 4px solid #e30613;
+}
+
+body.tablet-mode .dashboard-status {
+  min-width: 154px;
+  border-radius: 10px;
+}
+
+body.tablet-mode .dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+body.tablet-mode .metric-card {
+  min-height: 110px;
+  padding: 20px;
+  background: #fff;
+}
+
+body.tablet-mode .metric-card strong {
+  font-size: 34px;
+  line-height: 1;
+  color: #050505;
+}
+
+body.tablet-mode .tablet-action-panel {
+  width: min(var(--tablet-page), 100%);
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 24px;
+  color: #fff;
+  background: #171717;
+  border-color: #171717;
+}
+
+body.tablet-mode .tablet-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.tablet-mode .tablet-action-grid button {
+  min-height: 62px;
+  color: #fff;
+  background: #e30613;
+  border: 0;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+body.tablet-mode .dashboard-main-grid {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .dashboard-chart-panel,
+body.tablet-mode .dashboard-ranking-grid {
+  display: none;
+}
+
+body.tablet-mode .goal-item {
+  padding: 15px;
+  border-radius: 10px;
+}
+
+body.tablet-mode .client360-panel {
+  width: min(var(--tablet-page), 100%);
+  padding: 0;
+  gap: 14px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+body.tablet-mode .client360-panel > .panel-heading {
+  padding: 0 0 12px;
+  border-bottom: 0;
+}
+
+body.tablet-mode .client360-search-card {
+  grid-template-columns: 1fr;
+  padding: 18px;
+  background: #fff;
+  border-radius: 12px;
+}
+
+body.tablet-mode .client360-search-card > div:first-child {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+body.tablet-mode .client360-search input {
+  min-height: 50px;
+  font-size: 16px;
+}
+
+body.tablet-mode .client360-identity {
+  grid-template-columns: 1fr;
+  padding: 18px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+body.tablet-mode .client360-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.tablet-mode .client360-kpis span {
+  border-radius: 10px;
+}
+
+body.tablet-mode .client360-grid {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+body.tablet-mode .client360-card {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+body.tablet-mode .client360-card > .panel-heading {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body.tablet-mode .client360-card > .client360-list {
+  padding: 0;
+}
+
+body.tablet-mode .client-panel,
+body.tablet-mode .order-panel,
+body.tablet-mode .summary-panel,
+body.tablet-mode .history-panel,
+body.tablet-mode .quote-panel,
+body.tablet-mode .notes-panel,
+body.tablet-mode .tour-panel,
+body.tablet-mode .backlog-panel,
+body.tablet-mode .prenet-panel,
+body.tablet-mode .tarif-panel,
+body.tablet-mode .promotion-panel,
+body.tablet-mode .expenses-panel {
+  width: min(var(--tablet-page), 100%);
+  padding: 18px;
+}
+
+body.tablet-mode .order-panel .panel-heading,
+body.tablet-mode .summary-panel .panel-heading,
+body.tablet-mode .history-panel .panel-heading {
+  display: none;
+}
+
+body.tablet-mode .search-block,
+body.tablet-mode .notes-search,
+body.tablet-mode .prenet-search-block {
+  position: relative;
+  top: auto;
+  z-index: auto;
+  padding: 0;
+  box-shadow: none;
+}
+
+body.tablet-mode .search-block label,
+body.tablet-mode .prenet-search-block label,
+body.tablet-mode .client360-search label {
+  font-size: 10px;
+}
+
+body.tablet-mode .selected-client {
+  min-height: 52px;
+  padding: 14px;
+  border-radius: 10px;
+}
+
+body.tablet-mode .order-table tr,
+body.tablet-mode .quote-table tr {
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+body.tablet-mode .order-table td:nth-child(2),
+body.tablet-mode .order-table td:nth-child(4),
+body.tablet-mode .order-table td:nth-child(6),
+body.tablet-mode .order-table td:nth-child(7) {
+  display: none;
+}
+
+body.tablet-mode .order-table td::before,
+body.tablet-mode .quote-table td::before {
+  margin-bottom: 4px;
+}
+
+body.tablet-mode .name-cell,
+body.tablet-mode .quote-name-cell {
+  background: transparent;
+  padding: 0 !important;
+  font-size: 16px;
+}
+
+body.tablet-mode .qty-cell input,
+body.tablet-mode .quote-qty-cell input {
+  max-width: 100%;
+  min-height: 48px;
+  text-align: center;
+  font-size: 20px;
+}
+
+body.tablet-mode .summary-panel {
+  display: grid;
+  gap: 14px;
+}
+
+body.tablet-mode .summary-list {
+  grid-template-columns: 1fr 1fr;
+}
+
+body.tablet-mode .summary-list div:last-child {
+  grid-column: 1 / -1;
+}
+
+body.tablet-mode .summary-list dd {
+  font-size: 24px;
+}
+
+body.tablet-mode #generateOrderFiles {
+  min-height: 62px;
+}
+
+body.tablet-mode .quote-layout,
+body.tablet-mode .quote-client-wide,
+body.tablet-mode .quote-history-heading {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .quote-client-card,
+body.tablet-mode .quote-lines-card,
+body.tablet-mode .quote-history-card {
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+body.tablet-mode .quote-add-line {
+  width: 100%;
+  min-height: 52px;
+  justify-content: center;
+}
+
+body.tablet-mode .notes-layout {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .notes-editor {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-right: 0;
+}
+
+body.tablet-mode .notes-history {
+  padding: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+body.tablet-mode .voice-note-button {
+  justify-self: center;
+  width: 132px;
+  min-height: 132px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #e30613;
+  font-size: 0;
+  box-shadow: 0 18px 42px rgba(227, 6, 19, .24);
+}
+
+body.tablet-mode .voice-note-button::after {
+  content: "• Parler";
+  font-size: 15px;
+  font-weight: 950;
+}
+
+body.tablet-mode .voice-note-button span,
+body.tablet-mode .voice-note-button small {
+  display: none;
+}
+
+body.tablet-mode .quick-note-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+body.tablet-mode .quick-note-buttons button {
+  min-height: 48px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+body.tablet-mode .note-field textarea {
+  min-height: 120px;
+}
+
+body.tablet-mode .notes-report-toolbar,
+body.tablet-mode .notes-form-actions {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .tarif-grid,
+body.tablet-mode .promotion-grid {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .promotion-card,
+body.tablet-mode .document-card,
+body.tablet-mode .tarif-card {
+  padding: 12px;
+  border-radius: 12px;
+}
+
+body.tablet-mode .promotion-preview-thumb,
+body.tablet-mode .document-preview {
+  min-height: 210px;
+  border-radius: 8px;
+}
+
+body.tablet-mode .promotion-card-actions,
+body.tablet-mode .tarif-send-form,
+body.tablet-mode .promotion-toolbar {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .promotion-card-actions .primary-button,
+body.tablet-mode .tarif-send-form .primary-button,
+body.tablet-mode .promotion-toolbar .primary-button {
+  width: 100%;
+}
+
+body.tablet-mode .tour-layout {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .tour-map-card {
+  order: 1;
+  padding: 12px;
+}
+
+body.tablet-mode .tour-list-panel {
+  order: 2;
+  padding: 12px;
+}
+
+body.tablet-mode .france-map,
+body.tablet-mode .leaflet-map {
+  min-height: 260px;
+  border-radius: 10px;
+}
+
+body.tablet-mode .tour-client-list {
+  max-height: 320px;
+}
+
+body.tablet-mode .tour-actions {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .tour-actions .primary-button,
+body.tablet-mode .tour-actions .ghost-button {
+  width: 100%;
+  min-height: 58px;
+}
+
+body.tablet-mode .expenses-table tr,
+body.tablet-mode .backlog-table tr,
+body.tablet-mode .prenet-table tr {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+body.tablet-mode .expense-upload span,
+body.tablet-mode .expenses-table input,
+body.tablet-mode .expenses-table select {
+  min-height: 50px;
+  font-size: 16px;
+}
+
+body.dark-theme.tablet-mode,
+body.dark-theme.tablet-mode .app-view:not(.is-hidden) {
+  background: #0f141b;
+}
+
+body.dark-theme.tablet-mode .app-header {
+  background: rgba(15, 20, 27, .95);
+  border-bottom-color: #242c38;
+}
+
+body.dark-theme.tablet-mode .app-tabs {
+  background: #090c11;
+}
+
+body.dark-theme.tablet-mode .dashboard-hero,
+body.dark-theme.tablet-mode .metric-card,
+body.dark-theme.tablet-mode .client360-search-card,
+body.dark-theme.tablet-mode .client360-identity,
+body.dark-theme.tablet-mode .client360-card,
+body.dark-theme.tablet-mode .promotion-card,
+body.dark-theme.tablet-mode .document-card,
+body.dark-theme.tablet-mode .tarif-card {
+  background: #151b24;
+}
