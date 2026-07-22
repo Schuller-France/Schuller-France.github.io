@@ -5675,6 +5675,61 @@ function resetOrder() {
   updateSummary();
 }
 
+function clearOrderClientForSearch(query) {
+  selectedClient = null;
+  lines = [];
+  clientSearch.value = query;
+  clientStatus.textContent = "Cliquez sur un client dans la liste";
+  clientStatus.classList.remove("is-ready");
+  selectedClientBox.innerHTML = "<span>Saisissez un nom, puis cliquez sur le client souhaité.</span>";
+  addLine();
+  updateSummary();
+}
+
+function handleOrderClientSearchInput(value) {
+  if (selectedClient && normalize(value) !== normalize(selectedClient.name)) {
+    clearOrderClientForSearch(value);
+  }
+  renderClientSuggestions(value);
+}
+
+function handleClient360SearchInput(value) {
+  if (selectedClient360 && normalize(value) !== normalize(selectedClient360.name)) {
+    renderClient360Empty("Saisissez un nom, puis cliquez sur le client souhaité.");
+  }
+  renderClient360Suggestions(value);
+}
+
+function handleQuoteClientSearchInput(value) {
+  if (selectedQuoteClient && normalize(value) !== normalize(selectedQuoteClient.name)) {
+    resetQuoteRequest();
+  }
+  renderQuoteClientSuggestions(value);
+}
+
+function handleNotesClientSearchInput(value) {
+  if (selectedNotesClient && normalize(value) !== normalize(selectedNotesClient.name)) {
+    renderNotesEmpty("Saisissez un nom, puis cliquez sur le client souhaité.");
+  }
+  renderNotesSuggestions(value);
+}
+
+function handlePrenetClientSearchInput(value) {
+  if (selectedPrenetClient) {
+    const fullLabel = `${selectedPrenetClient.name || ""}${selectedPrenetClient.code ? ` · ${selectedPrenetClient.code}` : ""}`;
+    const typed = normalize(value);
+    if (typed !== normalize(selectedPrenetClient.name || "") && typed !== normalize(fullLabel)) {
+      selectedPrenetClient = null;
+      prenetResult.innerHTML = `
+        <div class="prenet-empty">
+          <strong>Sélectionnez un client</strong>
+          <span>Saisissez un nom, puis cliquez sur le client souhaité.</span>
+        </div>`;
+    }
+  }
+  renderPrenetSuggestions(value);
+}
+
 function refreshNotesHistoryFromCurrentMode() {
   if (notesHistoryMode === "all") {
     renderAllNotes();
@@ -5693,7 +5748,7 @@ function updateOfflineStatus() {
   offlineStatus.classList.toggle("is-offline", !online);
 }
 
-clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
+clientSearch.addEventListener("input", (event) => handleOrderClientSearchInput(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
@@ -5741,13 +5796,13 @@ backlogBody.addEventListener("click", (event) => {
   renderBacklog();
 });
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
-client360Search?.addEventListener("input", (event) => renderClient360Suggestions(event.target.value));
+client360Search?.addEventListener("input", (event) => handleClient360SearchInput(event.target.value));
 document.querySelector("#client360Grid")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-client360-open]");
   if (!button) return;
   openClient360LinkedTab(button.dataset.client360Open, button.dataset.orderId || "");
 });
-quoteClientSearch.addEventListener("input", (event) => renderQuoteClientSuggestions(event.target.value));
+quoteClientSearch.addEventListener("input", (event) => handleQuoteClientSearchInput(event.target.value));
 addQuoteLine.addEventListener("click", addQuoteLineItem);
 sendQuoteRequest.addEventListener("click", sendQuoteRequestDraft);
 quoteHistorySearch?.addEventListener("input", renderQuoteHistory);
@@ -5828,7 +5883,7 @@ adminExpenseBody?.addEventListener("click", (event) => {
   if (!deleteButton) return;
   deleteAdminExpenseReport(deleteButton.dataset.deleteAdminExpense);
 });
-notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
+notesClientSearch.addEventListener("input", (event) => handleNotesClientSearchInput(event.target.value));
 showAllNotesButton.addEventListener("click", renderAllNotes);
 notesForm.addEventListener("submit", saveClientNote);
 cancelEditNote.addEventListener("click", cancelNoteEdit);
@@ -5900,7 +5955,7 @@ homeRemindersList.addEventListener("click", (event) => {
   if (openId) openReminderNote(openId);
   if (doneId) markReminderDone(doneId);
 });
-prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
+prenetClientSearch.addEventListener("input", (event) => handlePrenetClientSearchInput(event.target.value));
 prenetResult.addEventListener("input", (event) => {
   if (event.target?.id !== "prenetReferenceSearch" || !selectedPrenetClient) return;
   const results = document.querySelector("#prenetReferenceResults");
