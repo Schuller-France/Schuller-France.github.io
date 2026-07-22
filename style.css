@@ -1393,13 +1393,13 @@ h2 {
 }
 .goal-values {
   display: grid;
-  grid-template-columns: repeat(2, minmax(74px, 1fr));
+  grid-template-columns: repeat(2, minmax(86px, 1fr));
   gap: 6px;
   justify-content: end;
 }
 .goal-values span {
-  min-width: 74px;
-  padding: 6px 7px;
+  min-width: 86px;
+  padding: 7px 9px;
   border: 1px solid #eef1f5;
   border-radius: 9px;
   background: #fff;
@@ -1417,9 +1417,10 @@ h2 {
 }
 .goal-values b {
   color: var(--ink);
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   font-weight: 950;
-  letter-spacing: -.02em;
+  letter-spacing: -.035em;
+  line-height: 1.05;
 }
 .goal-value-status {
   justify-self: end;
@@ -1428,9 +1429,9 @@ h2 {
   border: 1px solid #eef1f5;
   border-radius: 9px;
   background: #fff;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 900;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 950;
   line-height: 1.25;
   text-align: right;
 }
