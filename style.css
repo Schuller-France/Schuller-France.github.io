@@ -4142,6 +4142,7 @@ body:not(.tablet-mode) .app-tabs {
   overflow-y: auto;
   background: #171717;
   border-right: 1px solid rgba(255, 255, 255, .06);
+  counter-reset: sidebar-tab;
 }
 
 body:not(.tablet-mode) .app-tabs::before {
@@ -4172,10 +4173,19 @@ body:not(.tablet-mode) .app-tabs .tab-button {
   box-shadow: none;
   font-size: 15px;
   font-weight: 700;
+  counter-increment: sidebar-tab;
 }
 
 body:not(.tablet-mode) .app-tabs .tab-button::before {
-  display: none;
+  content: counter(sidebar-tab) " ·";
+  display: inline;
+  width: auto;
+  height: auto;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 body:not(.tablet-mode) .app-tabs .tab-button:hover {
@@ -4257,6 +4267,125 @@ body:not(.tablet-mode) .dashboard-grid {
 body:not(.tablet-mode) .sales-chart {
   min-height: 340px;
 }
+
+body:not(.tablet-mode) .client360-panel {
+  gap: 22px;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+body:not(.tablet-mode) .client360-panel > .panel-heading {
+  align-items: center;
+  padding: 0;
+  border-bottom: 0;
+}
+
+body:not(.tablet-mode) .client360-panel > .panel-heading h2 {
+  font-size: 34px;
+}
+
+body:not(.tablet-mode) .client360-panel > .panel-heading .helper-text {
+  max-width: 720px;
+}
+
+body:not(.tablet-mode) .client360-search-card {
+  grid-template-columns: minmax(220px, .32fr) minmax(0, 1fr);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+body:not(.tablet-mode) .client360-search-card > div:first-child {
+  align-self: center;
+  padding: 22px 24px;
+  background: #fff;
+  border: 1px solid #dde2ea;
+  border-radius: 12px 0 0 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+body:not(.tablet-mode) .client360-search {
+  align-self: stretch;
+  justify-content: center;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #dde2ea;
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+body:not(.tablet-mode) .client360-search input {
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+body:not(.tablet-mode) .client360-identity {
+  grid-template-columns: minmax(0, 1fr) minmax(520px, .9fr);
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #dde2ea;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+body:not(.tablet-mode) .client360-kpis {
+  grid-template-columns: repeat(4, minmax(128px, 1fr));
+}
+
+body:not(.tablet-mode) .client360-kpis span {
+  background: #f5f6f8;
+  border-color: #e5e7eb;
+  border-radius: 10px;
+}
+
+body:not(.tablet-mode) .client360-grid {
+  grid-template-columns: minmax(520px, .52fr) minmax(0, 1.48fr);
+  gap: 18px;
+}
+
+body:not(.tablet-mode) .client360-card {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+body:not(.tablet-mode) .client360-card > .panel-heading {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body:not(.tablet-mode) .client360-card > .client360-list {
+  padding: 0;
+}
+
+body:not(.tablet-mode) .client360-table-wrap {
+  border: 0;
+  border-radius: 0;
+}
+
+body:not(.tablet-mode) .client360-prenet-table {
+  min-width: 0;
+}
+
+body:not(.tablet-mode) .client360-prenet-table .prenet-ref-col { width: 70%; }
+body:not(.tablet-mode) .client360-prenet-table .prenet-qty-col { width: 12%; }
+body:not(.tablet-mode) .client360-prenet-table .prenet-price-col { width: 18%; }
+
+body:not(.tablet-mode) .client360-article-table {
+  min-width: 980px;
+}
+
+body:not(.tablet-mode) .client360-article-table .article-name-col { width: 260px; }
+body:not(.tablet-mode) .client360-article-table .article-ca-col { width: 110px; }
+body:not(.tablet-mode) .client360-article-table .article-gap-col { width: 110px; }
+body:not(.tablet-mode) .client360-article-table .article-qty-col { width: 90px; }
+body:not(.tablet-mode) .client360-article-table .article-qty-gap-col { width: 90px; }
 
 /* Priorité finale du mode tablette : ces règles ne changent jamais la version PC. */
 .tablet-mode .app-tabs {
