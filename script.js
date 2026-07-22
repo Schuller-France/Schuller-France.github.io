@@ -66,6 +66,16 @@ const expenseTypes = ["HOTEL", "REPAS SOIR", "REPAS MIDI", "INVITATION CLIENT", 
 const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
 const expenseHotelDinnerLimit = 115;
+const adminCommercials = [
+  { id: "flo", name: "Flo", sectors: ["Secteur 9"] },
+  { id: "arey", name: "Alain Rey", sectors: ["Secteur 2"] },
+  { id: "ployer", name: "Pierre Loyer", sectors: ["Secteur 3", "Secteur 5A"] },
+  { id: "bollagnon", name: "Bruno Ollagnon", sectors: ["Secteur 4", "Secteur 4A"] },
+  { id: "msoubiran", name: "Matthieu Soubiran", sectors: ["Secteur 5"] },
+  { id: "rlambert", name: "Rémi Lambert", sectors: ["Secteur 6"] },
+  { id: "gsylvestre", name: "Guy Sylvestre", sectors: ["Secteur 7"] },
+  { id: "secteur 8", name: "Secteur 8", sectors: ["Secteur 8"] },
+];
 
 const clientSearch = document.querySelector("#clientSearch");
 const clientSuggestions = document.querySelector("#clientSuggestions");
@@ -119,6 +129,7 @@ const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
+const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const orderView = document.querySelector("#orderView");
@@ -132,6 +143,7 @@ const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
 const adminView = document.querySelector("#adminView");
+const adminCheckingView = document.querySelector("#adminCheckingView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogBody = document.querySelector("#adminLogBody");
 const adminLogStatus = document.querySelector("#adminLogStatus");
@@ -148,7 +160,14 @@ const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
 const resetAdminDashboard = document.querySelector("#resetAdminDashboard");
-const adminOpenTourButton = document.querySelector("#adminOpenTourButton");
+const refreshAdminChecking = document.querySelector("#refreshAdminChecking");
+const adminCheckingBody = document.querySelector("#adminCheckingBody");
+const checkingStatus = document.querySelector("#checkingStatus");
+const checkingOkCount = document.querySelector("#checkingOkCount");
+const checkingWarnCount = document.querySelector("#checkingWarnCount");
+const checkingRevenueTotal = document.querySelector("#checkingRevenueTotal");
+const checkingSource = document.querySelector("#checkingSource");
+const checkingUpdatedAt = document.querySelector("#checkingUpdatedAt");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -450,6 +469,10 @@ function renderAdminScopeOptions(logs, expenseReports = []) {
   const options = [{ value: "all", label: "Tous les commerciaux" }];
   const users = new Map();
   const sectors = new Set();
+  adminCommercials.forEach((commercial) => {
+    users.set(commercial.id, commercial.name);
+    commercial.sectors.forEach((sector) => sectors.add(sector));
+  });
   [...logs, ...expenseReports].forEach((item) => {
     if (item.userId) users.set(item.userId, item.userName || item.userId);
     String(item.sectors || "").split("+").map((sector) => sector.trim()).filter(Boolean).forEach((sector) => sectors.add(sector));
@@ -580,6 +603,78 @@ function renderAdminExpenses() {
       </tr>
     `;
   }).join("") : '<tr><td colspan="7" class="admin-empty">Aucune note de frais enregistrée pour ce filtre.</td></tr>';
+}
+
+function getSectorStats(sector) {
+  const key = normalizeStatsSector(sector);
+  const stats = dashboardStatsOverride || localStatsData || {};
+  return stats.bySector?.[key] || stats.bySector?.[sector] || null;
+}
+
+function sumCommercialStat(commercial, getter) {
+  return commercial.sectors.reduce((sum, sector) => sum + (Number(getter(getSectorStats(sector), sector)) || 0), 0);
+}
+
+function renderAdminCheckingError() {
+  if (checkingStatus) checkingStatus.textContent = "Erreur Drive";
+  if (adminCheckingBody) {
+    adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Impossible de charger les statistiques Drive. Reconnectez-vous puis réessayez.</td></tr>';
+  }
+}
+
+function renderAdminChecking() {
+  if (!adminCheckingBody) return;
+  const stats = dashboardStatsOverride || localStatsData || {};
+  const rows = adminCommercials.map((commercial) => {
+    const missing = [];
+    const sectorStatuses = commercial.sectors.map((sector) => {
+      const sectorStats = getSectorStats(sector);
+      if (!sectorStats) {
+        missing.push(`${sector} sans données Drive`);
+        return { sector, ok: false };
+      }
+      const kpis = sectorStats.kpis || {};
+      const hasMonthObjective = Number(kpis.monthlyObjective) > 0;
+      const hasYtdObjective = Number(kpis.ytdObjective) > 0;
+      const hasPreviousYtd = (sectorStats.goals || []).some((goal) => normalize(goal.label || "").includes("comparaison n-1") && Number(goal.target) > 0);
+      if (!hasMonthObjective) missing.push(`${sector} objectif mois absent`);
+      if (!hasYtdObjective) missing.push(`${sector} objectif cumulé absent`);
+      if (!hasPreviousYtd) missing.push(`${sector} N-1 cumulé absent`);
+      return { sector, ok: hasMonthObjective && hasYtdObjective && hasPreviousYtd };
+    });
+    const revenue = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.revenue);
+    const monthlyObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.monthlyObjective);
+    const ytdObjective = sumCommercialStat(commercial, (sectorStats) => sectorStats?.kpis?.ytdObjective);
+    const previousYtd = sumCommercialStat(commercial, (sectorStats) => {
+      const comparison = (sectorStats?.goals || []).find((goal) => normalize(goal.label || "").includes("comparaison n-1"));
+      return comparison?.target;
+    });
+    const ok = sectorStatuses.every((item) => item.ok);
+    return { commercial, revenue, monthlyObjective, ytdObjective, previousYtd, ok, detail: ok ? "Dashboard exploitable" : missing.join(" · ") };
+  });
+
+  const okCount = rows.filter((row) => row.ok).length;
+  const warnCount = rows.length - okCount;
+  const revenueTotal = rows.reduce((sum, row) => sum + row.revenue, 0);
+  checkingOkCount.textContent = String(okCount);
+  checkingWarnCount.textContent = String(warnCount);
+  checkingRevenueTotal.textContent = wholeCurrencyFormatter.format(roundMoney(revenueTotal));
+  checkingSource.textContent = Object.values(stats.bySector || {})[0]?.periodLabel?.split("·").pop()?.trim() || "Drive";
+  checkingUpdatedAt.textContent = Object.values(stats.bySector || {})[0]?.updatedAt || "Données chargées";
+  checkingStatus.textContent = warnCount ? `${warnCount} à vérifier` : "Tout est OK";
+
+  adminCheckingBody.innerHTML = rows.map((row) => `
+    <tr>
+      <td><strong>${escapeHtml(row.commercial.name)}</strong><small>${escapeHtml(row.commercial.id)}</small></td>
+      <td>${escapeHtml(row.commercial.sectors.join(" + "))}</td>
+      <td><strong>${escapeHtml(wholeCurrencyFormatter.format(roundMoney(row.revenue)))}</strong></td>
+      <td>${escapeHtml(row.monthlyObjective ? wholeCurrencyFormatter.format(roundMoney(row.monthlyObjective)) : "--")}</td>
+      <td>${escapeHtml(row.ytdObjective ? wholeCurrencyFormatter.format(roundMoney(row.ytdObjective)) : "--")}</td>
+      <td>${escapeHtml(row.previousYtd ? wholeCurrencyFormatter.format(roundMoney(row.previousYtd)) : "--")}</td>
+      <td><span class="admin-action-badge ${row.ok ? "is-document" : "is-navigation"}">${row.ok ? "OK" : "À vérifier"}</span></td>
+      <td>${escapeHtml(row.detail)}</td>
+    </tr>
+  `).join("");
 }
 
 function resetTarifForm() {
@@ -1078,10 +1173,14 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 }
 
 async function loadDashboardStatsFromDrive() {
-  if (!currentSessionToken || dashboardStatsLoading || currentUser?.role === "admin") return;
+  if (!currentSessionToken || dashboardStatsLoading) return;
   dashboardStatsLoading = true;
   const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
-  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
+  if (currentUser?.role === "admin") {
+    if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
+  } else {
+    document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
+  }
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -1100,10 +1199,18 @@ async function loadDashboardStatsFromDrive() {
       objectiveMonthLabel: result.objectiveMonthLabel || "",
       objectiveMonthKey: result.objectiveMonthKey || "",
     });
-    renderDashboardSectorSwitch(currentUser);
-    renderDashboard(currentUser);
+    if (currentUser?.role === "admin") {
+      renderAdminChecking();
+    } else {
+      renderDashboardSectorSwitch(currentUser);
+      renderDashboard(currentUser);
+    }
   } catch (error) {
-    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
+    if (currentUser?.role === "admin") {
+      renderAdminCheckingError();
+    } else {
+      document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
+    }
   } finally {
     dashboardStatsLoading = false;
   }
@@ -1788,7 +1895,10 @@ function getClientsForUser(user) {
 function arrangeTabsForUser(user) {
   if (!appTabs) return;
   if (user?.role === "admin") {
-    appTabs.insertBefore(adminTab, tourTab);
+    const firstTab = appTabs.querySelector(".tab-button");
+    appTabs.insertBefore(adminTab, firstTab);
+    appTabs.insertBefore(adminCheckingTab, adminTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminCheckingTab.nextSibling);
     return;
   }
   [
@@ -1805,6 +1915,7 @@ function arrangeTabsForUser(user) {
     backlogTab,
   ].forEach((tab) => appTabs.appendChild(tab));
   appTabs.appendChild(adminTab);
+  appTabs.appendChild(adminCheckingTab);
 }
 
 function normalizeBacklogType(value) {
@@ -2060,13 +2171,15 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
+  adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
     selectedTourCodes = new Set();
     renderTourPlanner();
     setActiveTab("admin");
+    loadDashboardStatsFromDrive();
     return;
   }
 
@@ -4564,6 +4677,7 @@ function setActiveTab(tabName) {
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
+  const showAdminChecking = tabName === "adminChecking";
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
   orderTab.classList.toggle("is-active", showOrder);
@@ -4576,6 +4690,7 @@ function setActiveTab(tabName) {
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
+  adminCheckingTab.classList.toggle("is-active", showAdminChecking);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
   orderView.classList.toggle("is-hidden", !showOrder);
@@ -4588,6 +4703,7 @@ function setActiveTab(tabName) {
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
+  adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
@@ -4635,6 +4751,10 @@ function setActiveTab(tabName) {
   }
 
   if (showAdmin) loadAdminLogs();
+  if (showAdminChecking) {
+    if (dashboardStatsOverride) renderAdminChecking();
+    else loadDashboardStatsFromDrive();
+  }
 
   if (showPromotion) {
     renderPromotions();
@@ -5001,10 +5121,11 @@ prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
+adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
-adminOpenTourButton.addEventListener("click", () => setActiveTab("tour"));
+refreshAdminChecking.addEventListener("click", loadDashboardStatsFromDrive);
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });
