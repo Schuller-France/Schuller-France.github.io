@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722s" />
+    <link rel="stylesheet" href="style.css?v=20260722t" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -590,7 +590,7 @@
                 <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
 
                 <button class="voice-note-button" type="button" id="startVoiceNote">
-                  <span aria-hidden="true">ðŸŽ™ï¸</span>
+                  <span aria-hidden="true" class="voice-note-icon">MIC</span>
                   Dicter la note
                 </button>
                 <p class="voice-note-status" id="voiceNoteStatus" role="status"></p>
@@ -1028,7 +1028,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722s" charset="UTF-8"></script>
+    <script src="script.js?v=20260722t" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

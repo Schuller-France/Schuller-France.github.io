@@ -5496,6 +5496,14 @@ body.tablet-mode .summary-list dd {
   font-size: 24px;
 }
 
+.voice-note-button .voice-note-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
 body.tablet-mode #generateOrderFiles {
   min-height: 62px;
 }

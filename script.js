@@ -4522,10 +4522,11 @@ function deleteClientNote(noteId) {
 
 function setupVoiceNotes() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  startVoiceNote.innerHTML = '<span aria-hidden="true" class="voice-note-icon">MIC</span> Dicter la note';
   if (!SpeechRecognition) {
     startVoiceNote.disabled = true;
     startVoiceNote.classList.add("is-disabled");
-    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dictée vocale disponible sur Chrome ou Edge. Firefox ne la prend pas en charge.";
     return;
   }
 
@@ -4537,7 +4538,7 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("start", () => {
     voiceNoteListening = true;
     startVoiceNote.classList.add("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸ”´</span> Arrêter la dictée';
+    startVoiceNote.innerHTML = '<span aria-hidden="true" class="voice-note-icon">REC</span> Arrêter la dictée';
     voiceNoteStatus.textContent = "J’écoute… parlez clairement, le texte s’ajoute à la note.";
   });
 
@@ -4564,7 +4565,7 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("end", () => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true" class="voice-note-icon">MIC</span> Dicter la note';
     if (voiceNoteStatus.textContent.startsWith("En cours")) {
       voiceNoteStatus.textContent = "Dictée terminée. Relisez puis enregistrez la note.";
     } else if (!voiceNoteStatus.textContent.includes("non disponible")) {
@@ -4575,7 +4576,7 @@ function setupVoiceNotes() {
   voiceRecognition.addEventListener("error", (event) => {
     voiceNoteListening = false;
     startVoiceNote.classList.remove("is-listening");
-    startVoiceNote.innerHTML = '<span aria-hidden="true">ðŸŽ™ï¸</span> Dicter la note';
+    startVoiceNote.innerHTML = '<span aria-hidden="true" class="voice-note-icon">MIC</span> Dicter la note';
     const messages = {
       "not-allowed": "Micro refusé. Autorisez le micro dans Chrome pour utiliser la dictée.",
       "no-speech": "Je n’ai pas entendu de voix. Réessayez en parlant plus près de la tablette.",
@@ -4588,7 +4589,7 @@ function setupVoiceNotes() {
 
 function toggleVoiceNote() {
   if (!voiceRecognition) {
-    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    voiceNoteStatus.textContent = "Dictée vocale disponible sur Chrome ou Edge. Firefox ne la prend pas en charge.";
     return;
   }
   if (!selectedNotesClient) {
