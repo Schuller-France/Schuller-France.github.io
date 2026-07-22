@@ -952,6 +952,8 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
   const ytdObjective = Number(sourceInfo.ytdObjectives?.[sector]) || 0;
   const annualObjective = Number(sourceInfo.annualObjectives?.[sector]) || 0;
+  const previousYtdFromForecast = Number(sourceInfo.previousYtd?.[sector]) || 0;
+  const previousMonthFromForecast = Number(sourceInfo.previousMonthly?.[sector]) || 0;
   const objectiveTarget = monthlyObjective || totalObjective;
   const objectiveRemaining = Math.max(0, objectiveTarget - totalRevenue);
   const objectivePercent = objectiveTarget > 0 ? (totalRevenue / objectiveTarget) * 100 : 0;
@@ -960,21 +962,23 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const monthTitle = `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)}`;
   const cumulativeLabel = `janvier-${monthName}`;
   const projectionValue = totalObjective > 0 ? totalObjective : totalRevenue;
+  const previousYtdValue = totalPrevious > 0 ? totalPrevious : previousYtdFromForecast;
+  const previousMonthValue = totalPreviousMonth > 0 ? totalPreviousMonth : previousMonthFromForecast;
 
   if (ytdObjective > 0 || projectionValue > 0) {
     goals.push(buildGoal(`Projection ${cumulativeLabel}`, projectionValue, ytdObjective, {
       note: ytdObjective > 0 ? buildComparisonNote(projectionValue, ytdObjective, "vs objectif") : "Objectif cumule absent du fichier previsionnel.",
     }));
   }
-  if (totalPrevious > 0) {
-    goals.push(buildGoal(`Comparaison N-1 ${cumulativeLabel}`, projectionValue, totalPrevious, {
-      note: buildComparisonNote(projectionValue, totalPrevious, "vs 2025"),
+  if (previousYtdValue > 0) {
+    goals.push(buildGoal(`Comparaison N-1 ${cumulativeLabel}`, projectionValue, previousYtdValue, {
+      note: buildComparisonNote(projectionValue, previousYtdValue, totalPrevious > 0 ? "vs 2025" : "vs réalisé prévisionnel"),
     }));
   } else {
     goals.push(buildGoal(`Comparaison N-1 ${cumulativeLabel}`, 0, 0, {
       percent: 0,
       valueLabel: "Donnee N-1 absente",
-      note: "Le fichier CA actualise ne contient pas de colonne N-1 cumulee exploitable.",
+      note: "Le fichier CA et le fichier Previsionnel ne contiennent pas de N-1 cumule exploitable.",
     }));
   }
   if (monthlyObjective > 0) {
@@ -988,15 +992,15 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       note: "Ajoute le mois dans le fichier Previsionnel 2026 pour afficher l objectif.",
     }));
   }
-  if (totalPreviousMonth > 0) {
-    goals.push(buildGoal(`${monthTitle} vs N-1`, totalRevenue, totalPreviousMonth, {
-      note: buildComparisonNote(totalRevenue, totalPreviousMonth, "vs 2025"),
+  if (previousMonthValue > 0) {
+    goals.push(buildGoal(`${monthTitle} vs N-1`, totalRevenue, previousMonthValue, {
+      note: buildComparisonNote(totalRevenue, previousMonthValue, totalPreviousMonth > 0 ? "vs 2025" : "vs réalisé prévisionnel"),
     }));
   } else {
     goals.push(buildGoal(`${monthTitle} vs N-1`, 0, 0, {
       percent: 0,
       valueLabel: "Donnee N-1 mois absente",
-      note: "Il faut une colonne N-1 du mois dans le fichier CA pour cette ligne.",
+      note: "Il faut un réalisé N-1 du mois dans le fichier CA ou dans le fichier Previsionnel.",
     }));
   }
   const safeGoals = goals.length
@@ -1070,6 +1074,9 @@ async function loadDashboardStatsFromDrive() {
       monthlyObjectives: result.monthlyObjectives || {},
       ytdObjectives: result.ytdObjectives || {},
       annualObjectives: result.annualObjectives || {},
+      previousMonthly: result.previousMonthly || {},
+      previousYtd: result.previousYtd || {},
+      previousAnnual: result.previousAnnual || {},
       objectiveMonthLabel: result.objectiveMonthLabel || "",
       objectiveMonthKey: result.objectiveMonthKey || "",
     });
