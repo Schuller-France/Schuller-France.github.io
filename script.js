@@ -1184,8 +1184,10 @@ function renderDashboard(user) {
         const percent = typeof goal.percent === "number" ? Math.min(Math.max(goal.percent, 0), 100) : (target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0);
         const displayCurrent = goal.format === "currency" ? formatter.format(current) : formatNumber(current);
         const displayTarget = goal.format === "currency" ? formatter.format(target) : formatNumber(target);
-        const valueLabel = goal.valueLabel || `${displayCurrent} / ${displayTarget}`;
-        return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(valueLabel)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
+        const valueBlock = goal.valueLabel
+          ? `<div class="goal-value-status">${escapeHtml(goal.valueLabel)}</div>`
+          : `<div class="goal-values"><span><small>Actuel</small><b>${escapeHtml(displayCurrent)}</b></span><span><small>Référence</small><b>${escapeHtml(displayTarget)}</b></span></div>`;
+        return `<div class="goal-item"><div class="goal-head"><strong>${escapeHtml(goal.label || "Indicateur")}</strong>${valueBlock}</div><div class="goal-track"><span style="width:${percent}%"></span></div><small class="goal-note">${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
       }).join("")
     : '<div class="dashboard-empty">Aucun objectif renseigné.</div>';
 

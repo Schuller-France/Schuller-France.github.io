@@ -1371,19 +1371,59 @@ h2 {
 .chart-column:hover .chart-bar { transform: scaleX(1.08); filter: brightness(1.04); }
 .chart-column strong { align-self: end; font-size: 0.76rem; color: var(--ink); font-weight: 900; }
 
-.goal-list { display: grid; gap: 18px; padding: 24px; }
+.goal-list { display: grid; gap: 16px; padding: 22px; }
 .goal-item {
-  padding: 16px;
+  padding: 16px 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #fbfcfd;
 }
-.goal-item > div:first-child { display: flex; justify-content: space-between; gap: 12px; }
-.goal-item strong { color: var(--ink); font-weight: 800; }
-.goal-item span, .goal-item small { color: var(--muted); }
+.goal-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+.goal-item strong { color: var(--ink); font-weight: 850; line-height: 1.25; }
+.goal-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(88px, auto));
+  gap: 8px;
+  justify-content: end;
+}
+.goal-values span {
+  min-width: 88px;
+  padding: 8px 10px;
+  border: 1px solid #edf0f3;
+  border-radius: 10px;
+  background: #fff;
+  text-align: right;
+  white-space: nowrap;
+}
+.goal-values small {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.goal-values b { color: var(--ink); font-size: 0.86rem; font-weight: 900; }
+.goal-value-status {
+  max-width: 145px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: right;
+}
 .goal-track { height: 10px; margin: 12px 0 8px; overflow: hidden; border-radius: 999px; background: #eceff2; }
 .goal-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--red-dark), var(--red)); }
-.goal-item small { font-size: 0.76rem; font-weight: 800; }
+.goal-note { display: block; color: var(--muted); font-size: 0.76rem; font-weight: 800; line-height: 1.35; }
 
 .dashboard-table-wrap { overflow-x: auto; padding: 0 22px 16px; }
 .dashboard-table { width: 100%; border-collapse: collapse; }
