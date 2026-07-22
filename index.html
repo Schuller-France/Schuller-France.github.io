@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722t" />
+    <link rel="stylesheet" href="style.css?v=20260722u" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -57,11 +57,6 @@
             <span id="loginProgressBar"></span>
           </div>
           <p id="loginProgressDetail">Préparation de votre espace commercial...</p>
-          <div class="login-progress-steps">
-            <span class="is-active" data-login-step="auth">Connexion</span>
-            <span data-login-step="data">Données</span>
-            <span data-login-step="dashboard">Tableau de bord</span>
-          </div>
         </div>
         <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
         <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oublié ?</button>
@@ -127,6 +122,7 @@
         </div>
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="client360Tab">Fiche client</button>
+        <button class="tab-button" type="button" id="statsTab">Statistiques</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
         <button class="tab-button" type="button" id="expensesTab">Frais</button>
@@ -259,6 +255,90 @@
               <div class="client360-list" id="client360Orders"></div>
             </article>
           </section>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="statsView">
+        <section class="panel stats-panel" aria-labelledby="statsTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Analyse commerciale</p>
+              <h2 id="statsTitle">Statistiques</h2>
+              <p class="helper-text">Filtrez par client, référence, article ou famille pour retrouver les quantités et le chiffre d'affaires N / N-1.</p>
+            </div>
+            <span class="status-pill" id="statsSourceBadge">Drive</span>
+          </div>
+
+          <section class="stats-filter-grid" aria-label="Filtres statistiques">
+            <label>
+              Client
+              <input id="statsClientFilter" type="search" autocomplete="off" placeholder="Nom ou code client..." />
+            </label>
+            <label>
+              Référence
+              <input id="statsReferenceFilter" type="search" autocomplete="off" placeholder="Code article..." />
+            </label>
+            <label>
+              Article
+              <input id="statsArticleFilter" type="search" autocomplete="off" placeholder="Nom article..." />
+            </label>
+            <label>
+              Famille
+              <input id="statsFamilyFilter" type="search" autocomplete="off" placeholder="Famille..." />
+            </label>
+            <label>
+              Trier par
+              <select id="statsSortSelect">
+                <option value="caDesc">CA 2026 décroissant</option>
+                <option value="qtyDesc">Quantité 2026 décroissante</option>
+                <option value="gapCaDesc">Écart CA le plus fort</option>
+                <option value="gapCaAsc">Plus forte baisse CA</option>
+                <option value="clientAsc">Client A-Z</option>
+                <option value="refAsc">Référence A-Z</option>
+              </select>
+            </label>
+            <button class="ghost-button" type="button" id="statsResetFilters">Effacer</button>
+          </section>
+
+          <section class="dashboard-grid stats-kpi-grid" aria-label="Résumé statistiques">
+            <article class="panel metric-card">
+              <span>CA 2026 filtré</span>
+              <strong id="statsTotalCa">--</strong>
+              <small id="statsTotalRows">0 ligne</small>
+            </article>
+            <article class="panel metric-card">
+              <span>CA N-1 filtré</span>
+              <strong id="statsTotalPreviousCa">--</strong>
+              <small>Comparaison année précédente</small>
+            </article>
+            <article class="panel metric-card">
+              <span>Écart CA</span>
+              <strong id="statsTotalGapCa">--</strong>
+              <small id="statsTotalGapQty">Écart quantités : --</small>
+            </article>
+          </section>
+
+          <div class="dashboard-table-wrap stats-table-wrap">
+            <table class="dashboard-table stats-table">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Référence</th>
+                  <th>Désignation</th>
+                  <th>Famille</th>
+                  <th>Qté 2026</th>
+                  <th>Qté N-1</th>
+                  <th>Écart Qté</th>
+                  <th>CA 2026</th>
+                  <th>CA N-1</th>
+                  <th>Écart CA</th>
+                </tr>
+              </thead>
+              <tbody id="statsArticleBody">
+                <tr><td colspan="10" class="dashboard-empty">Les statistiques articles apparaîtront ici après chargement Drive.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </main>
 
@@ -1028,7 +1108,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722t" charset="UTF-8"></script>
+    <script src="script.js?v=20260722u" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

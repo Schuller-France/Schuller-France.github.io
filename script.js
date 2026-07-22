@@ -132,6 +132,7 @@ const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
 const client360Tab = document.querySelector("#client360Tab");
+const statsTab = document.querySelector("#statsTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -148,6 +149,7 @@ const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
+const statsView = document.querySelector("#statsView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const expensesView = document.querySelector("#expensesView");
@@ -185,6 +187,19 @@ const checkingWarnCount = document.querySelector("#checkingWarnCount");
 const checkingRevenueTotal = document.querySelector("#checkingRevenueTotal");
 const checkingSource = document.querySelector("#checkingSource");
 const checkingUpdatedAt = document.querySelector("#checkingUpdatedAt");
+const statsClientFilter = document.querySelector("#statsClientFilter");
+const statsReferenceFilter = document.querySelector("#statsReferenceFilter");
+const statsArticleFilter = document.querySelector("#statsArticleFilter");
+const statsFamilyFilter = document.querySelector("#statsFamilyFilter");
+const statsSortSelect = document.querySelector("#statsSortSelect");
+const statsResetFilters = document.querySelector("#statsResetFilters");
+const statsSourceBadge = document.querySelector("#statsSourceBadge");
+const statsTotalCa = document.querySelector("#statsTotalCa");
+const statsTotalPreviousCa = document.querySelector("#statsTotalPreviousCa");
+const statsTotalGapCa = document.querySelector("#statsTotalGapCa");
+const statsTotalRows = document.querySelector("#statsTotalRows");
+const statsTotalGapQty = document.querySelector("#statsTotalGapQty");
+const statsArticleBody = document.querySelector("#statsArticleBody");
 const adminPrenetCommercialFilter = document.querySelector("#adminPrenetCommercialFilter");
 const adminPrenetSearch = document.querySelector("#adminPrenetSearch");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
@@ -1558,6 +1573,7 @@ async function loadClientArticleStatsFromDrive() {
     const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
     clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
     if (selectedClient360) selectClient360(selectedClient360);
+    renderCommercialStats();
   } catch (error) {
     // On garde la derniere version chargee pour ne pas bloquer le terrain.
   }
@@ -1949,6 +1965,121 @@ function renderClient360ArticleStats(topArticles) {
   `;
 }
 
+function getCommercialStatsRows() {
+  const rows = [];
+  const byClient = clientArticleStats360?.byClient || {};
+  const visibleByCode = new Map(visibleClients.map((client) => [normalize(client.code || ""), client]));
+  const visibleByName = new Map(visibleClients.map((client) => [normalize(client.name || ""), client]));
+  Object.values(byClient).forEach((clientBlock) => {
+    const summary = clientBlock?.summary || {};
+    const client = visibleByCode.get(normalize(summary.clientCode || "")) || visibleByName.get(normalize(summary.clientName || ""));
+    const articles = Array.isArray(clientBlock?.topArticles) ? clientBlock.topArticles : [];
+    articles.forEach((article) => {
+      const clientName = client?.name || article.clientName || summary.clientName || "Client inconnu";
+      const clientCode = client?.code || article.clientCode || summary.clientCode || "";
+      const quantity2026 = Number(article.quantity2026) || 0;
+      const quantity2025 = Number(article.quantity2025) || 0;
+      const ca2026 = Number(article.ca2026) || 0;
+      const ca2025 = Number(article.ca2025) || 0;
+      rows.push({
+        clientName,
+        clientCode,
+        sector: client?.sector || article.sector || summary.sector || "",
+        articleCode: article.articleCode || "",
+        articleName: article.articleName || "Article sans désignation",
+        family: article.family || "",
+        quantity2026,
+        quantity2025,
+        gapQuantity: Number(article.gapQuantity) || (quantity2026 - quantity2025),
+        ca2026,
+        ca2025,
+        gapCa: Number(article.gapCa) || (ca2026 - ca2025),
+      });
+    });
+  });
+  return rows;
+}
+
+function filterCommercialStatsRows() {
+  const clientQuery = normalize(statsClientFilter?.value || "");
+  const refQuery = normalize(statsReferenceFilter?.value || "");
+  const articleQuery = normalize(statsArticleFilter?.value || "");
+  const familyQuery = normalize(statsFamilyFilter?.value || "");
+  const sortMode = statsSortSelect?.value || "caDesc";
+  const rows = getCommercialStatsRows().filter((row) => {
+    const clientText = normalize([row.clientName, row.clientCode, row.sector].join(" "));
+    const refText = normalize(row.articleCode);
+    const articleText = normalize(row.articleName);
+    const familyText = normalize(row.family);
+    return (!clientQuery || clientText.includes(clientQuery))
+      && (!refQuery || refText.includes(refQuery))
+      && (!articleQuery || articleText.includes(articleQuery))
+      && (!familyQuery || familyText.includes(familyQuery));
+  });
+  const sorters = {
+    caDesc: (a, b) => b.ca2026 - a.ca2026,
+    qtyDesc: (a, b) => b.quantity2026 - a.quantity2026,
+    gapCaDesc: (a, b) => b.gapCa - a.gapCa,
+    gapCaAsc: (a, b) => a.gapCa - b.gapCa,
+    clientAsc: (a, b) => a.clientName.localeCompare(b.clientName, "fr", { numeric: true }),
+    refAsc: (a, b) => String(a.articleCode).localeCompare(String(b.articleCode), "fr", { numeric: true }),
+  };
+  return rows.sort(sorters[sortMode] || sorters.caDesc);
+}
+
+function renderCommercialStats() {
+  if (!statsArticleBody) return;
+  const rows = filterCommercialStatsRows();
+  const totalCa = rows.reduce((sum, row) => sum + row.ca2026, 0);
+  const totalPreviousCa = rows.reduce((sum, row) => sum + row.ca2025, 0);
+  const totalGapCa = totalCa - totalPreviousCa;
+  const totalGapQty = rows.reduce((sum, row) => sum + row.gapQuantity, 0);
+  if (statsSourceBadge) statsSourceBadge.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
+  if (statsTotalCa) statsTotalCa.textContent = formatWholeCurrency(totalCa);
+  if (statsTotalPreviousCa) statsTotalPreviousCa.textContent = formatWholeCurrency(totalPreviousCa);
+  if (statsTotalGapCa) {
+    statsTotalGapCa.textContent = formatWholeCurrencyDelta(totalGapCa);
+    statsTotalGapCa.classList.toggle("is-up", totalGapCa > 0);
+    statsTotalGapCa.classList.toggle("is-down", totalGapCa < 0);
+  }
+  if (statsTotalRows) statsTotalRows.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
+  if (statsTotalGapQty) statsTotalGapQty.textContent = `Écart quantités : ${formatNumberDelta(totalGapQty)}`;
+  if (!rows.length) {
+    statsArticleBody.innerHTML = `<tr><td colspan="10" class="dashboard-empty">${
+      clientArticleStats360?.available === false
+        ? "Aucune statistique Drive chargée pour le moment."
+        : "Aucune ligne ne correspond aux filtres."
+    }</td></tr>`;
+    return;
+  }
+  statsArticleBody.innerHTML = rows.slice(0, 250).map((row) => {
+    const gapCaClass = client360StatTrendClass(row.gapCa);
+    const gapQtyClass = client360StatTrendClass(row.gapQuantity);
+    return `
+      <tr>
+        <td><strong>${escapeHtml(row.clientName)}</strong><small>${escapeHtml(row.clientCode)} ${escapeHtml(row.sector)}</small></td>
+        <td><strong>${escapeHtml(row.articleCode || "-")}</strong></td>
+        <td>${escapeHtml(row.articleName)}</td>
+        <td>${escapeHtml(row.family || "-")}</td>
+        <td class="numeric"><strong>${escapeHtml(formatNumber(row.quantity2026))}</strong></td>
+        <td class="numeric muted">${escapeHtml(formatNumber(row.quantity2025))}</td>
+        <td class="numeric ${gapQtyClass}">${escapeHtml(formatNumberDelta(row.gapQuantity))}</td>
+        <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(row.ca2026))}</strong></td>
+        <td class="numeric muted">${escapeHtml(formatWholeCurrency(row.ca2025))}</td>
+        <td class="numeric ${gapCaClass}">${escapeHtml(formatWholeCurrencyDelta(row.gapCa))}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function resetCommercialStatsFilters() {
+  [statsClientFilter, statsReferenceFilter, statsArticleFilter, statsFamilyFilter].forEach((input) => {
+    if (input) input.value = "";
+  });
+  if (statsSortSelect) statsSortSelect.value = "caDesc";
+  renderCommercialStats();
+}
+
 function selectClient360(client) {
   selectedClient360 = client;
   if (client360Search) client360Search.value = client.name;
@@ -2241,6 +2372,7 @@ function arrangeTabsForUser(user) {
   [
     homeTab,
     client360Tab,
+    statsTab,
     orderTab,
     quoteTab,
     expensesTab,
@@ -2511,7 +2643,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, statsTab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
@@ -2540,6 +2672,7 @@ function showApp(user, token = user.token || "") {
   renderQuoteLines();
   renderQuoteHistory();
   resetExpenses();
+  resetCommercialStatsFilters();
   renderPrenetEmpty();
   renderNotesEmpty();
   selectedTourCodes = new Set();
@@ -2579,9 +2712,12 @@ function startLoginProgress() {
   setLoginProgressStep("auth");
   updateLoginProgress(18, "Connexion sécurisée", "Vérification de l'identifiant et du mot de passe...", "auth");
   loginProgressTimer = setInterval(() => {
-    const maxSoftValue = Math.max(12, loginProgressTarget - 2);
+    if (loginProgressTarget < 92) {
+      loginProgressTarget = Math.min(92, loginProgressTarget + 0.45);
+    }
+    const maxSoftValue = Math.max(12, loginProgressTarget - 1);
     if (loginProgressValue < maxSoftValue) {
-      loginProgressValue += Math.max(0.35, (maxSoftValue - loginProgressValue) * 0.08);
+      loginProgressValue += Math.max(0.35, (maxSoftValue - loginProgressValue) * 0.07);
       paintLoginProgress();
     }
   }, 120);
@@ -2593,6 +2729,21 @@ function finishLoginProgress() {
   paintLoginProgress();
   clearInterval(loginProgressTimer);
   loginProgressTimer = null;
+}
+
+function waitForLoginProgressComplete() {
+  return new Promise((resolve) => {
+    clearInterval(loginProgressTimer);
+    loginProgressTimer = setInterval(() => {
+      loginProgressValue += Math.max(1.8, (100 - loginProgressValue) * 0.18);
+      if (loginProgressValue >= 99.5) {
+        finishLoginProgress();
+        setTimeout(resolve, 220);
+        return;
+      }
+      paintLoginProgress();
+    }, 45);
+  });
 }
 
 function resetLoginProgress() {
@@ -2628,9 +2779,9 @@ async function submitLogin() {
     } else {
       updateLoginProgress(82, "Données locales prêtes", "Ouverture rapide avec les dernières données connues...", "data");
     }
-    updateLoginProgress(94, "Préparation de l'interface", "Mise en place des onglets et du tableau de bord...", "dashboard");
+    updateLoginProgress(96, "Préparation de l'interface", "Mise en place du tableau de bord...", "dashboard");
+    await waitForLoginProgressComplete();
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
-    finishLoginProgress();
     if (cached) refreshSecureAppDataInBackground(result.token, result.user?.id || "");
   } catch (error) {
     resetLoginProgress();
@@ -5081,6 +5232,7 @@ function openWazeNextClient() {
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showClient360 = tabName === "client360";
+  const showStats = tabName === "stats";
   const showOrder = tabName === "order";
   const showQuote = tabName === "quote";
   const showExpenses = tabName === "expenses";
@@ -5095,6 +5247,7 @@ function setActiveTab(tabName) {
   const showAdminPrenet = tabName === "adminPrenet";
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
+  statsTab.classList.toggle("is-active", showStats);
   orderTab.classList.toggle("is-active", showOrder);
   quoteTab.classList.toggle("is-active", showQuote);
   expensesTab.classList.toggle("is-active", showExpenses);
@@ -5109,6 +5262,7 @@ function setActiveTab(tabName) {
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
+  statsView.classList.toggle("is-hidden", !showStats);
   orderView.classList.toggle("is-hidden", !showOrder);
   quoteView.classList.toggle("is-hidden", !showQuote);
   expensesView.classList.toggle("is-hidden", !showExpenses);
@@ -5123,8 +5277,14 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
+  }
+
+  if (showStats) {
+    loadClientArticleStatsFromDrive();
+    renderCommercialStats();
+    requestAnimationFrame(() => statsClientFilter?.focus());
   }
 
   if (showClient360) {
@@ -5538,6 +5698,7 @@ document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
+statsTab.addEventListener("click", () => setActiveTab("stats"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));
@@ -5554,6 +5715,11 @@ refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
+statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
+[statsClientFilter, statsReferenceFilter, statsArticleFilter, statsFamilyFilter, statsSortSelect].forEach((control) => {
+  control?.addEventListener("input", renderCommercialStats);
+  control?.addEventListener("change", renderCommercialStats);
+});
 adminPrenetCommercialFilter?.addEventListener("change", renderAdminPrenets);
 adminPrenetSearch?.addEventListener("input", renderAdminPrenets);
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
