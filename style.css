@@ -3450,6 +3450,15 @@ h2 {
 .admin-actions label { min-width: 260px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
 .admin-actions select { min-height: 46px; width: 100%; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); color: var(--dark); font: inherit; font-weight: 800; }
 .admin-metrics { margin-bottom: 18px; }
+.admin-stats-summary {
+  grid-template-columns: minmax(280px, 420px);
+}
+.admin-revenue-card {
+  min-height: 128px;
+}
+.admin-revenue-card strong {
+  font-size: clamp(36px, 3vw, 50px);
+}
 .admin-dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .55fr); gap: 18px; margin-bottom: 18px; }
 .admin-feed-panel, .admin-summary-panel { overflow: hidden; }
 .admin-activity-feed { display: grid; gap: 12px; max-height: 620px; overflow: auto; padding: 18px; background: #fafbfc; }

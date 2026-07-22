@@ -721,8 +721,8 @@ function renderAdminChecking() {
 
   const warnCount = rows.filter((row) => !row.ok).length;
   const revenueTotal = rows.reduce((sum, row) => sum + row.revenue, 0);
-  checkingOkCount.textContent = String(rows.length);
-  checkingWarnCount.textContent = String(warnCount);
+  if (checkingOkCount) checkingOkCount.textContent = String(rows.length);
+  if (checkingWarnCount) checkingWarnCount.textContent = String(warnCount);
   checkingRevenueTotal.textContent = wholeCurrencyFormatter.format(roundMoney(revenueTotal));
   if (checkingSource) checkingSource.textContent = getAdminStatsMonthLabel(stats);
   checkingUpdatedAt.textContent = getAdminStatsMonthLabel(stats);

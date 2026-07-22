@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722o" />
+    <link rel="stylesheet" href="style.css?v=20260722p" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -930,10 +930,8 @@
             <button class="ghost-button" type="button" id="refreshAdminChecking">Actualiser les stats</button>
           </div>
         </section>
-        <section class="dashboard-grid admin-metrics" aria-label="Résumé statistiques">
-          <article class="panel metric-card"><span>Commerciaux suivis</span><strong id="checkingOkCount">0</strong><small>Données complètes</small></article>
-          <article class="panel metric-card"><span>À surveiller</span><strong id="checkingWarnCount">0</strong><small>Écart négatif ou donnée manquante</small></article>
-          <article class="panel metric-card"><span>CA Drive total</span><strong id="checkingRevenueTotal">0 €</strong><small id="checkingUpdatedAt">Juillet 2026</small></article>
+        <section class="dashboard-grid admin-metrics admin-stats-summary" aria-label="Résumé statistiques">
+          <article class="panel metric-card admin-revenue-card"><span>Chiffre d'affaires du mois</span><strong id="checkingRevenueTotal">0 €</strong><small id="checkingUpdatedAt">Juillet 2026</small></article>
         </section>
         <section class="panel admin-log-panel">
           <div class="panel-heading">
@@ -968,9 +966,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260722o" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260722p" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722o" charset="UTF-8"></script>
+    <script src="script.js?v=20260722p" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
