@@ -46,6 +46,8 @@ const displayModeStorageKey = "schullerDisplayMode";
 const themeStorageKey = "schullerTheme";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
+const dashboardStatsCacheKey = "schullerDashboardStatsCache";
+const dashboardStatsCacheMaxAgeMs = 24 * 60 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
@@ -653,6 +655,27 @@ function sumCommercialStat(commercial, getter) {
   return commercial.sectors.reduce((sum, sector) => sum + (Number(getter(getSectorStats(sector), sector)) || 0), 0);
 }
 
+function saveDashboardStatsCache() {
+  if (!dashboardStatsOverride) return;
+  try {
+    localStorage.setItem(dashboardStatsCacheKey, JSON.stringify({ savedAt: Date.now(), stats: dashboardStatsOverride }));
+  } catch (error) {
+    localStorage.removeItem(dashboardStatsCacheKey);
+  }
+}
+
+function restoreDashboardStatsCache() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(dashboardStatsCacheKey) || "null");
+    if (!cached?.stats || Date.now() - Number(cached.savedAt || 0) > dashboardStatsCacheMaxAgeMs) return false;
+    dashboardStatsOverride = cached.stats;
+    return true;
+  } catch (error) {
+    localStorage.removeItem(dashboardStatsCacheKey);
+    return false;
+  }
+}
+
 function getFirstSectorRank(commercial) {
   const raw = normalize(commercial.sectors?.[0] || commercial.sector || commercial.name || "");
   const match = raw.match(/(\d+)/);
@@ -1238,11 +1261,23 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 }
 
 async function loadDashboardStatsFromDrive() {
-  if (!currentSessionToken || dashboardStatsLoading) return;
+  if (!currentSessionToken) return;
+  if (dashboardStatsLoading) {
+    if (currentUser?.role === "admin") {
+      if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
+      if (adminCheckingBody && !dashboardStatsOverride) {
+        adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
+      }
+    }
+    return;
+  }
   dashboardStatsLoading = true;
   const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
   if (currentUser?.role === "admin") {
     if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
+    if (adminCheckingBody && !dashboardStatsOverride) {
+      adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
+    }
   } else {
     document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
   }
@@ -1264,6 +1299,7 @@ async function loadDashboardStatsFromDrive() {
       objectiveMonthLabel: result.objectiveMonthLabel || "",
       objectiveMonthKey: result.objectiveMonthKey || "",
     });
+    saveDashboardStatsCache();
     if (currentUser?.role === "admin") {
       renderAdminChecking();
     } else {
@@ -2250,12 +2286,17 @@ function showApp(user, token = user.token || "") {
     selectedTourCodes = new Set();
     renderTourPlanner();
     setActiveTab("admin");
+    restoreDashboardStatsCache();
     loadDashboardStatsFromDrive();
     return;
   }
 
   resetOrder();
   renderDashboardSectorSwitch(currentUser);
+  if (restoreDashboardStatsCache()) {
+    renderDashboardSectorSwitch(currentUser);
+    renderDashboard(currentUser);
+  }
   renderDashboard(currentUser);
   loadDashboardStatsFromDrive();
   startDriveAutoRefresh();
@@ -4823,7 +4864,12 @@ function setActiveTab(tabName) {
 
   if (showAdmin) loadAdminLogs();
   if (showAdminChecking) {
+    if (!dashboardStatsOverride) restoreDashboardStatsCache();
     if (dashboardStatsOverride) renderAdminChecking();
+    else if (dashboardStatsLoading && adminCheckingBody) {
+      if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
+      adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
+    }
     else loadDashboardStatsFromDrive();
   }
 
