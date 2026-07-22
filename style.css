@@ -4059,6 +4059,192 @@ h2 {
   }
 }
 
+/* Refonte PC premium sobre — inspirée de la maquette Claude Design.
+   Ces règles ne touchent pas au mode tablette : elles changent uniquement
+   l'ossature PC avec une navigation latérale noire et un contenu plus posé. */
+body:not(.tablet-mode) {
+  background: #f5f6f8;
+}
+
+body:not(.tablet-mode) .app-view:not(.is-hidden) {
+  display: grid;
+  grid-template-columns: 284px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  background: #f5f6f8;
+}
+
+body:not(.tablet-mode) .app-header {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 72px;
+  padding: 14px 32px;
+  background: rgba(245, 246, 248, .94);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+body:not(.tablet-mode) .brand-lockup {
+  min-width: 150px;
+}
+
+body:not(.tablet-mode) .brand-lockup img {
+  display: none;
+}
+
+body:not(.tablet-mode) .brand-lockup .eyebrow {
+  padding-left: 0;
+  border-left: 0;
+  color: #e30613;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+
+body:not(.tablet-mode) .global-search {
+  max-width: 640px;
+}
+
+body:not(.tablet-mode) .global-search input {
+  min-height: 42px;
+  background: #fff;
+  border-color: #e1e5eb;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+body:not(.tablet-mode) .header-actions {
+  gap: 8px;
+}
+
+body:not(.tablet-mode) .offline-status {
+  min-height: 34px;
+}
+
+body:not(.tablet-mode) .ghost-button {
+  min-height: 40px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+body:not(.tablet-mode) .app-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 284px;
+  height: 100vh;
+  margin: 0;
+  padding: 28px 16px;
+  overflow-y: auto;
+  background: #171717;
+  border-right: 1px solid rgba(255, 255, 255, .06);
+}
+
+body:not(.tablet-mode) .app-tabs::before {
+  content: "Schuller Eh'Klar";
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 0 0 28px;
+  padding-left: 40px;
+  color: #fff;
+  background:
+    linear-gradient(#e30613, #e30613) left center / 28px 28px no-repeat;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+body:not(.tablet-mode) .app-tabs .tab-button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  color: #cbd5e1;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+body:not(.tablet-mode) .app-tabs .tab-button::before {
+  display: none;
+}
+
+body:not(.tablet-mode) .app-tabs .tab-button:hover {
+  transform: none;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: none;
+}
+
+body:not(.tablet-mode) .app-tabs .tab-button.is-active {
+  color: #fff;
+  background: #e30613;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body:not(.tablet-mode) .app-tabs .tab-button.is-hidden {
+  display: none !important;
+}
+
+body:not(.tablet-mode) .app-shell {
+  grid-column: 2;
+  width: min(1320px, 100%);
+  margin: 0;
+  padding: 28px 40px 44px;
+}
+
+body:not(.tablet-mode) .panel {
+  border-color: #dde2ea;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+body:not(.tablet-mode) .primary-button {
+  min-height: 44px;
+  border-radius: 8px;
+  background: #e30613;
+  border-color: #e30613;
+  box-shadow: none;
+}
+
+body:not(.tablet-mode) .primary-button:hover {
+  background: #b8000d;
+  border-color: #b8000d;
+}
+
+body:not(.tablet-mode) .dashboard-hero {
+  background: #fff;
+  border-left: 0;
+}
+
+body:not(.tablet-mode) .dashboard-hero h2,
+body:not(.tablet-mode) .panel-heading h2,
+body:not(.tablet-mode) h1,
+body:not(.tablet-mode) h2,
+body:not(.tablet-mode) h3 {
+  letter-spacing: -.03em;
+}
+
+body:not(.tablet-mode) .metric-card {
+  background: #fff;
+  border-color: #e5e7eb;
+}
+
+body:not(.tablet-mode) .metric-card strong {
+  color: #050505;
+  letter-spacing: -.04em;
+}
+
 /* Priorité finale du mode tablette : ces règles ne changent jamais la version PC. */
 .tablet-mode .app-tabs {
   flex-direction: row;
