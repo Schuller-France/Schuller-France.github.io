@@ -510,17 +510,13 @@ function renderAdminScopeOptions(logs, expenseReports = []) {
   const selected = adminScopeFilter.value || "all";
   const options = [{ value: "all", label: "Tous les commerciaux" }];
   const users = new Map();
-  const sectors = new Set();
   adminCommercials.forEach((commercial) => {
     users.set(commercial.id, commercial.name);
-    commercial.sectors.forEach((sector) => sectors.add(sector));
   });
   [...logs, ...expenseReports].forEach((item) => {
     if (item.userId) users.set(item.userId, item.userName || item.userId);
-    String(item.sectors || "").split("+").map((sector) => sector.trim()).filter(Boolean).forEach((sector) => sectors.add(sector));
   });
   [...users.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr")).forEach(([id, name]) => options.push({ value: `user:${id}`, label: name }));
-  [...sectors].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })).forEach((sector) => options.push({ value: `sector:${sector}`, label: sector }));
   adminScopeFilter.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
   adminScopeFilter.value = options.some((option) => option.value === selected) ? selected : "all";
 }
