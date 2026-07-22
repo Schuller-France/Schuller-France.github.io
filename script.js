@@ -47,7 +47,7 @@ const themeStorageKey = "schullerTheme";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const dashboardStatsCacheKey = "schullerDashboardStatsCache";
-const dashboardStatsCacheMaxAgeMs = 24 * 60 * 60 * 1000;
+const dashboardStatsCacheMaxAgeMs = 5 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
@@ -658,7 +658,12 @@ function sumCommercialStat(commercial, getter) {
 function saveDashboardStatsCache() {
   if (!dashboardStatsOverride) return;
   try {
-    localStorage.setItem(dashboardStatsCacheKey, JSON.stringify({ savedAt: Date.now(), stats: dashboardStatsOverride }));
+    localStorage.setItem(dashboardStatsCacheKey, JSON.stringify({
+      savedAt: Date.now(),
+      sourceFile: dashboardStatsOverride.sourceFile || "",
+      updatedAt: dashboardStatsOverride.updatedAt || "",
+      stats: dashboardStatsOverride,
+    }));
   } catch (error) {
     localStorage.removeItem(dashboardStatsCacheKey);
   }
@@ -674,6 +679,13 @@ function restoreDashboardStatsCache() {
     localStorage.removeItem(dashboardStatsCacheKey);
     return false;
   }
+}
+
+function clearDashboardStatsCache() {
+  dashboardStatsOverride = null;
+  try {
+    localStorage.removeItem(dashboardStatsCacheKey);
+  } catch (error) {}
 }
 
 function getFirstSectorRank(commercial) {
@@ -702,6 +714,18 @@ function getAdminStatsMonthLabel(stats) {
   const label = sectorStats.kpis?.objectiveMonthLabel || "";
   if (!label) return "Juillet 2026";
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function isAdminRevenueSector(sector) {
+  const clean = normalizeStatsSector(sector);
+  return /^Secteur (1|2|3|4|4A|5|5A|6|7|8|9)$/.test(clean);
+}
+
+function getAdminTotalRevenueFromDrive(stats) {
+  return Object.entries(stats.bySector || {}).reduce((sum, [sector, sectorStats]) => {
+    if (!isAdminRevenueSector(sector)) return sum;
+    return sum + (Number(sectorStats?.kpis?.revenue) || 0);
+  }, 0);
 }
 
 function renderAdminCheckingError() {
@@ -743,7 +767,7 @@ function renderAdminChecking() {
   });
 
   const warnCount = rows.filter((row) => !row.ok).length;
-  const revenueTotal = rows.reduce((sum, row) => sum + row.revenue, 0);
+  const revenueTotal = getAdminTotalRevenueFromDrive(stats);
   if (checkingOkCount) checkingOkCount.textContent = String(rows.length);
   if (checkingWarnCount) checkingWarnCount.textContent = String(warnCount);
   checkingRevenueTotal.textContent = wholeCurrencyFormatter.format(roundMoney(revenueTotal));
@@ -1257,11 +1281,14 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
   return {
     bySector,
     default: bySector["Secteur 9"] || Object.values(bySector)[0] || localStatsData.default || {},
+    sourceFile: sourceInfo.sourceFile || "",
+    updatedAt: sourceInfo.updatedAt || "",
   };
 }
 
-async function loadDashboardStatsFromDrive() {
+async function loadDashboardStatsFromDrive(options = {}) {
   if (!currentSessionToken) return;
+  if (options.force) clearDashboardStatsCache();
   if (dashboardStatsLoading) {
     if (currentUser?.role === "admin") {
       if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
@@ -2204,10 +2231,11 @@ function stopDriveAutoRefresh() {
 
 function startDriveAutoRefresh() {
   stopDriveAutoRefresh();
-  if (!currentSessionToken || currentUser?.role === "admin") return;
+  if (!currentSessionToken) return;
   driveAutoRefreshTimer = setInterval(() => {
-    if (document.hidden || !currentSessionToken || currentUser?.role === "admin") return;
+    if (document.hidden || !currentSessionToken) return;
     loadDashboardStatsFromDrive();
+    if (currentUser?.role === "admin") return;
     loadBacklogItems(true);
     loadClientArticleStatsFromDrive();
   }, driveAutoRefreshMs);
@@ -2288,6 +2316,7 @@ function showApp(user, token = user.token || "") {
     setActiveTab("admin");
     restoreDashboardStatsCache();
     loadDashboardStatsFromDrive();
+    startDriveAutoRefresh();
     return;
   }
 
@@ -5242,7 +5271,7 @@ adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
-refreshAdminChecking.addEventListener("click", loadDashboardStatsFromDrive);
+refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });
