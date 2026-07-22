@@ -722,6 +722,12 @@ function isAdminRevenueSector(sector) {
 }
 
 function getAdminTotalRevenueFromDrive(stats) {
+  if (stats.sectorRevenue && Object.keys(stats.sectorRevenue).length) {
+    return Object.entries(stats.sectorRevenue).reduce((sum, [sector, revenue]) => {
+      if (!isAdminRevenueSector(sector)) return sum;
+      return sum + (Number(revenue) || 0);
+    }, 0);
+  }
   return Object.entries(stats.bySector || {}).reduce((sum, [sector, sectorStats]) => {
     if (!isAdminRevenueSector(sector)) return sum;
     return sum + (Number(sectorStats?.kpis?.revenue) || 0);
@@ -1170,6 +1176,10 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const median = values.length ? values[Math.floor(values.length / 2)] : 0;
   const goals = [];
   const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
+  const sectorRevenueFromSummary = Number(sourceInfo.sectorRevenue?.[sector]) || 0;
+  if (sectorRevenueFromSummary > 0) {
+    totalRevenue = sectorRevenueFromSummary;
+  }
   const ytdObjective = Number(sourceInfo.ytdObjectives?.[sector]) || 0;
   const annualObjective = Number(sourceInfo.annualObjectives?.[sector]) || 0;
   const realizedYtdFromForecast = Number(sourceInfo.realizedYtd?.[sector]) || 0;
@@ -1277,12 +1287,18 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
   Object.keys(grouped).forEach((sector) => {
     bySector[sector] = buildStatsForSector(sector, grouped[sector], sourceInfo, getFallbackStatsForSector(sector));
   });
+  Object.keys(sourceInfo.sectorRevenue || {}).forEach((sector) => {
+    const normalizedSector = normalizeStatsSector(sector);
+    if (!normalizedSector || bySector[normalizedSector]) return;
+    bySector[normalizedSector] = buildStatsForSector(normalizedSector, [], sourceInfo, getFallbackStatsForSector(normalizedSector));
+  });
 
   return {
     bySector,
     default: bySector["Secteur 9"] || Object.values(bySector)[0] || localStatsData.default || {},
     sourceFile: sourceInfo.sourceFile || "",
     updatedAt: sourceInfo.updatedAt || "",
+    sectorRevenue: sourceInfo.sectorRevenue || {},
   };
 }
 
@@ -1313,6 +1329,7 @@ async function loadDashboardStatsFromDrive(options = {}) {
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
       updatedAt: result.updatedAt,
       sourceFile: result.sourceFile,
+      sectorRevenue: result.sectorRevenue || {},
       monthlyObjectives: result.monthlyObjectives || {},
       ytdObjectives: result.ytdObjectives || {},
       annualObjectives: result.annualObjectives || {},
