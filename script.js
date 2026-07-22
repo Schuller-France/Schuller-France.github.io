@@ -314,7 +314,12 @@ async function postService(parameters) {
     });
     throw new Error("Le service Google a renvoyé une réponse invalide. Reconnectez-vous ou réessayez dans quelques instants.");
   }
-  if (!result.ok) throw new Error(result.message || "Opération impossible.");
+  if (!result.ok) {
+    const serviceError = new Error(result.message || "Opération impossible.");
+    serviceError.servicePayload = result;
+    serviceError.serviceAction = payload.action;
+    throw serviceError;
+  }
   return result;
 }
 
@@ -456,6 +461,23 @@ function toggleThemeMode() {
   setThemeMode(document.body.classList.contains("dark-theme") ? "light" : "dark");
 }
 
+function isSessionError(error) {
+  const message = normalize(error?.message || "");
+  return message.includes("session expire")
+    || message.includes("session invalide")
+    || message.includes("acces refuse")
+    || message.includes("reconnectez");
+}
+
+function expireCurrentSession(message = "Votre session a expiré. Reconnectez-vous.") {
+  const previousId = currentUser?.id || loginId.value || "";
+  showLogin();
+  loginId.value = previousId;
+  loginError.textContent = message;
+  loginError.className = "login-error";
+  requestAnimationFrame(() => loginPassword.focus());
+}
+
 async function loadAdminLogs() {
   if (currentUser?.role !== "admin") return;
   adminLogStatus.textContent = "Actualisation…";
@@ -471,6 +493,10 @@ async function loadAdminLogs() {
     renderAdminDashboard();
     adminLogStatus.textContent = "À jour";
   } catch (error) {
+    if (isSessionError(error)) {
+      expireCurrentSession("Votre session admin a expiré. Reconnectez-vous pour charger le journal.");
+      return;
+    }
     adminLogStatus.textContent = "Erreur d’actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
@@ -1222,6 +1248,12 @@ async function loadDashboardStatsFromDrive() {
       renderDashboard(currentUser);
     }
   } catch (error) {
+    if (isSessionError(error)) {
+      expireCurrentSession(currentUser?.role === "admin"
+        ? "Votre session admin a expiré. Reconnectez-vous pour charger le checking stats."
+        : "Votre session a expiré. Reconnectez-vous pour actualiser les statistiques.");
+      return;
+    }
     if (currentUser?.role === "admin") {
       renderAdminCheckingError();
     } else {
