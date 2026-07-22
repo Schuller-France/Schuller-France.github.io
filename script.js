@@ -293,11 +293,27 @@ async function postService(parameters) {
   if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
   const payload = { ...parameters };
   if (currentSessionToken && !payload.token) payload.token = currentSessionToken;
-  const response = await fetch(tariffConfig.endpoint, {
-    method: "POST",
-    body: new URLSearchParams(payload),
-  });
-  const result = JSON.parse(await response.text());
+  let response;
+  try {
+    response = await fetch(tariffConfig.endpoint, {
+      method: "POST",
+      body: new URLSearchParams(payload),
+    });
+  } catch (error) {
+    throw new Error("Connexion au service Google impossible. Vérifiez la connexion internet puis réessayez.");
+  }
+  const rawText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(rawText);
+  } catch (error) {
+    console.warn("Réponse Google non JSON", {
+      status: response.status,
+      action: payload.action,
+      preview: rawText.slice(0, 300),
+    });
+    throw new Error("Le service Google a renvoyé une réponse invalide. Reconnectez-vous ou réessayez dans quelques instants.");
+  }
   if (!result.ok) throw new Error(result.message || "Opération impossible.");
   return result;
 }
