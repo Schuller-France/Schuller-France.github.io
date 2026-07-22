@@ -965,6 +965,8 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const monthlyObjective = Number(sourceInfo.monthlyObjectives?.[sector]) || 0;
   const ytdObjective = Number(sourceInfo.ytdObjectives?.[sector]) || 0;
   const annualObjective = Number(sourceInfo.annualObjectives?.[sector]) || 0;
+  const realizedYtdFromForecast = Number(sourceInfo.realizedYtd?.[sector]) || 0;
+  const realizedYtdBeforeMonth = Number(sourceInfo.realizedYtdBeforeMonth?.[sector]) || 0;
   const previousYtdFromForecast = Number(sourceInfo.previousYtd?.[sector]) || 0;
   const previousMonthFromForecast = Number(sourceInfo.previousMonthly?.[sector]) || 0;
   const objectiveTarget = monthlyObjective || totalObjective;
@@ -974,7 +976,8 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
   const monthName = monthNameFromObjectiveLabel(objectiveMonthLabel);
   const monthTitle = `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)}`;
   const cumulativeLabel = `janvier-${monthName}`;
-  const projectionValue = totalObjective > 0 ? totalObjective : totalRevenue;
+  const ytdWithCurrentMonth = realizedYtdBeforeMonth > 0 ? realizedYtdBeforeMonth + totalRevenue : 0;
+  const projectionValue = Math.max(totalObjective, ytdWithCurrentMonth, realizedYtdFromForecast, totalRevenue);
   const previousYtdValue = totalPrevious > 0 ? totalPrevious : previousYtdFromForecast;
   const previousMonthValue = totalPreviousMonth > 0 ? totalPreviousMonth : previousMonthFromForecast;
 
@@ -1087,6 +1090,10 @@ async function loadDashboardStatsFromDrive() {
       monthlyObjectives: result.monthlyObjectives || {},
       ytdObjectives: result.ytdObjectives || {},
       annualObjectives: result.annualObjectives || {},
+      realizedMonthly: result.realizedMonthly || {},
+      realizedYtd: result.realizedYtd || {},
+      realizedYtdBeforeMonth: result.realizedYtdBeforeMonth || {},
+      realizedAnnual: result.realizedAnnual || {},
       previousMonthly: result.previousMonthly || {},
       previousYtd: result.previousYtd || {},
       previousAnnual: result.previousAnnual || {},
