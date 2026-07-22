@@ -4186,19 +4186,40 @@ body:not(.tablet-mode) .app-tabs {
 }
 
 body:not(.tablet-mode) .app-tabs::before {
-  content: "Schuller Eh'Klar";
+  content: none;
+}
+
+body:not(.tablet-mode) .sidebar-brand {
   display: flex;
   align-items: center;
+  gap: 12px;
   min-height: 40px;
   margin: 0 0 28px;
-  padding-left: 40px;
   color: #fff;
-  background:
-    linear-gradient(#e30613, #e30613) left center / 28px 28px no-repeat;
-  border-radius: 8px;
   font-size: 16px;
   font-weight: 900;
   letter-spacing: -.02em;
+}
+
+body:not(.tablet-mode) .sidebar-logo {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, .22);
+}
+
+body:not(.tablet-mode) .sidebar-logo img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.tablet-mode .sidebar-brand {
+  display: none;
 }
 
 body:not(.tablet-mode) .app-tabs .tab-button {
@@ -4258,6 +4279,140 @@ body:not(.tablet-mode) .panel {
   border-color: #dde2ea;
   border-radius: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+/* Thème sombre : même structure, ambiance plus terrain et moins éblouissante. */
+body.dark-theme {
+  --ink: #f8fafc;
+  --muted: #aeb8c6;
+  --subtle: #7f8a9b;
+  --line: #2b3340;
+  --soft: #0f141b;
+  --soft-2: #171e28;
+  --white: #151b24;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .28), 0 18px 38px rgba(0, 0, 0, .26);
+  --shadow-hover: 0 18px 42px rgba(227, 6, 19, .18);
+  color: var(--ink);
+  background: #0f141b;
+}
+
+body.dark-theme:not(.tablet-mode) .app-view,
+body.dark-theme.tablet-mode .app-view,
+body.dark-theme:not(.tablet-mode) .app-header {
+  background: #0f141b;
+}
+
+body.dark-theme:not(.tablet-mode) .app-header,
+body.dark-theme .app-header {
+  border-bottom-color: #242c38;
+}
+
+body.dark-theme:not(.tablet-mode) .app-tabs {
+  background: #090c11;
+  border-right-color: rgba(255, 255, 255, .08);
+}
+
+body.dark-theme:not(.tablet-mode) .sidebar-logo {
+  background: #fff;
+}
+
+body.dark-theme .panel,
+body.dark-theme .metric-card,
+body.dark-theme .dashboard-card,
+body.dark-theme .selected-client,
+body.dark-theme .client-card,
+body.dark-theme .quote-client-card,
+body.dark-theme .quote-lines-card,
+body.dark-theme .quote-history-card,
+body.dark-theme .tarif-card,
+body.dark-theme .tarif-send-form,
+body.dark-theme .document-card,
+body.dark-theme .promotion-card,
+body.dark-theme .tour-card,
+body.dark-theme .notes-card,
+body.dark-theme .expense-card,
+body.dark-theme .goal-item,
+body.dark-theme .dashboard-empty,
+body.dark-theme .global-search-results {
+  color: var(--ink);
+  background: #151b24;
+  border-color: #2b3340;
+  box-shadow: var(--shadow);
+}
+
+body.dark-theme .metric-icon,
+body.dark-theme .goal-values span,
+body.dark-theme .goal-value-status,
+body.dark-theme .dashboard-table th,
+body.dark-theme .quote-table th,
+body.dark-theme .quote-table td,
+body.dark-theme .order-table th,
+body.dark-theme .order-table td {
+  background: #10161f;
+  border-color: #2b3340;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select,
+body.dark-theme .global-search input,
+body.dark-theme:not(.tablet-mode) .global-search input {
+  color: var(--ink);
+  background: #0f141b;
+  border-color: #303a48;
+  box-shadow: none;
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+  color: #7f8a9b;
+}
+
+body.dark-theme .ghost-button,
+body.dark-theme:not(.tablet-mode) .ghost-button,
+body.dark-theme .tab-button,
+body.dark-theme .secondary-button {
+  color: #edf2f7;
+  background: #151b24;
+  border-color: #303a48;
+}
+
+body.dark-theme .theme-toggle {
+  border-color: rgba(227, 6, 19, .35);
+}
+
+body.dark-theme .chart-bar-track,
+body.dark-theme .goal-track {
+  background: #242c38;
+  border-color: #303a48;
+}
+
+body.dark-theme .dashboard-table th,
+body.dark-theme .dashboard-table td,
+body.dark-theme .quote-table th,
+body.dark-theme .quote-table td,
+body.dark-theme .order-table th,
+body.dark-theme .order-table td {
+  border-bottom-color: #2b3340;
+}
+
+body.dark-theme .chart-column strong,
+body.dark-theme .goal-item strong,
+body.dark-theme .dashboard-table td strong,
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4 {
+  color: #f8fafc;
+}
+
+body.dark-theme .chart-value,
+body.dark-theme .goal-note,
+body.dark-theme .goal-values small,
+body.dark-theme .section-subtitle,
+body.dark-theme small,
+body.dark-theme .muted {
+  color: #aeb8c6;
 }
 
 body:not(.tablet-mode) .primary-button {

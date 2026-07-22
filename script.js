@@ -43,6 +43,7 @@ const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
 const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
+const themeStorageKey = "schullerTheme";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
@@ -98,6 +99,7 @@ const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const displayModeToggle = document.querySelector("#displayModeToggle");
+const themeToggle = document.querySelector("#themeToggle");
 const offlineStatus = document.querySelector("#offlineStatus");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const globalSearchResults = document.querySelector("#globalSearchResults");
@@ -406,6 +408,17 @@ function setDisplayMode(mode) {
 
 function toggleDisplayMode() {
   setDisplayMode(document.body.classList.contains("tablet-mode") ? "pc" : "tablet");
+}
+
+function setThemeMode(mode) {
+  const dark = mode === "dark";
+  document.body.classList.toggle("dark-theme", dark);
+  localStorage.setItem(themeStorageKey, dark ? "dark" : "light");
+  if (themeToggle) themeToggle.textContent = dark ? "Mode clair" : "Mode sombre";
+}
+
+function toggleThemeMode() {
+  setThemeMode(document.body.classList.contains("dark-theme") ? "light" : "dark");
 }
 
 async function loadAdminLogs() {
@@ -5177,6 +5190,7 @@ promotionGrid.addEventListener("click", (event) => {
 });
 closePromotionModal.addEventListener("click", closePromotionPreview);
 displayModeToggle.addEventListener("click", toggleDisplayMode);
+themeToggle?.addEventListener("click", toggleThemeMode);
 globalSearchInput?.addEventListener("input", renderGlobalSearchResults);
 globalSearchResults?.addEventListener("click", (event) => {
   const resultButton = event.target.closest("[data-global-result]");
@@ -5236,5 +5250,6 @@ updateOfflineStatus();
 window.addEventListener("online", updateOfflineStatus);
 window.addEventListener("offline", updateOfflineStatus);
 setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
+setThemeMode(localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light");
 setVisitActionVisibility();
 restoreSession();

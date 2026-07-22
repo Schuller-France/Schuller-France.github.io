@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722f" />
+    <link rel="stylesheet" href="style.css?v=20260722g" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -99,12 +99,17 @@
         </div>
         <div class="header-actions">
           <span class="offline-status is-online" id="offlineStatus">En ligne</span>
+          <button class="ghost-button theme-toggle" type="button" id="themeToggle">Mode sombre</button>
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
           <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
         </div>
       </header>
 
       <nav class="app-tabs" aria-label="Navigation application">
+        <div class="sidebar-brand" aria-hidden="true">
+          <span class="sidebar-logo"><img src="assets/schuller-logo.png" alt="" /></span>
+          <span>Schuller Eh'Klar</span>
+        </div>
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="client360Tab">Fiche client</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
@@ -917,9 +922,9 @@
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260722f" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260722g" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722f" charset="UTF-8"></script>
+    <script src="script.js?v=20260722g" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
