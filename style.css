@@ -1134,6 +1134,8 @@ body.theme-dark .login-progress-steps span {
 #prenetTab::before { content: "€"; }
 #backlogTab::before { content: "!"; }
 #adminTab::before { content: "≡"; }
+#adminCheckingTab::before { content: "◈"; }
+#adminPrenetTab::before { content: "€"; }
 
 .tab-button:hover {
   transform: translateY(-1px);
@@ -3643,6 +3645,70 @@ h2 {
   color: #fff;
   background: #e30613;
   border-color: #e30613;
+}
+
+.admin-prenet-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-prenet-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(260px, 1fr);
+  gap: 14px;
+  align-items: end;
+}
+
+.admin-prenet-filters label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-prenet-filters select,
+.admin-prenet-filters input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 14px;
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-prenet-filters select:focus,
+.admin-prenet-filters input:focus {
+  border-color: rgba(227, 6, 19, 0.55);
+  box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
+  outline: none;
+}
+
+.admin-prenet-table th:nth-child(3),
+.admin-prenet-table td:nth-child(3),
+.admin-prenet-table th:nth-child(5),
+.admin-prenet-table td:nth-child(5) {
+  min-width: 220px;
+}
+
+.admin-prenet-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.admin-prenet-table .numeric {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 

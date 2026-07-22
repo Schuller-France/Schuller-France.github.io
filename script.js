@@ -145,6 +145,7 @@ const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const adminCheckingTab = document.querySelector("#adminCheckingTab");
+const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const orderView = document.querySelector("#orderView");
@@ -159,6 +160,7 @@ const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
 const adminView = document.querySelector("#adminView");
 const adminCheckingView = document.querySelector("#adminCheckingView");
+const adminPrenetView = document.querySelector("#adminPrenetView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogBody = document.querySelector("#adminLogBody");
 const adminLogStatus = document.querySelector("#adminLogStatus");
@@ -183,6 +185,10 @@ const checkingWarnCount = document.querySelector("#checkingWarnCount");
 const checkingRevenueTotal = document.querySelector("#checkingRevenueTotal");
 const checkingSource = document.querySelector("#checkingSource");
 const checkingUpdatedAt = document.querySelector("#checkingUpdatedAt");
+const adminPrenetCommercialFilter = document.querySelector("#adminPrenetCommercialFilter");
+const adminPrenetSearch = document.querySelector("#adminPrenetSearch");
+const adminPrenetBody = document.querySelector("#adminPrenetBody");
+const adminPrenetCount = document.querySelector("#adminPrenetCount");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -1150,6 +1156,91 @@ function selectPrenetClient(client) {
     <div id="prenetReferenceResults">
       ${renderPrenetReferenceResults(client)}
     </div>`;
+}
+
+function setupAdminPrenetFilters() {
+  if (!adminPrenetCommercialFilter) return;
+  const currentValue = adminPrenetCommercialFilter.value || "all";
+  adminPrenetCommercialFilter.innerHTML = `
+    <option value="all">Tous les commerciaux</option>
+    ${adminCommercials.map((commercial) => `<option value="${escapeHtml(commercial.id)}">${escapeHtml(commercial.name)}</option>`).join("")}
+  `;
+  adminPrenetCommercialFilter.value = adminCommercials.some((item) => item.id === currentValue) ? currentValue : "all";
+}
+
+function getAdminCommercialForPrenetClient(client) {
+  const clientSector = normalizeStatsSector(client?.sector || "");
+  if (!clientSector) return null;
+  return adminCommercials.find((commercial) => {
+    const sectors = commercial.revenueSectors || commercial.sectors || [];
+    return sectors.some((sector) => normalizeStatsSector(sector) === clientSector);
+  }) || null;
+}
+
+function getAdminPrenetRows() {
+  const selectedCommercialId = adminPrenetCommercialFilter?.value || "all";
+  const cleanQuery = normalize(adminPrenetSearch?.value || "");
+  const rows = [];
+
+  prenetClients.forEach((client) => {
+    const commercial = getAdminCommercialForPrenetClient(client);
+    if (selectedCommercialId !== "all" && commercial?.id !== selectedCommercialId) return;
+    const entries = getPrenetNewEntries(client);
+    entries.forEach((entry) => {
+      const row = {
+        commercial: commercial?.name || "Non attribué",
+        sector: normalizeStatsSector(client.sector || "") || client.sector || "-",
+        clientName: client.name || "Client",
+        clientCode: client.code || "",
+        ref: entry.ref || "",
+        designation: entry.designation || "",
+        quantity: entry.quantity,
+        price: Number(entry.price) || 0,
+      };
+      const haystack = normalize([
+        row.commercial,
+        row.sector,
+        row.clientName,
+        row.clientCode,
+        row.ref,
+        row.designation,
+        row.quantity,
+        row.price,
+      ].join(" "));
+      if (!cleanQuery || haystack.includes(cleanQuery)) rows.push(row);
+    });
+  });
+
+  rows.sort((a, b) => {
+    const commercialCompare = a.commercial.localeCompare(b.commercial, "fr", { numeric: true });
+    if (commercialCompare) return commercialCompare;
+    const clientCompare = a.clientName.localeCompare(b.clientName, "fr", { numeric: true });
+    if (clientCompare) return clientCompare;
+    return a.ref.localeCompare(b.ref, "fr", { numeric: true });
+  });
+  return rows;
+}
+
+function renderAdminPrenets() {
+  if (!adminPrenetBody) return;
+  setupAdminPrenetFilters();
+  const rows = getAdminPrenetRows();
+  if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
+  if (!rows.length) {
+    adminPrenetBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Aucun prix net trouvé avec ce filtre.</td></tr>';
+    return;
+  }
+  adminPrenetBody.innerHTML = rows.map((row) => `
+    <tr>
+      <td><strong>${escapeHtml(row.commercial)}</strong></td>
+      <td>${escapeHtml(row.sector)}</td>
+      <td><strong>${escapeHtml(row.clientName)}</strong>${row.clientCode ? `<small>${escapeHtml(row.clientCode)}</small>` : ""}</td>
+      <td><strong>${escapeHtml(row.ref || "-")}</strong></td>
+      <td>${escapeHtml(row.designation || "-")}</td>
+      <td class="numeric">${formatNumber(row.quantity)}</td>
+      <td class="numeric"><strong>${formatter.format(row.price)}</strong></td>
+    </tr>
+  `).join("");
 }
 
 function findStatsClient(row) {
@@ -2143,7 +2234,8 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(adminTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, adminTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
     return;
   }
   [
@@ -2161,6 +2253,7 @@ function arrangeTabsForUser(user) {
   ].forEach((tab) => appTabs.appendChild(tab));
   appTabs.appendChild(adminTab);
   appTabs.appendChild(adminCheckingTab);
+  appTabs.appendChild(adminPrenetTab);
 }
 
 function normalizeBacklogType(value) {
@@ -2422,6 +2515,7 @@ function showApp(user, token = user.token || "") {
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
+  adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
     selectedTourCodes = new Set();
     renderTourPlanner();
@@ -4997,6 +5091,7 @@ function setActiveTab(tabName) {
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   const showAdminChecking = tabName === "adminChecking";
+  const showAdminPrenet = tabName === "adminPrenet";
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
   orderTab.classList.toggle("is-active", showOrder);
@@ -5010,6 +5105,7 @@ function setActiveTab(tabName) {
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
+  adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
   orderView.classList.toggle("is-hidden", !showOrder);
@@ -5023,6 +5119,7 @@ function setActiveTab(tabName) {
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
   adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
+  adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
@@ -5067,6 +5164,11 @@ function setActiveTab(tabName) {
 
   if (showPrenet) {
     requestAnimationFrame(() => prenetClientSearch.focus());
+  }
+
+  if (showAdminPrenet) {
+    renderAdminPrenets();
+    requestAnimationFrame(() => adminPrenetSearch?.focus());
   }
 
   if (showAdmin) loadAdminLogs();
@@ -5446,10 +5548,13 @@ tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
+adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
+adminPrenetCommercialFilter?.addEventListener("change", renderAdminPrenets);
+adminPrenetSearch?.addEventListener("input", renderAdminPrenets);
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });

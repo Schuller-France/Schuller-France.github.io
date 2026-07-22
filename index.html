@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722r" />
+    <link rel="stylesheet" href="style.css?v=20260722s" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -138,6 +138,7 @@
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
+        <button class="tab-button is-hidden" type="button" id="adminPrenetTab">Prix nets</button>
       </nav>
 
       <main class="app-shell dashboard-shell" id="homeView">
@@ -977,13 +978,57 @@
           </div>
         </section>
       </main>
+
+      <main class="app-shell admin-shell is-hidden" id="adminPrenetView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Contrôle tarifs</p>
+            <h2>Prix nets commerciaux</h2>
+            <p>Consultez tous les prix nets par commercial, secteur, client ou référence.</p>
+          </div>
+          <span class="status-pill" id="adminPrenetCount">0 ligne</span>
+        </section>
+
+        <section class="panel admin-prenet-panel">
+          <div class="admin-prenet-filters">
+            <label>
+              Commercial
+              <select id="adminPrenetCommercialFilter">
+                <option value="all">Tous les commerciaux</option>
+              </select>
+            </label>
+            <label>
+              Recherche
+              <input id="adminPrenetSearch" type="search" autocomplete="off" placeholder="Client, secteur, référence, produit…" />
+            </label>
+          </div>
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-prenet-table">
+              <thead>
+                <tr>
+                  <th>Commercial</th>
+                  <th>Secteur</th>
+                  <th>Client</th>
+                  <th>Référence</th>
+                  <th>Désignation</th>
+                  <th>Quantité</th>
+                  <th>Prix net</th>
+                </tr>
+              </thead>
+              <tbody id="adminPrenetBody">
+                <tr><td colspan="7" class="admin-empty">Les prix nets apparaîtront ici après chargement des données.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
     </div>
 
     <datalist id="productRefs"></datalist>
 
-    <script src="tarifs.js?v=20260722r" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260722r" charset="UTF-8"></script>
+    <script src="script.js?v=20260722s" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
