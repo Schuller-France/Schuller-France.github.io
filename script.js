@@ -1485,35 +1485,38 @@ function sanitizeDownloadName(value) {
 
 function buildAdminPrenetWorkbookHtml(rows) {
   const client = selectedAdminPrenetClient || {};
-  const commercial = getAdminCommercialForPrenetClient(client);
   const generatedAt = new Date().toLocaleString("fr-FR");
   const htmlRows = rows.map((row) => `
     <tr>
-      <td>${escapeHtml(row.commercial)}</td>
-      <td>${escapeHtml(row.sector)}</td>
-      <td>${escapeHtml(row.clientCode)}</td>
-      <td>${escapeHtml(row.clientName)}</td>
-      <td>${escapeHtml(row.clientAddress || "")}</td>
       <td>${escapeHtml(row.ref)}</td>
       <td>${escapeHtml(row.designation)}</td>
-      <td>${escapeHtml(formatNumber(row.quantity))}</td>
-      <td>${escapeHtml(formatter.format(row.price))}</td>
+      <td class="number">${escapeHtml(formatNumber(row.quantity))}</td>
+      <td class="number">${escapeHtml(formatter.format(row.price))}</td>
     </tr>`).join("");
+  const address = formatAdminPrenetClientAddress(client) || "Adresse non renseignée";
   return `<!doctype html>
   <html>
-    <head><meta charset="UTF-8"></head>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; color: #171717; }
+        .title { background: #e30613; color: #fff; font-size: 20px; font-weight: 700; }
+        .meta-label { color: #6b7280; font-weight: 700; width: 130px; }
+        .header { background: #f3f4f6; font-weight: 700; color: #111827; }
+        td, th { border: 1px solid #d9dde3; padding: 8px 10px; vertical-align: middle; }
+        table { border-collapse: collapse; width: 100%; }
+        .number { text-align: right; font-weight: 700; }
+      </style>
+    </head>
     <body>
       <table>
-        <tr><th colspan="9" style="font-size:18px;text-align:left;">Prix nets Schuller Eh'Klar</th></tr>
-        <tr><td colspan="9">Client : ${escapeHtml(client.name || "-")}</td></tr>
-        <tr><td colspan="9">Code : ${escapeHtml(client.code || "-")}</td></tr>
-        <tr><td colspan="9">Commercial : ${escapeHtml(commercial?.name || "-")} - ${escapeHtml(normalizeStatsSector(client.sector || "") || client.sector || "-")}</td></tr>
-        <tr><td colspan="9">Date export : ${escapeHtml(generatedAt)}</td></tr>
-        <tr></tr>
-        <tr>
-          <th>Commercial</th><th>Secteur</th><th>Code client</th><th>Client</th><th>Adresse</th>
-          <th>Reference</th><th>Designation</th><th>Quantite</th><th>Prix net</th>
-        </tr>
+        <tr><th colspan="4" class="title">Prix nets Schuller Eh'Klar</th></tr>
+        <tr><td class="meta-label">Client</td><td colspan="3">${escapeHtml(client.name || "-")}</td></tr>
+        <tr><td class="meta-label">Code client</td><td colspan="3">${escapeHtml(client.code || "-")}</td></tr>
+        <tr><td class="meta-label">Coordonnées</td><td colspan="3">${escapeHtml(address)}</td></tr>
+        <tr><td class="meta-label">Date</td><td colspan="3">${escapeHtml(generatedAt)}</td></tr>
+        <tr><td colspan="4"></td></tr>
+        <tr class="header"><th>Référence</th><th>Désignation</th><th>Quantité</th><th>Prix net</th></tr>
         ${htmlRows}
       </table>
     </body>
