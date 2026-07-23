@@ -1173,11 +1173,19 @@ function selectPrenetClient(client) {
   prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
   const newEntries = getPrenetNewEntries(client);
+  const clientAddress = formatAdminPrenetClientAddress(client);
   recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
 
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
-      <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
+      <div class="prenet-client-identity">
+        <p class="step">${escapeHtml(client.code || currentUser.sector)}</p>
+        <h2>${escapeHtml(client.name || "Client")}</h2>
+        <p class="prenet-client-address">${escapeHtml([
+          normalizeStatsSector(client.sector || "") || client.sector || currentUser.sector || "",
+          clientAddress || "Adresse non renseignée",
+        ].filter(Boolean).join(" · "))}</p>
+      </div>
       <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(prenetDataMeta.updatedAt || "-")}</strong></div>
     </header>
     <div class="prenet-reference-search">

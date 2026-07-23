@@ -3169,6 +3169,19 @@ h2 {
   font-size: 28px;
 }
 
+.prenet-client-identity {
+  min-width: 0;
+}
+
+.prenet-client-address {
+  max-width: min(760px, 72vw);
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .prenet-update {
   display: grid;
   gap: 4px;
