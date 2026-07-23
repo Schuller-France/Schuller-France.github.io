@@ -3777,6 +3777,18 @@ h2 {
   gap: 18px;
 }
 
+.admin-prenet-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 520px);
+  gap: 16px;
+  align-items: end;
+  padding: 16px;
+  background: color-mix(in srgb, var(--white) 88%, var(--bg));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
 .admin-prenet-filters {
   display: grid;
   grid-template-columns: minmax(220px, 320px) minmax(260px, 1fr);
@@ -3784,7 +3796,16 @@ h2 {
   align-items: end;
 }
 
-.admin-prenet-filters label {
+.admin-prenet-actions {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.admin-prenet-filters label,
+.admin-prenet-actions label,
+.admin-prenet-reference-box label {
   display: grid;
   gap: 8px;
   color: var(--muted);
@@ -3828,8 +3849,46 @@ h2 {
   line-height: 1.35;
 }
 
+.admin-prenet-actions button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.admin-prenet-actions .primary-btn,
+.admin-prenet-actions .secondary-btn,
+.admin-prenet-selected .secondary-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.admin-prenet-actions .primary-btn {
+  color: #fff;
+  background: var(--red);
+  border: 1px solid var(--red);
+  box-shadow: 0 10px 22px rgba(227, 6, 19, 0.18);
+}
+
+.admin-prenet-actions .secondary-btn,
+.admin-prenet-selected .secondary-btn {
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+
+.admin-prenet-actions .primary-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .admin-prenet-filters select,
-.admin-prenet-filters input {
+.admin-prenet-filters input,
+.admin-prenet-actions input,
+.admin-prenet-reference-box input {
   min-height: 44px;
   width: 100%;
   padding: 0 14px;
@@ -3843,7 +3902,9 @@ h2 {
 }
 
 .admin-prenet-filters select:focus,
-.admin-prenet-filters input:focus {
+.admin-prenet-filters input:focus,
+.admin-prenet-actions input:focus,
+.admin-prenet-reference-box input:focus {
   border-color: rgba(227, 6, 19, 0.55);
   box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
   outline: none;
@@ -3874,6 +3935,65 @@ h2 {
   font-weight: 750;
 }
 
+.admin-prenet-reference-box {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-prenet-reference-box > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.admin-prenet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.admin-prenet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  color: var(--red);
+  background: rgba(227, 6, 19, 0.08);
+  border: 1px solid rgba(227, 6, 19, 0.22);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.admin-prenet-chip span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.admin-prenet-chip.is-empty {
+  color: var(--muted);
+  background: var(--soft);
+  border-color: var(--line);
+  cursor: default;
+}
+
+.admin-prenet-status {
+  min-height: 18px;
+  margin: -4px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .admin-prenet-table th:nth-child(3),
 .admin-prenet-table td:nth-child(3),
 .admin-prenet-table th:nth-child(5),
@@ -3893,6 +4013,14 @@ h2 {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 980px) {
+  .admin-prenet-topbar,
+  .admin-prenet-filters,
+  .admin-prenet-actions {
+    grid-template-columns: 1fr;
+  }
 }
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 

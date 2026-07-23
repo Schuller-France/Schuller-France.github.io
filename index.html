@@ -1070,6 +1070,7 @@
         </section>
 
         <section class="panel admin-prenet-panel">
+          <div class="admin-prenet-topbar">
           <div class="admin-prenet-filters">
             <label>
               Commercial
@@ -1083,6 +1084,15 @@
               <div class="admin-prenet-suggestions suggestions" id="adminPrenetSuggestions"></div>
             </label>
           </div>
+          <div class="admin-prenet-actions">
+            <button class="secondary-btn" type="button" id="adminPrenetDownload">Télécharger Excel</button>
+            <label>
+              E-mail client
+              <input id="adminPrenetEmail" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            </label>
+            <button class="primary-btn" type="button" id="adminPrenetSend">Envoyer</button>
+          </div>
+          </div>
           <div class="admin-prenet-selected is-hidden" id="adminPrenetSelected">
             <div>
               <p class="step">Client sélectionné</p>
@@ -1091,6 +1101,16 @@
             </div>
             <button class="secondary-btn" type="button" id="adminPrenetClearClient">Changer de client</button>
           </div>
+          <div class="admin-prenet-reference-box">
+            <label class="admin-prenet-search-label">
+              References a afficher
+              <input id="adminPrenetReferenceInput" type="search" autocomplete="off" placeholder="Tapez une reference puis Entree..." />
+              <div class="admin-prenet-suggestions suggestions" id="adminPrenetReferenceSuggestions"></div>
+            </label>
+            <div class="admin-prenet-chips" id="adminPrenetReferenceChips"></div>
+            <p>Sans reference selectionnee, tous les prix nets du client s'affichent. Ajoutez plusieurs references pour preparer un envoi cible.</p>
+          </div>
+          <p class="admin-prenet-status" id="adminPrenetSendStatus"></p>
           <div class="admin-log-wrap">
             <table class="admin-log-table admin-prenet-table">
               <thead>
@@ -1117,7 +1137,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260723b" charset="UTF-8"></script>
+    <script src="script.js?v=20260723c" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

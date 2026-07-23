@@ -15,6 +15,7 @@ let selectedClient360 = null;
 let selectedQuoteClient = null;
 let selectedPrenetClient = null;
 let selectedAdminPrenetClient = null;
+let selectedAdminPrenetRefs = [];
 let lines = [];
 let quoteLineItems = [];
 let expenseLineItems = [];
@@ -208,6 +209,13 @@ const adminPrenetSelected = document.querySelector("#adminPrenetSelected");
 const adminPrenetSelectedName = document.querySelector("#adminPrenetSelectedName");
 const adminPrenetSelectedMeta = document.querySelector("#adminPrenetSelectedMeta");
 const adminPrenetClearClient = document.querySelector("#adminPrenetClearClient");
+const adminPrenetReferenceInput = document.querySelector("#adminPrenetReferenceInput");
+const adminPrenetReferenceSuggestions = document.querySelector("#adminPrenetReferenceSuggestions");
+const adminPrenetReferenceChips = document.querySelector("#adminPrenetReferenceChips");
+const adminPrenetDownload = document.querySelector("#adminPrenetDownload");
+const adminPrenetEmail = document.querySelector("#adminPrenetEmail");
+const adminPrenetSend = document.querySelector("#adminPrenetSend");
+const adminPrenetSendStatus = document.querySelector("#adminPrenetSendStatus");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
 const adminPrenetCount = document.querySelector("#adminPrenetCount");
 const historyList = document.querySelector("#historyList");
@@ -469,6 +477,7 @@ function clearSecureAppData() {
   products = [];
   prenetClients = [];
   selectedAdminPrenetClient = null;
+  selectedAdminPrenetRefs = [];
   localStatsData = {};
   clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   prenetDataMeta = { updatedAt: "" };
@@ -1289,26 +1298,122 @@ function renderAdminPrenetSelectedClient() {
   adminPrenetSelected.classList.remove("is-hidden");
 }
 
+function getAdminPrenetClientEntries() {
+  if (!selectedAdminPrenetClient) return [];
+  return getPrenetNewEntries(selectedAdminPrenetClient);
+}
+
+function getAdminPrenetReferenceMatches(query = "") {
+  const cleanQuery = normalize(query);
+  const selectedKeys = new Set(selectedAdminPrenetRefs.map((ref) => normalize(ref)));
+  return getAdminPrenetClientEntries()
+    .filter((entry) => {
+      const ref = String(entry.ref || "").trim();
+      if (!ref || selectedKeys.has(normalize(ref))) return false;
+      if (!cleanQuery) return false;
+      return normalize([entry.ref, entry.designation].join(" ")).includes(cleanQuery);
+    })
+    .sort((a, b) => String(a.ref || "").localeCompare(String(b.ref || ""), "fr", { numeric: true }))
+    .slice(0, 10);
+}
+
+function renderAdminPrenetReferenceSuggestions() {
+  if (!adminPrenetReferenceSuggestions) return;
+  const query = (adminPrenetReferenceInput?.value || "").trim();
+  if (!selectedAdminPrenetClient || !query) {
+    adminPrenetReferenceSuggestions.classList.remove("is-open");
+    adminPrenetReferenceSuggestions.innerHTML = "";
+    return;
+  }
+  const matches = getAdminPrenetReferenceMatches(query);
+  if (!matches.length) {
+    adminPrenetReferenceSuggestions.innerHTML = '<div class="suggestion-empty">Aucune reference trouvee pour ce client.</div>';
+    adminPrenetReferenceSuggestions.classList.add("is-open");
+    return;
+  }
+  adminPrenetReferenceSuggestions.innerHTML = matches.map((entry, index) => `
+    <button type="button" data-admin-prenet-ref-index="${index}">
+      <strong>${escapeHtml(entry.ref || "Reference")}</strong>
+      <span>${escapeHtml(entry.designation || "Designation non renseignee")} · Qte ${escapeHtml(formatNumber(entry.quantity))} · ${escapeHtml(formatter.format(Number(entry.price) || 0))}</span>
+    </button>
+  `).join("");
+  adminPrenetReferenceSuggestions.classList.add("is-open");
+}
+
+function renderAdminPrenetReferenceChips() {
+  if (!adminPrenetReferenceChips) return;
+  if (!selectedAdminPrenetRefs.length) {
+    adminPrenetReferenceChips.innerHTML = '<span class="admin-prenet-chip is-empty">Toutes les references du client</span>';
+    return;
+  }
+  adminPrenetReferenceChips.innerHTML = selectedAdminPrenetRefs.map((ref) => `
+    <button type="button" class="admin-prenet-chip" data-admin-prenet-remove-ref="${escapeHtml(ref)}">
+      ${escapeHtml(ref)}
+      <span aria-hidden="true">×</span>
+    </button>
+  `).join("");
+}
+
+function addAdminPrenetReference(ref) {
+  const cleanRef = String(ref || "").trim();
+  if (!cleanRef) return false;
+  if (selectedAdminPrenetRefs.some((item) => normalize(item) === normalize(cleanRef))) return false;
+  selectedAdminPrenetRefs.push(cleanRef);
+  selectedAdminPrenetRefs.sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+  if (adminPrenetReferenceInput) adminPrenetReferenceInput.value = "";
+  adminPrenetReferenceSuggestions?.classList.remove("is-open");
+  renderAdminPrenets();
+  return true;
+}
+
+function addAdminPrenetReferencesFromInput() {
+  if (!selectedAdminPrenetClient) return;
+  const raw = String(adminPrenetReferenceInput?.value || "").trim();
+  if (!raw) return;
+  const entries = getAdminPrenetClientEntries();
+  const tokens = raw.split(/[,\s;]+/).map((token) => token.trim()).filter(Boolean);
+  const values = tokens.length > 1 ? tokens : [raw];
+  let added = 0;
+  values.forEach((value) => {
+    const cleanValue = normalize(value);
+    const exact = entries.find((entry) => normalize(entry.ref || "") === cleanValue);
+    const partial = exact || entries.find((entry) => normalize([entry.ref, entry.designation].join(" ")).includes(cleanValue));
+    if (partial?.ref && addAdminPrenetReference(partial.ref)) added += 1;
+  });
+  if (!added) renderAdminPrenetReferenceSuggestions();
+}
+
+function removeAdminPrenetReference(ref) {
+  selectedAdminPrenetRefs = selectedAdminPrenetRefs.filter((item) => normalize(item) !== normalize(ref));
+  renderAdminPrenets();
+}
+
 function selectAdminPrenetClient(client) {
   selectedAdminPrenetClient = client;
+  selectedAdminPrenetRefs = [];
   if (adminPrenetSearch) adminPrenetSearch.value = client?.name || "";
   adminPrenetSuggestions?.classList.remove("is-open");
+  if (adminPrenetReferenceInput) adminPrenetReferenceInput.value = "";
+  adminPrenetReferenceSuggestions?.classList.remove("is-open");
   renderAdminPrenets();
 }
 
 function getAdminPrenetRows() {
   const rows = [];
   if (!selectedAdminPrenetClient) return rows;
+  const selectedRefKeys = new Set(selectedAdminPrenetRefs.map((ref) => normalize(ref)));
 
   [selectedAdminPrenetClient].forEach((client) => {
     const commercial = getAdminCommercialForPrenetClient(client);
     const entries = getPrenetNewEntries(client);
     entries.forEach((entry) => {
+      if (selectedRefKeys.size && !selectedRefKeys.has(normalize(entry.ref || ""))) return;
       const row = {
         commercial: commercial?.name || "Non attribué",
         sector: normalizeStatsSector(client.sector || "") || client.sector || "-",
         clientName: client.name || "Client",
         clientCode: client.code || "",
+        clientAddress: formatAdminPrenetClientAddress(client),
         ref: entry.ref || "",
         designation: entry.designation || "",
         quantity: entry.quantity,
@@ -1332,13 +1437,18 @@ function renderAdminPrenets() {
   if (!adminPrenetBody) return;
   setupAdminPrenetFilters();
   renderAdminPrenetSelectedClient();
+  renderAdminPrenetReferenceChips();
+  renderAdminPrenetReferenceSuggestions();
+  if (adminPrenetSendStatus && !adminPrenetSendStatus.dataset.keepMessage) adminPrenetSendStatus.textContent = "";
   const rows = getAdminPrenetRows();
   if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
   if (!rows.length) {
     const message = !prenetClients.length
       ? "Prix nets Drive non chargés pour le compte admin. Reconnectez-vous après déploiement Google Script."
       : selectedAdminPrenetClient
-        ? "Aucun prix net disponible pour ce client."
+        ? selectedAdminPrenetRefs.length
+          ? "Aucun prix net ne correspond aux references selectionnees pour ce client."
+          : "Aucun prix net disponible pour ce client."
         : "Tapez le nom d’un client, cliquez sur le bon résultat, puis ses prix nets s’afficheront ici.";
     adminPrenetBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
@@ -1354,6 +1464,120 @@ function renderAdminPrenets() {
       <td class="numeric"><strong>${formatter.format(row.price)}</strong></td>
     </tr>
   `).join("");
+}
+
+function sanitizeDownloadName(value) {
+  return String(value || "prix-nets")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "prix-nets";
+}
+
+function buildAdminPrenetWorkbookHtml(rows) {
+  const client = selectedAdminPrenetClient || {};
+  const commercial = getAdminCommercialForPrenetClient(client);
+  const generatedAt = new Date().toLocaleString("fr-FR");
+  const htmlRows = rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.commercial)}</td>
+      <td>${escapeHtml(row.sector)}</td>
+      <td>${escapeHtml(row.clientCode)}</td>
+      <td>${escapeHtml(row.clientName)}</td>
+      <td>${escapeHtml(row.clientAddress || "")}</td>
+      <td>${escapeHtml(row.ref)}</td>
+      <td>${escapeHtml(row.designation)}</td>
+      <td>${escapeHtml(formatNumber(row.quantity))}</td>
+      <td>${escapeHtml(formatter.format(row.price))}</td>
+    </tr>`).join("");
+  return `<!doctype html>
+  <html>
+    <head><meta charset="UTF-8"></head>
+    <body>
+      <table>
+        <tr><th colspan="9" style="font-size:18px;text-align:left;">Prix nets Schuller Eh'Klar</th></tr>
+        <tr><td colspan="9">Client : ${escapeHtml(client.name || "-")}</td></tr>
+        <tr><td colspan="9">Code : ${escapeHtml(client.code || "-")}</td></tr>
+        <tr><td colspan="9">Commercial : ${escapeHtml(commercial?.name || "-")} - ${escapeHtml(normalizeStatsSector(client.sector || "") || client.sector || "-")}</td></tr>
+        <tr><td colspan="9">Date export : ${escapeHtml(generatedAt)}</td></tr>
+        <tr></tr>
+        <tr>
+          <th>Commercial</th><th>Secteur</th><th>Code client</th><th>Client</th><th>Adresse</th>
+          <th>Reference</th><th>Designation</th><th>Quantite</th><th>Prix net</th>
+        </tr>
+        ${htmlRows}
+      </table>
+    </body>
+  </html>`;
+}
+
+function downloadAdminPrenetExcel() {
+  const rows = getAdminPrenetRows();
+  if (!selectedAdminPrenetClient) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Selectionnez d'abord un client.";
+    return;
+  }
+  if (!rows.length) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Aucune ligne a telecharger.";
+    return;
+  }
+  const html = buildAdminPrenetWorkbookHtml(rows);
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const refsLabel = selectedAdminPrenetRefs.length ? selectedAdminPrenetRefs.join("-") : "toutes-references";
+  link.href = url;
+  link.download = `${sanitizeDownloadName("prix-nets-" + selectedAdminPrenetClient.name + "-" + refsLabel)}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Fichier Excel telecharge.";
+}
+
+async function sendAdminPrenetPrices() {
+  const rows = getAdminPrenetRows();
+  const recipient = String(adminPrenetEmail?.value || "").trim().toLowerCase();
+  if (!selectedAdminPrenetClient) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Selectionnez d'abord un client.";
+    return;
+  }
+  if (!rows.length) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Aucune ligne a envoyer.";
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Adresse e-mail invalide.";
+    adminPrenetEmail?.focus();
+    return;
+  }
+  const commercial = getAdminCommercialForPrenetClient(selectedAdminPrenetClient);
+  if (adminPrenetSend) adminPrenetSend.disabled = true;
+  if (adminPrenetSendStatus) {
+    adminPrenetSendStatus.dataset.keepMessage = "1";
+    adminPrenetSendStatus.textContent = "Envoi des prix nets en cours...";
+  }
+  try {
+    const result = await postService({
+      action: "sendAdminPrenetPrices",
+      recipient,
+      client: JSON.stringify({
+        name: selectedAdminPrenetClient.name || "",
+        code: selectedAdminPrenetClient.code || "",
+        sector: normalizeStatsSector(selectedAdminPrenetClient.sector || "") || selectedAdminPrenetClient.sector || "",
+        commercial: commercial?.name || "",
+        address: formatAdminPrenetClientAddress(selectedAdminPrenetClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "Prix nets envoyes.";
+  } catch (error) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = error.message || "Envoi impossible.";
+  } finally {
+    if (adminPrenetSend) adminPrenetSend.disabled = false;
+    if (adminPrenetSendStatus) delete adminPrenetSendStatus.dataset.keepMessage;
+  }
 }
 
 function findStatsClient(row) {
@@ -5875,11 +6099,15 @@ statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
 });
 adminPrenetCommercialFilter?.addEventListener("change", () => {
   selectedAdminPrenetClient = null;
+  selectedAdminPrenetRefs = [];
+  if (adminPrenetReferenceInput) adminPrenetReferenceInput.value = "";
   renderAdminPrenetSuggestions();
   renderAdminPrenets();
 });
 adminPrenetSearch?.addEventListener("input", () => {
   selectedAdminPrenetClient = null;
+  selectedAdminPrenetRefs = [];
+  if (adminPrenetReferenceInput) adminPrenetReferenceInput.value = "";
   renderAdminPrenetSuggestions();
   renderAdminPrenets();
 });
@@ -5892,11 +6120,34 @@ adminPrenetSuggestions?.addEventListener("click", (event) => {
 });
 adminPrenetClearClient?.addEventListener("click", () => {
   selectedAdminPrenetClient = null;
+  selectedAdminPrenetRefs = [];
   if (adminPrenetSearch) adminPrenetSearch.value = "";
+  if (adminPrenetReferenceInput) adminPrenetReferenceInput.value = "";
   adminPrenetSuggestions?.classList.remove("is-open");
+  adminPrenetReferenceSuggestions?.classList.remove("is-open");
   renderAdminPrenets();
   adminPrenetSearch?.focus();
 });
+adminPrenetReferenceInput?.addEventListener("input", renderAdminPrenetReferenceSuggestions);
+adminPrenetReferenceInput?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addAdminPrenetReferencesFromInput();
+});
+adminPrenetReferenceSuggestions?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-prenet-ref-index]");
+  if (!button) return;
+  const matches = getAdminPrenetReferenceMatches(adminPrenetReferenceInput?.value || "");
+  const entry = matches[Number(button.dataset.adminPrenetRefIndex)];
+  if (entry?.ref) addAdminPrenetReference(entry.ref);
+});
+adminPrenetReferenceChips?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-prenet-remove-ref]");
+  if (!button) return;
+  removeAdminPrenetReference(button.dataset.adminPrenetRemoveRef);
+});
+adminPrenetDownload?.addEventListener("click", downloadAdminPrenetExcel);
+adminPrenetSend?.addEventListener("click", sendAdminPrenetPrices);
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });
