@@ -1193,13 +1193,12 @@ function getAdminCommercialForPrenetClient(client) {
 }
 
 function getAdminPrenetRows() {
-  const selectedCommercialId = adminPrenetCommercialFilter?.value || "all";
   const cleanQuery = normalize(adminPrenetSearch?.value || "");
   const rows = [];
+  if (!cleanQuery) return rows;
 
   prenetClients.forEach((client) => {
     const commercial = getAdminCommercialForPrenetClient(client);
-    if (selectedCommercialId !== "all" && commercial?.id !== selectedCommercialId) return;
     const entries = getPrenetNewEntries(client);
     entries.forEach((entry) => {
       const row = {
@@ -1242,7 +1241,13 @@ function renderAdminPrenets() {
   const rows = getAdminPrenetRows();
   if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
   if (!rows.length) {
-    adminPrenetBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Aucun prix net trouvé avec ce filtre.</td></tr>';
+    const query = (adminPrenetSearch?.value || "").trim();
+    const message = !prenetClients.length
+      ? "Prix nets Drive non chargés pour le compte admin. Reconnectez-vous après déploiement Google Script."
+      : query
+        ? "Aucun prix net trouvé pour cette recherche."
+        : "Saisissez un client, une référence ou un produit pour afficher ses prix nets.";
+    adminPrenetBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
   }
   adminPrenetBody.innerHTML = rows.map((row) => `
