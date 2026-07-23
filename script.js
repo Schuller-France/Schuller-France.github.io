@@ -1216,10 +1216,31 @@ function getAdminCommercialForPrenetClient(client) {
   }) || null;
 }
 
+function findClientAddressSource(client) {
+  if (!client) return null;
+  const clientCode = normalize(client.code || client.clientCode || "");
+  const clientName = normalize(client.name || client.clientName || "");
+  const clientSector = normalizeStatsSector(client.sector || "");
+  if (clientCode) {
+    const byCode = allClients.find((item) => normalize(item.code || item.clientCode || "") === clientCode);
+    if (byCode) return byCode;
+  }
+  if (clientName) {
+    const sameName = allClients.filter((item) => normalize(item.name || item.clientName || "") === clientName);
+    if (sameName.length === 1) return sameName[0];
+    if (clientSector) {
+      const sameSector = sameName.find((item) => normalizeStatsSector(item.sector || "") === clientSector);
+      if (sameSector) return sameSector;
+    }
+  }
+  return null;
+}
+
 function formatAdminPrenetClientAddress(client) {
-  const address = client?.billingAddress || client?.deliveryAddress || client?.address || "";
-  const zip = client?.billingZip || client?.deliveryZip || client?.zip || "";
-  const city = client?.billingCity || client?.deliveryCity || client?.city || "";
+  const source = findClientAddressSource(client) || client || {};
+  const address = source.deliveryAddress || source.billingAddress || source.address || client?.deliveryAddress || client?.billingAddress || client?.address || "";
+  const zip = source.deliveryZip || source.billingZip || source.zip || client?.deliveryZip || client?.billingZip || client?.zip || "";
+  const city = source.deliveryCity || source.billingCity || source.city || client?.deliveryCity || client?.billingCity || client?.city || "";
   return [address, [zip, city].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
 }
 
