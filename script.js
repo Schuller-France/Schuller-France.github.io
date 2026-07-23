@@ -1504,47 +1504,23 @@ function sanitizeDownloadName(value) {
     .slice(0, 80) || "prix-nets";
 }
 
-function buildAdminPrenetWorkbookHtml(rows) {
-  const client = selectedAdminPrenetClient || {};
-  const generatedAt = new Date().toLocaleString("fr-FR");
-  const htmlRows = rows.map((row) => `
-    <tr>
-      <td>${escapeHtml(row.ref)}</td>
-      <td>${escapeHtml(row.designation)}</td>
-      <td class="number">${escapeHtml(formatNumber(row.quantity))}</td>
-      <td class="number">${escapeHtml(formatter.format(row.price))}</td>
-    </tr>`).join("");
-  const address = formatAdminPrenetClientAddress(client) || "Adresse non renseignée";
-  return `<!doctype html>
-  <html>
-    <head>
-      <meta charset="UTF-8">
-      <style>
-        body { font-family: Arial, sans-serif; color: #171717; }
-        .title { background: #e30613; color: #fff; font-size: 20px; font-weight: 700; }
-        .meta-label { color: #6b7280; font-weight: 700; width: 130px; }
-        .header { background: #f3f4f6; font-weight: 700; color: #111827; }
-        td, th { border: 1px solid #d9dde3; padding: 8px 10px; vertical-align: middle; }
-        table { border-collapse: collapse; width: 100%; }
-        .number { text-align: right; font-weight: 700; }
-      </style>
-    </head>
-    <body>
-      <table>
-        <tr><th colspan="4" class="title">Prix nets Schuller Eh'Klar</th></tr>
-        <tr><td class="meta-label">Client</td><td colspan="3">${escapeHtml(client.name || "-")}</td></tr>
-        <tr><td class="meta-label">Code client</td><td colspan="3">${escapeHtml(client.code || "-")}</td></tr>
-        <tr><td class="meta-label">Coordonnées</td><td colspan="3">${escapeHtml(address)}</td></tr>
-        <tr><td class="meta-label">Date</td><td colspan="3">${escapeHtml(generatedAt)}</td></tr>
-        <tr><td colspan="4"></td></tr>
-        <tr class="header"><th>Référence</th><th>Désignation</th><th>Quantité</th><th>Prix net</th></tr>
-        ${htmlRows}
-      </table>
-    </body>
-  </html>`;
+function downloadBase64File(base64, mimeType, fileName) {
+  const binary = atob(base64);
+  const length = binary.length;
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const blob = new Blob([bytes], { type: mimeType || "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName || "prix-nets.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
-function downloadAdminPrenetExcel() {
+async function downloadAdminPrenetPdf() {
   const rows = getAdminPrenetRows();
   if (!selectedAdminPrenetClient) {
     if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Selectionnez d'abord un client.";
@@ -1554,18 +1530,33 @@ function downloadAdminPrenetExcel() {
     if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Aucune ligne a telecharger.";
     return;
   }
-  const html = buildAdminPrenetWorkbookHtml(rows);
-  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  const refsLabel = selectedAdminPrenetRefs.length ? selectedAdminPrenetRefs.join("-") : "toutes-references";
-  link.href = url;
-  link.download = `${sanitizeDownloadName("prix-nets-" + selectedAdminPrenetClient.name + "-" + refsLabel)}.xls`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Fichier Excel telecharge.";
+  const commercial = getAdminCommercialForPrenetClient(selectedAdminPrenetClient);
+  if (adminPrenetDownload) adminPrenetDownload.disabled = true;
+  if (adminPrenetSendStatus) {
+    adminPrenetSendStatus.dataset.keepMessage = "1";
+    adminPrenetSendStatus.textContent = "Preparation du PDF...";
+  }
+  try {
+    const result = await postService({
+      action: "buildAdminPrenetPricesPdf",
+      client: JSON.stringify({
+        name: selectedAdminPrenetClient.name || "",
+        code: selectedAdminPrenetClient.code || "",
+        sector: normalizeStatsSector(selectedAdminPrenetClient.sector || "") || selectedAdminPrenetClient.sector || "",
+        commercial: commercial?.name || "",
+        address: formatAdminPrenetClientAddress(selectedAdminPrenetClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (!result.data) throw new Error("PDF indisponible.");
+    downloadBase64File(result.data, result.mimeType || "application/pdf", result.fileName || "prix-nets.pdf");
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "PDF telecharge.";
+  } catch (error) {
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = error.message || "Telechargement impossible.";
+  } finally {
+    if (adminPrenetDownload) adminPrenetDownload.disabled = false;
+    if (adminPrenetSendStatus) delete adminPrenetSendStatus.dataset.keepMessage;
+  }
 }
 
 async function sendAdminPrenetPrices() {
@@ -1588,7 +1579,7 @@ async function sendAdminPrenetPrices() {
   if (adminPrenetSend) adminPrenetSend.disabled = true;
   if (adminPrenetSendStatus) {
     adminPrenetSendStatus.dataset.keepMessage = "1";
-    adminPrenetSendStatus.textContent = "Envoi des prix nets en cours...";
+    adminPrenetSendStatus.textContent = "Envoi du PDF en cours...";
   }
   try {
     const result = await postService({
@@ -1603,7 +1594,7 @@ async function sendAdminPrenetPrices() {
       }),
       rows: JSON.stringify(rows),
     });
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "Prix nets envoyes.";
+    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "PDF envoye.";
   } catch (error) {
     if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = error.message || "Envoi impossible.";
   } finally {
@@ -6178,7 +6169,7 @@ adminPrenetReferenceChips?.addEventListener("click", (event) => {
   if (!button) return;
   removeAdminPrenetReference(button.dataset.adminPrenetRemoveRef);
 });
-adminPrenetDownload?.addEventListener("click", downloadAdminPrenetExcel);
+adminPrenetDownload?.addEventListener("click", downloadAdminPrenetPdf);
 adminPrenetSend?.addEventListener("click", sendAdminPrenetPrices);
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
