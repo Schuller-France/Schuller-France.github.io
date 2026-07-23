@@ -3794,6 +3794,40 @@ h2 {
   text-transform: uppercase;
 }
 
+.admin-prenet-search-label {
+  position: relative;
+}
+
+.admin-prenet-suggestions {
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  width: auto;
+  max-height: 360px;
+}
+
+.admin-prenet-suggestions button {
+  width: 100%;
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.admin-prenet-suggestions button strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.admin-prenet-suggestions button span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 .admin-prenet-filters select,
 .admin-prenet-filters input {
   min-height: 44px;
@@ -3813,6 +3847,31 @@ h2 {
   border-color: rgba(227, 6, 19, 0.55);
   box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
   outline: none;
+}
+
+.admin-prenet-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #fff, #fff5f5);
+  border: 1px solid rgba(227, 6, 19, 0.16);
+  border-radius: 16px;
+}
+
+.admin-prenet-selected h3 {
+  margin: 2px 0 4px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.admin-prenet-selected p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .admin-prenet-table th:nth-child(3),

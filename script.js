@@ -14,6 +14,7 @@ let selectedClient = null;
 let selectedClient360 = null;
 let selectedQuoteClient = null;
 let selectedPrenetClient = null;
+let selectedAdminPrenetClient = null;
 let lines = [];
 let quoteLineItems = [];
 let expenseLineItems = [];
@@ -202,6 +203,11 @@ const statsTotalGapQty = document.querySelector("#statsTotalGapQty");
 const statsArticleBody = document.querySelector("#statsArticleBody");
 const adminPrenetCommercialFilter = document.querySelector("#adminPrenetCommercialFilter");
 const adminPrenetSearch = document.querySelector("#adminPrenetSearch");
+const adminPrenetSuggestions = document.querySelector("#adminPrenetSuggestions");
+const adminPrenetSelected = document.querySelector("#adminPrenetSelected");
+const adminPrenetSelectedName = document.querySelector("#adminPrenetSelectedName");
+const adminPrenetSelectedMeta = document.querySelector("#adminPrenetSelectedMeta");
+const adminPrenetClearClient = document.querySelector("#adminPrenetClearClient");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
 const adminPrenetCount = document.querySelector("#adminPrenetCount");
 const historyList = document.querySelector("#historyList");
@@ -462,6 +468,7 @@ function clearSecureAppData() {
   allClients = [];
   products = [];
   prenetClients = [];
+  selectedAdminPrenetClient = null;
   localStatsData = {};
   clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   prenetDataMeta = { updatedAt: "" };
@@ -1192,12 +1199,108 @@ function getAdminCommercialForPrenetClient(client) {
   }) || null;
 }
 
-function getAdminPrenetRows() {
-  const cleanQuery = normalize(adminPrenetSearch?.value || "");
-  const rows = [];
-  if (!cleanQuery) return rows;
+function formatAdminPrenetClientAddress(client) {
+  const address = client?.billingAddress || client?.deliveryAddress || client?.address || "";
+  const zip = client?.billingZip || client?.deliveryZip || client?.zip || "";
+  const city = client?.billingCity || client?.deliveryCity || client?.city || "";
+  return [address, [zip, city].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+}
 
-  prenetClients.forEach((client) => {
+function getAdminPrenetSelectableClients() {
+  const selectedCommercialId = adminPrenetCommercialFilter?.value || "all";
+  const cleanQuery = normalize(adminPrenetSearch?.value || "");
+  const clients = prenetClients.filter((client) => {
+    const commercial = getAdminCommercialForPrenetClient(client);
+    if (selectedCommercialId !== "all" && commercial?.id !== selectedCommercialId) return false;
+    if (!cleanQuery) return false;
+    const address = formatAdminPrenetClientAddress(client);
+    const haystack = normalize([
+      commercial?.name || "",
+      client.name || "",
+      client.code || "",
+      client.sector || "",
+      address,
+    ].join(" "));
+    return haystack.includes(cleanQuery);
+  });
+
+  clients.sort((a, b) => {
+    const commercialA = getAdminCommercialForPrenetClient(a)?.name || "";
+    const commercialB = getAdminCommercialForPrenetClient(b)?.name || "";
+    const commercialCompare = commercialA.localeCompare(commercialB, "fr", { numeric: true });
+    if (commercialCompare) return commercialCompare;
+    const nameCompare = (a.name || "").localeCompare(b.name || "", "fr", { numeric: true });
+    if (nameCompare) return nameCompare;
+    return (a.code || "").localeCompare(b.code || "", "fr", { numeric: true });
+  });
+
+  return clients.slice(0, 12);
+}
+
+function renderAdminPrenetSuggestions() {
+  if (!adminPrenetSuggestions) return;
+  const query = (adminPrenetSearch?.value || "").trim();
+  if (!query) {
+    adminPrenetSuggestions.classList.remove("is-open");
+    adminPrenetSuggestions.innerHTML = "";
+    return;
+  }
+  const clients = getAdminPrenetSelectableClients();
+  if (!clients.length) {
+    adminPrenetSuggestions.innerHTML = '<div class="suggestion-empty">Aucun client trouvé.</div>';
+    adminPrenetSuggestions.classList.add("is-open");
+    return;
+  }
+  adminPrenetSuggestions.innerHTML = clients.map((client, index) => {
+    const commercial = getAdminCommercialForPrenetClient(client);
+    const address = formatAdminPrenetClientAddress(client);
+    const label = [client.code, normalizeStatsSector(client.sector || "") || client.sector].filter(Boolean).join(" · ");
+    return `
+      <button type="button" data-admin-prenet-index="${index}">
+        <strong>${escapeHtml(client.name || "Client")}</strong>
+        <span>${escapeHtml([commercial?.name || "Non attribué", label, address].filter(Boolean).join(" · "))}</span>
+      </button>`;
+  }).join("");
+  adminPrenetSuggestions.classList.add("is-open");
+}
+
+function renderAdminPrenetSelectedClient() {
+  if (!adminPrenetSelected) return;
+  if (!selectedAdminPrenetClient) {
+    adminPrenetSelected.classList.add("is-hidden");
+    if (adminPrenetSelectedName) adminPrenetSelectedName.textContent = "-";
+    if (adminPrenetSelectedMeta) adminPrenetSelectedMeta.textContent = "Choisissez un client pour afficher ses prix nets.";
+    return;
+  }
+  const client = selectedAdminPrenetClient;
+  const commercial = getAdminCommercialForPrenetClient(client);
+  const address = formatAdminPrenetClientAddress(client);
+  const entries = getPrenetNewEntries(client);
+  if (adminPrenetSelectedName) adminPrenetSelectedName.textContent = client.name || "Client";
+  if (adminPrenetSelectedMeta) {
+    adminPrenetSelectedMeta.textContent = [
+      client.code || "",
+      commercial?.name || "Commercial non attribué",
+      normalizeStatsSector(client.sector || "") || client.sector || "",
+      address || "Adresse non renseignée",
+      `${entries.length} prix net${entries.length > 1 ? "s" : ""}`,
+    ].filter(Boolean).join(" · ");
+  }
+  adminPrenetSelected.classList.remove("is-hidden");
+}
+
+function selectAdminPrenetClient(client) {
+  selectedAdminPrenetClient = client;
+  if (adminPrenetSearch) adminPrenetSearch.value = client?.name || "";
+  adminPrenetSuggestions?.classList.remove("is-open");
+  renderAdminPrenets();
+}
+
+function getAdminPrenetRows() {
+  const rows = [];
+  if (!selectedAdminPrenetClient) return rows;
+
+  [selectedAdminPrenetClient].forEach((client) => {
     const commercial = getAdminCommercialForPrenetClient(client);
     const entries = getPrenetNewEntries(client);
     entries.forEach((entry) => {
@@ -1211,17 +1314,7 @@ function getAdminPrenetRows() {
         quantity: entry.quantity,
         price: Number(entry.price) || 0,
       };
-      const haystack = normalize([
-        row.commercial,
-        row.sector,
-        row.clientName,
-        row.clientCode,
-        row.ref,
-        row.designation,
-        row.quantity,
-        row.price,
-      ].join(" "));
-      if (!cleanQuery || haystack.includes(cleanQuery)) rows.push(row);
+      rows.push(row);
     });
   });
 
@@ -1238,15 +1331,15 @@ function getAdminPrenetRows() {
 function renderAdminPrenets() {
   if (!adminPrenetBody) return;
   setupAdminPrenetFilters();
+  renderAdminPrenetSelectedClient();
   const rows = getAdminPrenetRows();
   if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
   if (!rows.length) {
-    const query = (adminPrenetSearch?.value || "").trim();
     const message = !prenetClients.length
       ? "Prix nets Drive non chargés pour le compte admin. Reconnectez-vous après déploiement Google Script."
-      : query
-        ? "Aucun prix net trouvé pour cette recherche."
-        : "Saisissez un client, une référence ou un produit pour afficher ses prix nets.";
+      : selectedAdminPrenetClient
+        ? "Aucun prix net disponible pour ce client."
+        : "Tapez le nom d’un client, cliquez sur le bon résultat, puis ses prix nets s’afficheront ici.";
     adminPrenetBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
   }
@@ -5780,8 +5873,30 @@ statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
   control?.addEventListener("input", renderCommercialStats);
   control?.addEventListener("change", renderCommercialStats);
 });
-adminPrenetCommercialFilter?.addEventListener("change", renderAdminPrenets);
-adminPrenetSearch?.addEventListener("input", renderAdminPrenets);
+adminPrenetCommercialFilter?.addEventListener("change", () => {
+  selectedAdminPrenetClient = null;
+  renderAdminPrenetSuggestions();
+  renderAdminPrenets();
+});
+adminPrenetSearch?.addEventListener("input", () => {
+  selectedAdminPrenetClient = null;
+  renderAdminPrenetSuggestions();
+  renderAdminPrenets();
+});
+adminPrenetSuggestions?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-prenet-index]");
+  if (!button) return;
+  const clients = getAdminPrenetSelectableClients();
+  const client = clients[Number(button.dataset.adminPrenetIndex)];
+  if (client) selectAdminPrenetClient(client);
+});
+adminPrenetClearClient?.addEventListener("click", () => {
+  selectedAdminPrenetClient = null;
+  if (adminPrenetSearch) adminPrenetSearch.value = "";
+  adminPrenetSuggestions?.classList.remove("is-open");
+  renderAdminPrenets();
+  adminPrenetSearch?.focus();
+});
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });

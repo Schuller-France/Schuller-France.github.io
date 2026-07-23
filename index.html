@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260722u" />
+    <link rel="stylesheet" href="style.css?v=20260723b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1072,9 +1072,24 @@
         <section class="panel admin-prenet-panel">
           <div class="admin-prenet-filters">
             <label>
-              Rechercher un client, une référence ou un produit
-              <input id="adminPrenetSearch" type="search" autocomplete="off" placeholder="Ex. ADITEC, COUTAUD, 45761, ruban…" />
+              Commercial
+              <select id="adminPrenetCommercialFilter">
+                <option value="all">Tous les commerciaux</option>
+              </select>
             </label>
+            <label class="admin-prenet-search-label">
+              Rechercher et sélectionner un client
+              <input id="adminPrenetSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
+              <div class="admin-prenet-suggestions suggestions" id="adminPrenetSuggestions"></div>
+            </label>
+          </div>
+          <div class="admin-prenet-selected is-hidden" id="adminPrenetSelected">
+            <div>
+              <p class="step">Client sélectionné</p>
+              <h3 id="adminPrenetSelectedName">-</h3>
+              <p id="adminPrenetSelectedMeta">Choisissez un client pour afficher ses prix nets.</p>
+            </div>
+            <button class="secondary-btn" type="button" id="adminPrenetClearClient">Changer de client</button>
           </div>
           <div class="admin-log-wrap">
             <table class="admin-log-table admin-prenet-table">
@@ -1102,7 +1117,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260723a" charset="UTF-8"></script>
+    <script src="script.js?v=20260723b" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
