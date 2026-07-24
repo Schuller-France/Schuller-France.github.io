@@ -6108,3 +6108,50 @@ body.dark-theme.tablet-mode .document-card,
 body.dark-theme.tablet-mode .tarif-card {
   background: #151b24;
 }
+
+/* Navigation finale : remplace les compteurs automatiques par des icones stables. */
+body:not(.tablet-mode) .app-tabs .tab-button::before,
+body.tablet-mode .app-tabs .tab-button::before {
+  display: inline-flex !important;
+  width: 14px !important;
+  min-width: 14px !important;
+  height: 14px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: inherit !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+body:not(.tablet-mode) #homeTab::before,
+body.tablet-mode #homeTab::before { content: "H" !important; }
+body:not(.tablet-mode) #client360Tab::before,
+body.tablet-mode #client360Tab::before { content: "C" !important; }
+body:not(.tablet-mode) #statsTab::before,
+body.tablet-mode #statsTab::before { content: "S" !important; }
+body:not(.tablet-mode) #orderTab::before,
+body.tablet-mode #orderTab::before { content: "+" !important; }
+body:not(.tablet-mode) #quoteTab::before,
+body.tablet-mode #quoteTab::before { content: "D" !important; }
+body:not(.tablet-mode) #expensesTab::before,
+body.tablet-mode #expensesTab::before { content: "F" !important; }
+body:not(.tablet-mode) #notesTab::before,
+body.tablet-mode #notesTab::before { content: "N" !important; }
+body:not(.tablet-mode) #promotionTab::before,
+body.tablet-mode #promotionTab::before { content: "%" !important; }
+body:not(.tablet-mode) #tarifTab::before,
+body.tablet-mode #tarifTab::before { content: "T" !important; }
+body:not(.tablet-mode) #tourTab::before,
+body.tablet-mode #tourTab::before { content: "R" !important; }
+body:not(.tablet-mode) #prenetTab::before,
+body.tablet-mode #prenetTab::before { content: "P" !important; }
+body:not(.tablet-mode) #backlogTab::before,
+body.tablet-mode #backlogTab::before { content: "!" !important; }
+body:not(.tablet-mode) #adminCheckingTab::before,
+body.tablet-mode #adminCheckingTab::before { content: "J" !important; }
+body:not(.tablet-mode) #adminTab::before,
+body.tablet-mode #adminTab::before { content: "C" !important; }
+body:not(.tablet-mode) #adminPrenetTab::before,
+body.tablet-mode #adminPrenetTab::before { content: "P" !important; }
