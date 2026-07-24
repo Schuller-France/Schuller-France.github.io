@@ -2315,8 +2315,9 @@ function renderClient360ArticleStats(topArticles) {
 function getCommercialStatsRows() {
   const rows = [];
   const byClient = clientArticleStats360?.byClient || {};
-  const visibleByCode = new Map(visibleClients.map((client) => [normalize(client.code || ""), client]));
-  const visibleByName = new Map(visibleClients.map((client) => [normalize(client.name || ""), client]));
+  const scopeClients = currentUser?.role === "admin" ? allClients : visibleClients;
+  const visibleByCode = new Map(scopeClients.map((client) => [normalize(client.code || ""), client]));
+  const visibleByName = new Map(scopeClients.map((client) => [normalize(client.name || ""), client]));
   Object.values(byClient).forEach((clientBlock) => {
     const summary = clientBlock?.summary || {};
     const client = visibleByCode.get(normalize(summary.clientCode || "")) || visibleByName.get(normalize(summary.clientName || ""));
@@ -2351,11 +2352,12 @@ function getCommercialStatsClientMatches(query) {
   const cleanQuery = normalize(query || "");
   if (!cleanQuery) return [];
   const rows = getCommercialStatsRows();
+  const scopeClients = currentUser?.role === "admin" ? allClients : visibleClients;
   const byKey = new Map();
   rows.forEach((row) => {
     const key = normalize(row.clientCode || row.clientName || "");
     if (!key || byKey.has(key)) return;
-    const client = visibleClients.find((item) =>
+    const client = scopeClients.find((item) =>
       normalize(item.code || "") === normalize(row.clientCode || "") ||
       normalize(item.name || "") === normalize(row.clientName || "")
     );
@@ -2792,7 +2794,8 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(adminTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, adminTab.nextSibling);
+    appTabs.insertBefore(statsTab, adminTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
     return;
   }
@@ -3070,7 +3073,8 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, statsTab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
