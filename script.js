@@ -4,6 +4,7 @@ let prenetClients = [];
 let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
 let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+let commercialStatsRowsCache = null;
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -387,6 +388,7 @@ function applySecureAppData(result) {
   };
   localStatsData = result.stats || {};
   clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+  commercialStatsRowsCache = null;
   tariffConfig = {
     ...tariffConfig,
     ...(result.tariffConfig || {}),
@@ -1919,6 +1921,7 @@ async function loadClientArticleStatsFromDrive() {
   try {
     const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
     clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+    commercialStatsRowsCache = null;
     if (selectedClient360) selectClient360(selectedClient360);
     renderCommercialStats();
   } catch (error) {
@@ -2313,39 +2316,47 @@ function renderClient360ArticleStats(topArticles) {
 }
 
 function getCommercialStatsRows() {
-  const rows = [];
-  const byClient = clientArticleStats360?.byClient || {};
-  const scopeClients = currentUser?.role === "admin" ? allClients : visibleClients;
-  const visibleByCode = new Map(scopeClients.map((client) => [normalize(client.code || ""), client]));
-  const visibleByName = new Map(scopeClients.map((client) => [normalize(client.name || ""), client]));
-  Object.values(byClient).forEach((clientBlock) => {
-    const summary = clientBlock?.summary || {};
-    const client = visibleByCode.get(normalize(summary.clientCode || "")) || visibleByName.get(normalize(summary.clientName || ""));
-    const articles = Array.isArray(clientBlock?.topArticles) ? clientBlock.topArticles : [];
-    articles.forEach((article) => {
-      const clientName = client?.name || article.clientName || summary.clientName || "Client inconnu";
-      const clientCode = client?.code || article.clientCode || summary.clientCode || "";
-      const quantity2026 = Number(article.quantity2026) || 0;
-      const quantity2025 = Number(article.quantity2025) || 0;
-      const ca2026 = Number(article.ca2026) || 0;
-      const ca2025 = Number(article.ca2025) || 0;
-      rows.push({
-        clientName,
-        clientCode,
-        sector: client?.sector || article.sector || summary.sector || "",
-        articleCode: article.articleCode || "",
-        articleName: article.articleName || "Article sans désignation",
-        family: article.family || "",
-        quantity2026,
-        quantity2025,
-        gapQuantity: Number(article.gapQuantity) || (quantity2026 - quantity2025),
-        ca2026,
-        ca2025,
-        gapCa: Number(article.gapCa) || (ca2026 - ca2025),
+  if (!commercialStatsRowsCache) {
+    const rows = [];
+    const byClient = clientArticleStats360?.byClient || {};
+    const allByCode = new Map(allClients.map((client) => [normalize(client.code || ""), client]));
+    const allByName = new Map(allClients.map((client) => [normalize(client.name || ""), client]));
+    Object.values(byClient).forEach((clientBlock) => {
+      const summary = clientBlock?.summary || {};
+      const client = allByCode.get(normalize(summary.clientCode || "")) || allByName.get(normalize(summary.clientName || ""));
+      const articles = Array.isArray(clientBlock?.topArticles) ? clientBlock.topArticles : [];
+      articles.forEach((article) => {
+        const clientName = client?.name || article.clientName || summary.clientName || "Client inconnu";
+        const clientCode = client?.code || article.clientCode || summary.clientCode || "";
+        const quantity2026 = Number(article.quantity2026) || 0;
+        const quantity2025 = Number(article.quantity2025) || 0;
+        const ca2026 = Number(article.ca2026) || 0;
+        const ca2025 = Number(article.ca2025) || 0;
+        rows.push({
+          clientName,
+          clientCode,
+          sector: client?.sector || article.sector || summary.sector || "",
+          articleCode: article.articleCode || "",
+          articleName: article.articleName || "Article sans désignation",
+          family: article.family || "",
+          quantity2026,
+          quantity2025,
+          gapQuantity: Number(article.gapQuantity) || (quantity2026 - quantity2025),
+          ca2026,
+          ca2025,
+          gapCa: Number(article.gapCa) || (ca2026 - ca2025),
+        });
       });
     });
-  });
-  return rows;
+    commercialStatsRowsCache = rows;
+  }
+  if (currentUser?.role === "admin") return [...commercialStatsRowsCache];
+  const visibleCodes = new Set(visibleClients.map((client) => normalize(client.code || "")));
+  const visibleNames = new Set(visibleClients.map((client) => normalize(client.name || "")));
+  return commercialStatsRowsCache.filter((row) =>
+    visibleCodes.has(normalize(row.clientCode || "")) ||
+    visibleNames.has(normalize(row.clientName || ""))
+  );
 }
 
 function getCommercialStatsClientMatches(query) {
@@ -2456,6 +2467,20 @@ function filterCommercialStatsRows() {
 
 function renderCommercialStats() {
   if (!statsArticleBody) return;
+  const clientText = statsClientFilter?.value?.trim() || "";
+  if (clientText && !selectedStatsClient) {
+    if (statsSourceBadge) statsSourceBadge.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
+    if (statsTotalCa) statsTotalCa.textContent = "--";
+    if (statsTotalPreviousCa) statsTotalPreviousCa.textContent = "--";
+    if (statsTotalGapCa) {
+      statsTotalGapCa.textContent = "--";
+      statsTotalGapCa.classList.remove("is-up", "is-down");
+    }
+    if (statsTotalRows) statsTotalRows.textContent = "Client a valider";
+    if (statsTotalGapQty) statsTotalGapQty.textContent = "Cliquez sur un client dans la liste.";
+    statsArticleBody.innerHTML = '<tr><td colspan="10" class="dashboard-empty">Saisis un client, puis clique sur le bon resultat pour afficher ses statistiques.</td></tr>';
+    return;
+  }
   const rows = filterCommercialStatsRows();
   const totalCa = rows.reduce((sum, row) => sum + row.ca2026, 0);
   const totalPreviousCa = rows.reduce((sum, row) => sum + row.ca2025, 0);
