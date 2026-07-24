@@ -12,6 +12,7 @@ const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
 let selectedClient360 = null;
+let selectedStatsClient = null;
 let selectedQuoteClient = null;
 let selectedPrenetClient = null;
 let selectedAdminPrenetClient = null;
@@ -190,6 +191,7 @@ const checkingRevenueTotal = document.querySelector("#checkingRevenueTotal");
 const checkingSource = document.querySelector("#checkingSource");
 const checkingUpdatedAt = document.querySelector("#checkingUpdatedAt");
 const statsClientFilter = document.querySelector("#statsClientFilter");
+const statsClientSuggestions = document.querySelector("#statsClientSuggestions");
 const statsReferenceFilter = document.querySelector("#statsReferenceFilter");
 const statsArticleFilter = document.querySelector("#statsArticleFilter");
 const statsFamilyFilter = document.querySelector("#statsFamilyFilter");
@@ -2345,8 +2347,83 @@ function getCommercialStatsRows() {
   return rows;
 }
 
+function getCommercialStatsClientMatches(query) {
+  const cleanQuery = normalize(query || "");
+  if (!cleanQuery) return [];
+  const rows = getCommercialStatsRows();
+  const byKey = new Map();
+  rows.forEach((row) => {
+    const key = normalize(row.clientCode || row.clientName || "");
+    if (!key || byKey.has(key)) return;
+    const client = visibleClients.find((item) =>
+      normalize(item.code || "") === normalize(row.clientCode || "") ||
+      normalize(item.name || "") === normalize(row.clientName || "")
+    );
+    const candidate = {
+      code: client?.code || row.clientCode || "",
+      name: client?.name || row.clientName || "Client inconnu",
+      sector: client?.sector || row.sector || "",
+      city: client?.deliveryCity || client?.billingCity || "",
+      zip: client?.deliveryZip || client?.billingZip || "",
+    };
+    const text = normalize([candidate.code, candidate.name, candidate.sector, candidate.zip, candidate.city].join(" "));
+    if (text.includes(cleanQuery)) byKey.set(key, candidate);
+  });
+  return [...byKey.values()]
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { numeric: true }))
+    .slice(0, 12);
+}
+
+function selectCommercialStatsClient(client) {
+  selectedStatsClient = client;
+  if (statsClientFilter) statsClientFilter.value = client?.name || "";
+  statsClientSuggestions?.classList.remove("is-open");
+  renderCommercialStats();
+}
+
+function clearCommercialStatsClientSelection() {
+  selectedStatsClient = null;
+  statsClientSuggestions?.classList.remove("is-open");
+}
+
+function renderCommercialStatsClientSuggestions() {
+  if (!statsClientFilter || !statsClientSuggestions) return;
+  const query = statsClientFilter.value.trim();
+  statsClientSuggestions.innerHTML = "";
+  if (!query) {
+    clearCommercialStatsClientSelection();
+    renderCommercialStats();
+    return;
+  }
+  if (selectedStatsClient && normalize(query) === normalize(selectedStatsClient.name || "")) {
+    statsClientSuggestions.classList.remove("is-open");
+    return;
+  }
+  selectedStatsClient = null;
+  const matches = getCommercialStatsClientMatches(query);
+  if (!matches.length) {
+    statsClientSuggestions.innerHTML = '<div class="suggestion-empty">Aucun client trouve.</div>';
+    statsClientSuggestions.classList.add("is-open");
+    renderCommercialStats();
+    return;
+  }
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml([client.code, client.sector, `${client.zip || ""} ${client.city || ""}`.trim()].filter(Boolean).join(" - "))}</span>
+    `;
+    button.addEventListener("click", () => selectCommercialStatsClient(client));
+    statsClientSuggestions.appendChild(button);
+  });
+  statsClientSuggestions.classList.add("is-open");
+  renderCommercialStats();
+}
+
 function filterCommercialStatsRows() {
-  const clientQuery = normalize(statsClientFilter?.value || "");
+  const clientQuery = selectedStatsClient ? normalize(selectedStatsClient.code || selectedStatsClient.name || "") : "";
   const refQuery = normalize(statsReferenceFilter?.value || "");
   const articleQuery = normalize(statsArticleFilter?.value || "");
   const familyQuery = normalize(statsFamilyFilter?.value || "");
@@ -2364,6 +2441,9 @@ function filterCommercialStatsRows() {
   const sorters = {
     caDesc: (a, b) => b.ca2026 - a.ca2026,
     qtyDesc: (a, b) => b.quantity2026 - a.quantity2026,
+    qtyAsc: (a, b) => a.quantity2026 - b.quantity2026,
+    gapQtyDesc: (a, b) => b.gapQuantity - a.gapQuantity,
+    gapQtyAsc: (a, b) => a.gapQuantity - b.gapQuantity,
     gapCaDesc: (a, b) => b.gapCa - a.gapCa,
     gapCaAsc: (a, b) => a.gapCa - b.gapCa,
     clientAsc: (a, b) => a.clientName.localeCompare(b.clientName, "fr", { numeric: true }),
@@ -2418,6 +2498,8 @@ function renderCommercialStats() {
 }
 
 function resetCommercialStatsFilters() {
+  selectedStatsClient = null;
+  statsClientSuggestions?.classList.remove("is-open");
   [statsClientFilter, statsReferenceFilter, statsArticleFilter, statsFamilyFilter].forEach((input) => {
     if (input) input.value = "";
   });
@@ -6116,7 +6198,16 @@ adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
 statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
-[statsClientFilter, statsReferenceFilter, statsArticleFilter, statsFamilyFilter, statsSortSelect].forEach((control) => {
+statsClientFilter?.addEventListener("input", renderCommercialStatsClientSuggestions);
+statsClientFilter?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  const firstSuggestion = statsClientSuggestions?.querySelector(".suggestion");
+  if (firstSuggestion) {
+    event.preventDefault();
+    firstSuggestion.click();
+  }
+});
+[statsReferenceFilter, statsArticleFilter, statsFamilyFilter, statsSortSelect].forEach((control) => {
   control?.addEventListener("input", renderCommercialStats);
   control?.addEventListener("change", renderCommercialStats);
 });

@@ -270,9 +270,10 @@
           </div>
 
           <section class="stats-filter-grid" aria-label="Filtres statistiques">
-            <label>
+            <label class="stats-client-field">
               Client
               <input id="statsClientFilter" type="search" autocomplete="off" placeholder="Nom ou code client..." />
+              <div class="suggestions" id="statsClientSuggestions" role="listbox"></div>
             </label>
             <label>
               Référence
@@ -291,6 +292,9 @@
               <select id="statsSortSelect">
                 <option value="caDesc">CA 2026 décroissant</option>
                 <option value="qtyDesc">Quantité 2026 décroissante</option>
+                <option value="qtyAsc">Quantité 2026 croissante</option>
+                <option value="gapQtyDesc">Plus forte hausse quantité</option>
+                <option value="gapQtyAsc">Plus forte baisse quantité</option>
                 <option value="gapCaDesc">Écart CA le plus fort</option>
                 <option value="gapCaAsc">Plus forte baisse CA</option>
                 <option value="clientAsc">Client A-Z</option>
@@ -1137,7 +1141,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260723g" charset="UTF-8"></script>
+    <script src="script.js?v=20260724a" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

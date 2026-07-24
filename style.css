@@ -400,6 +400,17 @@
   text-transform: uppercase;
   letter-spacing: .05em;
 }
+.stats-client-field {
+  position: relative;
+}
+.stats-client-field .suggestions {
+  left: 0;
+  right: 0;
+  top: calc(100% - 2px);
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .stats-filter-grid input,
 .stats-filter-grid select {
   min-height: 44px;
