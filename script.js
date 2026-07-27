@@ -15,11 +15,13 @@ let selectedClient = null;
 let selectedClient360 = null;
 let selectedStatsClient = null;
 let selectedQuoteClient = null;
+let selectedSampleClient = null;
 let selectedPrenetClient = null;
 let selectedAdminPrenetClient = null;
 let selectedAdminPrenetRefs = [];
 let lines = [];
 let quoteLineItems = [];
+let sampleLineItems = [];
 let expenseLineItems = [];
 let activeExpenseDraftId = null;
 let currentUser = null;
@@ -140,6 +142,7 @@ const statsTab = document.querySelector("#statsTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
+const sampleTab = document.querySelector("#sampleTab");
 const expensesTab = document.querySelector("#expensesTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
@@ -156,6 +159,7 @@ const client360View = document.querySelector("#client360View");
 const statsView = document.querySelector("#statsView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
+const sampleView = document.querySelector("#sampleView");
 const expensesView = document.querySelector("#expensesView");
 const historyView = document.querySelector("#historyView");
 const notesView = document.querySelector("#notesView");
@@ -236,6 +240,15 @@ const sendQuoteRequest = document.querySelector("#sendQuoteRequest");
 const quoteSendStatus = document.querySelector("#quoteSendStatus");
 const quoteHistorySearch = document.querySelector("#quoteHistorySearch");
 const quoteHistoryList = document.querySelector("#quoteHistoryList");
+const sampleClientSearch = document.querySelector("#sampleClientSearch");
+const sampleClientSuggestions = document.querySelector("#sampleClientSuggestions");
+const sampleSelectedClient = document.querySelector("#sampleSelectedClient");
+const sampleStatus = document.querySelector("#sampleStatus");
+const sampleLines = document.querySelector("#sampleLines");
+const sampleNote = document.querySelector("#sampleNote");
+const addSampleLine = document.querySelector("#addSampleLine");
+const sendSampleRequest = document.querySelector("#sendSampleRequest");
+const sampleSendStatus = document.querySelector("#sampleSendStatus");
 const expensesPeriod = document.querySelector("#expensesPeriod");
 const expensesNote = document.querySelector("#expensesNote");
 const expensesLines = document.querySelector("#expensesLines");
@@ -2875,6 +2888,7 @@ function arrangeTabsForUser(user) {
     statsTab,
     orderTab,
     quoteTab,
+    sampleTab,
     expensesTab,
     notesTab,
     promotionTab,
@@ -3143,7 +3157,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
-  [homeTab, orderTab, quoteTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
@@ -3172,6 +3186,8 @@ function showApp(user, token = user.token || "") {
   resetQuoteRequest();
   renderQuoteLines();
   renderQuoteHistory();
+  resetSampleRequest();
+  renderSampleLines();
   resetExpenses();
   resetCommercialStatsFilters();
   renderPrenetEmpty();
@@ -3535,6 +3551,214 @@ function renderQuoteLines() {
       <td><button class="icon-button" type="button" data-remove-quote-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
     </tr>
   `).join("");
+}
+
+function renderSampleClientSuggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  sampleClientSuggestions.innerHTML = "";
+
+  if (!cleanQuery) {
+    resetSampleRequest();
+    sampleClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  const matches = visibleClients
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingAddress,
+      client.billingCity,
+      client.billingZip,
+      client.deliveryAddress,
+      client.deliveryCity,
+      client.deliveryZip,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 10);
+
+  if (!matches.length) {
+    sampleClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip || client.deliveryZip || "")} ${escapeHtml(client.billingCity || client.deliveryCity || "")} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectSampleClient(client));
+    sampleClientSuggestions.appendChild(button);
+  });
+
+  sampleClientSuggestions.classList.add("is-open");
+}
+
+function selectSampleClient(client) {
+  selectedSampleClient = client;
+  sampleClientSearch.value = client.name;
+  sampleClientSuggestions.classList.remove("is-open");
+  sampleStatus.textContent = "Client sélectionné";
+  sampleStatus.classList.add("is-ready");
+  sampleSelectedClient.innerHTML = `
+    <strong>${escapeHtml(client.name)}</strong>
+    <span>${escapeHtml(client.code)}</span>
+    <span>${escapeHtml(client.billingAddress || client.deliveryAddress || "")}</span>
+    <span>${escapeHtml(client.billingZip || client.deliveryZip || "")} ${escapeHtml(client.billingCity || client.deliveryCity || "")}</span>
+    <span>${escapeHtml(client.sector)}</span>
+  `;
+  sampleSendStatus.textContent = "";
+  recordActivity("Client échantillon sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
+}
+
+function resetSampleRequest() {
+  selectedSampleClient = null;
+  sampleStatus.textContent = "Client non sélectionné";
+  sampleStatus.classList.remove("is-ready");
+  sampleSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+  sampleSendStatus.textContent = "";
+  sampleSendStatus.className = "tarif-send-status";
+}
+
+function addSampleLineItem() {
+  sampleLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  renderSampleLines();
+}
+
+function isSampleLineEmpty(line) {
+  return !String(line?.ref || "").trim() && !String(line?.comment || "").trim();
+}
+
+function ensureSampleTrailingBlankLine() {
+  if (!sampleLineItems.length) {
+    sampleLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+    return;
+  }
+  while (sampleLineItems.length > 1 && isSampleLineEmpty(sampleLineItems[sampleLineItems.length - 1]) && isSampleLineEmpty(sampleLineItems[sampleLineItems.length - 2])) {
+    sampleLineItems.pop();
+  }
+  const lastLine = sampleLineItems[sampleLineItems.length - 1];
+  if (String(lastLine.ref || "").trim()) {
+    sampleLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, comment: "" });
+  }
+}
+
+function removeSampleLineItem(id) {
+  sampleLineItems = sampleLineItems.filter((line) => line.id !== id);
+  if (!sampleLineItems.length) addSampleLineItem();
+  else renderSampleLines();
+}
+
+function updateSampleLine(id, field, value) {
+  const line = sampleLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+}
+
+function applySampleReference(id, value) {
+  const line = sampleLineItems.find((item) => item.id === id);
+  if (!line) return;
+  const product = findProduct(value);
+  line.ref = product ? product.ref : value;
+  if (product) {
+    recordActivity("Référence échantillon consultée", `${product.ref} - ${product.name}`);
+  }
+  renderSampleLines();
+}
+
+function renderSampleLines() {
+  ensureSampleTrailingBlankLine();
+  sampleLines.innerHTML = sampleLineItems.map((line, index) => `
+    <tr data-sample-line="${escapeHtml(line.id)}">
+      ${(() => {
+        const product = findProduct(line.ref);
+        return `
+          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-sample-field="ref" /></td>
+          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
+        `;
+      })()}
+      <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-sample-field="qty" aria-label="Nombre d'échantillons" /></td>
+      <td><input type="text" value="${escapeHtml(line.comment || "")}" placeholder="Couleur, format, précision..." data-sample-field="comment" /></td>
+      <td><button class="icon-button" type="button" data-remove-sample-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
+    </tr>
+  `).join("");
+}
+
+function handleSampleClientSearchInput(value) {
+  if (selectedSampleClient && normalize(value) !== normalize(selectedSampleClient.name)) {
+    resetSampleRequest();
+  }
+  renderSampleClientSuggestions(value);
+}
+
+async function sendSampleRequestDraft() {
+  sampleSendStatus.className = "tarif-send-status";
+  const validLines = sampleLineItems
+    .map((line) => {
+      const ref = String(line.ref || "").trim();
+      const product = findProduct(ref);
+      return {
+        ref,
+        designation: product?.name || "",
+        qty: Math.max(1, Number(line.qty) || 1),
+        comment: String(line.comment || "").trim(),
+      };
+    })
+    .filter((line) => line.ref);
+
+  if (!selectedSampleClient) {
+    sampleSendStatus.textContent = "Sélectionnez d’abord le client.";
+    sampleSendStatus.classList.add("is-error");
+    sampleClientSearch.focus();
+    return;
+  }
+
+  if (!validLines.length) {
+    sampleSendStatus.textContent = "Ajoutez au moins une référence d’échantillon.";
+    sampleSendStatus.classList.add("is-error");
+    sampleLines.querySelector("input")?.focus();
+    return;
+  }
+
+  if (!tariffConfig.endpoint) {
+    sampleSendStatus.textContent = "L’envoi doit d’abord être autorisé côté Google.";
+    sampleSendStatus.classList.add("is-warning");
+    return;
+  }
+
+  const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
+  const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
+  sendSampleRequest.disabled = true;
+  sendSampleRequest.textContent = "Envoi en cours…";
+  sampleSendStatus.textContent = "";
+
+  try {
+    await postService({
+      action: "sendSampleRequest",
+      client: JSON.stringify({
+        code: selectedSampleClient.code || "",
+        name: selectedSampleClient.name || "",
+        sector: selectedSampleClient.sector || "",
+        address: selectedSampleClient.billingAddress || selectedSampleClient.deliveryAddress || "",
+        zip: selectedSampleClient.billingZip || selectedSampleClient.deliveryZip || "",
+        city: selectedSampleClient.billingCity || selectedSampleClient.deliveryCity || "",
+      }),
+      lines: JSON.stringify(validLines),
+      note: sampleNote.value.trim(),
+    });
+    recordActivity("Demande échantillon envoyée", `${selectedSampleClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
+    sampleSendStatus.textContent = "Demande échantillon envoyée à flogilet44@gmail.com.";
+    sampleSendStatus.classList.add("is-success");
+  } catch (error) {
+    sampleSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
+    sampleSendStatus.classList.add("is-error");
+  } finally {
+    sendSampleRequest.disabled = false;
+    sendSampleRequest.textContent = "Envoyer la demande échantillon";
+  }
 }
 
 function todayIsoDate() {
@@ -5744,6 +5968,7 @@ function setActiveTab(tabName) {
   const showStats = tabName === "stats";
   const showOrder = tabName === "order";
   const showQuote = tabName === "quote";
+  const showSample = tabName === "sample";
   const showExpenses = tabName === "expenses";
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
@@ -5759,6 +5984,7 @@ function setActiveTab(tabName) {
   statsTab.classList.toggle("is-active", showStats);
   orderTab.classList.toggle("is-active", showOrder);
   quoteTab.classList.toggle("is-active", showQuote);
+  sampleTab.classList.toggle("is-active", showSample);
   expensesTab.classList.toggle("is-active", showExpenses);
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
@@ -5774,6 +6000,7 @@ function setActiveTab(tabName) {
   statsView.classList.toggle("is-hidden", !showStats);
   orderView.classList.toggle("is-hidden", !showOrder);
   quoteView.classList.toggle("is-hidden", !showQuote);
+  sampleView.classList.toggle("is-hidden", !showSample);
   expensesView.classList.toggle("is-hidden", !showExpenses);
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
@@ -5786,7 +6013,7 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -5806,6 +6033,11 @@ function setActiveTab(tabName) {
   if (showOrder) {
     renderOrderHistory();
     requestAnimationFrame(() => clientSearch.focus());
+  }
+
+  if (showSample) {
+    renderSampleLines();
+    requestAnimationFrame(() => sampleClientSearch?.focus());
   }
 
   if (showExpenses) {
@@ -6262,6 +6494,7 @@ client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
+sampleTab.addEventListener("click", () => setActiveTab("sample"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
@@ -6394,6 +6627,25 @@ quoteLines.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-quote-line]");
   if (!button) return;
   removeQuoteLineItem(button.dataset.removeQuoteLine);
+});
+sampleClientSearch.addEventListener("input", (event) => handleSampleClientSearchInput(event.target.value));
+addSampleLine.addEventListener("click", addSampleLineItem);
+sendSampleRequest.addEventListener("click", sendSampleRequestDraft);
+sampleLines.addEventListener("input", (event) => {
+  const row = event.target.closest("[data-sample-line]");
+  const field = event.target.dataset.sampleField;
+  if (!row || !field) return;
+  updateSampleLine(row.dataset.sampleLine, field, event.target.value);
+});
+sampleLines.addEventListener("change", (event) => {
+  const row = event.target.closest("[data-sample-line]");
+  if (!row || event.target.dataset.sampleField !== "ref") return;
+  applySampleReference(row.dataset.sampleLine, event.target.value);
+});
+sampleLines.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-sample-line]");
+  if (!button) return;
+  removeSampleLineItem(button.dataset.removeSampleLine);
 });
 addExpenseLine.addEventListener("click", addExpenseLineItem);
 newExpenseDraft.addEventListener("click", resetExpenses);

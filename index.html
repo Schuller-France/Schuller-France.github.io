@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260724a" />
+    <link rel="stylesheet" href="style.css?v=20260727sample1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -125,6 +125,7 @@
         <button class="tab-button" type="button" id="statsTab">Statistiques</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
+        <button class="tab-button" type="button" id="sampleTab">Demande &eacute;chantillon</button>
         <button class="tab-button" type="button" id="expensesTab">Frais</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
@@ -190,6 +191,7 @@
             <button type="button" data-tablet-tab="order">Nouvelle commande</button>
             <button type="button" data-tablet-tab="notes">Prise de notes</button>
             <button type="button" data-tablet-tab="quote">Demande de devis</button>
+            <button type="button" data-tablet-tab="sample">Demande &eacute;chantillon</button>
             <button type="button" data-tablet-tab="expenses">Frais</button>
             <button type="button" data-tablet-tab="tour">Tournées</button>
             <button type="button" data-tablet-tab="backlog">Reliquats & reprise</button>
@@ -554,6 +556,58 @@
             </div>
             <div class="quote-history-list" id="quoteHistoryList"></div>
           </section>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="sampleView">
+        <section class="panel quote-panel sample-panel" aria-labelledby="sampleTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Demande terrain</p>
+              <h2 id="sampleTitle">Demande &eacute;chantillon</h2>
+              <p class="helper-text">S&eacute;lectionnez un client, ajoutez les r&eacute;f&eacute;rences, puis envoyez la demande par e-mail.</p>
+            </div>
+            <span class="status-pill" id="sampleStatus">Client non s&eacute;lectionn&eacute;</span>
+          </div>
+
+          <div class="quote-layout sample-layout">
+            <section class="quote-client-card quote-client-wide">
+              <div class="search-block">
+                <label for="sampleClientSearch">Rechercher le client</label>
+                <input id="sampleClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                <div class="suggestions" id="sampleClientSuggestions" role="listbox"></div>
+              </div>
+              <article class="selected-client" id="sampleSelectedClient" aria-live="polite">
+                <span>Aucun client choisi pour le moment.</span>
+              </article>
+            </section>
+
+            <section class="quote-lines-card quote-lines-wide">
+              <div class="table-wrap quote-table-wrap">
+                <table class="order-table quote-table sample-table">
+                  <thead>
+                    <tr>
+                      <th>R&eacute;f&eacute;rence</th>
+                      <th>D&eacute;signation</th>
+                      <th>Nombre d'&eacute;chantillons</th>
+                      <th>Commentaire ligne</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sampleLines"></tbody>
+                </table>
+              </div>
+              <button class="ghost-button compact quote-add-line" type="button" id="addSampleLine">Ajouter une ligne vide</button>
+              <label class="note-field" for="sampleNote">
+                Commentaire g&eacute;n&eacute;ral
+                <textarea id="sampleNote" rows="3" placeholder="Ex. urgent, client &agrave; visiter, chantier &agrave; venir..."></textarea>
+              </label>
+              <div class="quote-actions">
+                <button class="primary-button" type="button" id="sendSampleRequest">Envoyer la demande &eacute;chantillon</button>
+                <p class="tarif-send-status" id="sampleSendStatus"></p>
+              </div>
+            </section>
+          </div>
         </section>
       </main>
 
@@ -1141,7 +1195,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260727order1" charset="UTF-8"></script>
+    <script src="script.js?v=20260727sample1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
