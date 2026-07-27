@@ -130,6 +130,8 @@ const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const displayModeToggle = document.querySelector("#displayModeToggle");
+const tabletMenuToggle = document.querySelector("#tabletMenuToggle");
+const tabletMenuBackdrop = document.querySelector("#tabletMenuBackdrop");
 const themeToggle = document.querySelector("#themeToggle");
 const offlineStatus = document.querySelector("#offlineStatus");
 const globalSearchInput = document.querySelector("#globalSearchInput");
@@ -512,12 +514,27 @@ function recordActivity(type, detail = "") {
 function setDisplayMode(mode) {
   const tablet = mode === "tablet";
   document.body.classList.toggle("tablet-mode", tablet);
+  document.body.classList.remove("tablet-menu-open");
   localStorage.setItem(displayModeStorageKey, tablet ? "tablet" : "pc");
   displayModeToggle.textContent = tablet ? "Mode PC" : "Mode tablette";
+  if (tabletMenuToggle) tabletMenuToggle.setAttribute("aria-expanded", "false");
 }
 
 function toggleDisplayMode() {
   setDisplayMode(document.body.classList.contains("tablet-mode") ? "pc" : "tablet");
+}
+
+function setTabletMenuOpen(open) {
+  const shouldOpen = Boolean(open) && document.body.classList.contains("tablet-mode");
+  document.body.classList.toggle("tablet-menu-open", shouldOpen);
+  if (tabletMenuToggle) {
+    tabletMenuToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    tabletMenuToggle.setAttribute("aria-label", shouldOpen ? "Fermer le menu" : "Ouvrir le menu");
+  }
+}
+
+function toggleTabletMenu() {
+  setTabletMenuOpen(!document.body.classList.contains("tablet-menu-open"));
 }
 
 function setThemeMode(mode) {
@@ -5963,6 +5980,7 @@ function openWazeNextClient() {
 }
 
 function setActiveTab(tabName) {
+  setTabletMenuOpen(false);
   const showHome = tabName === "home";
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
@@ -6790,6 +6808,8 @@ promotionGrid.addEventListener("click", (event) => {
 });
 closePromotionModal.addEventListener("click", closePromotionPreview);
 displayModeToggle.addEventListener("click", toggleDisplayMode);
+tabletMenuToggle?.addEventListener("click", toggleTabletMenu);
+tabletMenuBackdrop?.addEventListener("click", () => setTabletMenuOpen(false));
 themeToggle?.addEventListener("click", toggleThemeMode);
 globalSearchInput?.addEventListener("input", renderGlobalSearchResults);
 globalSearchResults?.addEventListener("click", (event) => {

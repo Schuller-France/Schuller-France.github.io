@@ -6200,3 +6200,106 @@ body.tablet-mode .sample-table td:nth-child(4)::before { content: "Commentaire";
 body.tablet-mode .sample-table td:nth-child(5) {
   justify-content: flex-end;
 }
+
+/* Tablette : navigation masquée derrière un bouton menu pour libérer toute la largeur. */
+.tablet-menu-toggle,
+.tablet-menu-backdrop {
+  display: none;
+}
+
+body.tablet-mode .tablet-menu-toggle {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  gap: 4px;
+  background: #171717;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .14);
+}
+
+body.tablet-mode .tablet-menu-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: #fff;
+  border-radius: 999px;
+}
+
+body.tablet-mode .app-view:not(.is-hidden) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 72px 1fr !important;
+}
+
+body.tablet-mode .app-header {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  gap: 12px;
+  padding: 12px 16px !important;
+}
+
+body.tablet-mode .app-shell {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 18px 16px 48px !important;
+}
+
+body.tablet-mode .app-shell > .panel,
+body.tablet-mode .dashboard-grid,
+body.tablet-mode .dashboard-main-grid,
+body.tablet-mode .dashboard-ranking-grid {
+  width: 100% !important;
+}
+
+body.tablet-mode .app-tabs {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 90 !important;
+  width: min(310px, 84vw) !important;
+  height: 100vh !important;
+  padding: 22px 14px !important;
+  transform: translateX(-105%);
+  transition: transform .22s ease;
+  box-shadow: 18px 0 44px rgba(15, 23, 42, .22);
+}
+
+body.tablet-mode.tablet-menu-open .app-tabs {
+  transform: translateX(0);
+}
+
+body.tablet-mode .tablet-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: block;
+  background: rgba(15, 23, 42, .34);
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s ease;
+}
+
+body.tablet-mode.tablet-menu-open .tablet-menu-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.tablet-mode .notes-search,
+body.tablet-mode .search-block,
+body.tablet-mode .prenet-search-block {
+  top: 84px !important;
+}
+
+body.dark-theme.tablet-mode .tablet-menu-toggle {
+  background: #e30613;
+}
+
+body.dark-theme.tablet-mode .tablet-menu-backdrop {
+  background: rgba(0, 0, 0, .55);
+}

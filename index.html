@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260727sample1" />
+    <link rel="stylesheet" href="style.css?v=20260727tabletnav1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -98,6 +98,11 @@
 
     <div class="app-view is-hidden" id="appView">
       <header class="app-header">
+        <button class="tablet-menu-toggle" type="button" id="tabletMenuToggle" aria-label="Ouvrir le menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
         <div class="brand-lockup">
           <img src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
           <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
@@ -137,6 +142,7 @@
         <button class="tab-button is-hidden" type="button" id="adminTab">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab">Prix nets</button>
       </nav>
+      <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
 
       <main class="app-shell dashboard-shell" id="homeView">
         <section class="panel dashboard-hero" aria-labelledby="homeTitle">
@@ -1195,7 +1201,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260727sample1" charset="UTF-8"></script>
+    <script src="script.js?v=20260727tabletnav1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
