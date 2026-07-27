@@ -350,7 +350,8 @@ async function postService(parameters) {
   try {
     response = await fetch(tariffConfig.endpoint, {
       method: "POST",
-      body: new URLSearchParams(payload),
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams(payload).toString(),
     });
   } catch (error) {
     throw new Error("Connexion au service Google impossible. Vérifiez la connexion internet puis réessayez.");
@@ -1158,6 +1159,50 @@ function filterPrenetEntries(entries, query) {
     entry.price,
     entry.status,
   ].join(" ")).includes(cleanQuery));
+}
+
+function findPrenetClientForOrder(client) {
+  if (!client) return null;
+  const clientCode = normalize(client.code || client.clientCode || "");
+  const clientName = normalize(client.name || client.clientName || "");
+  const clientSector = normalizeStatsSector(client.sector || "");
+
+  if (clientCode) {
+    const byCode = prenetClients.find((item) => normalize(item.code || item.clientCode || "") === clientCode);
+    if (byCode) return byCode;
+  }
+
+  if (clientName) {
+    const sameName = prenetClients.filter((item) => normalize(item.name || item.clientName || "") === clientName);
+    if (sameName.length === 1) return sameName[0];
+    if (clientSector) {
+      const sameSector = sameName.find((item) => normalizeStatsSector(item.sector || "") === clientSector);
+      if (sameSector) return sameSector;
+    }
+  }
+
+  return null;
+}
+
+function findPrenetEntryForProduct(client, product) {
+  if (!client || !product) return null;
+  const prenetClient = findPrenetClientForOrder(client);
+  const entries = getPrenetNewEntries(prenetClient);
+  if (!entries.length) return null;
+  const productRef = normalize(product.ref || "");
+  const productGencod = normalize(product.gencod || "");
+  return entries.find((entry) => {
+    const entryRef = normalize(entry.ref || entry.reference || "");
+    const entryGencod = normalize(entry.gencod || entry.genCode || "");
+    return (productRef && entryRef === productRef) || (productGencod && entryGencod === productGencod);
+  }) || null;
+}
+
+function getOrderUnitPrice(product) {
+  if (!product) return 0;
+  const prenetEntry = findPrenetEntryForProduct(selectedClient, product);
+  const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
+  return prenetPrice > 0 ? prenetPrice : Number(product.price) || 0;
 }
 
 function renderPrenetReferenceResults(client, query = "") {
@@ -4223,7 +4268,8 @@ function renderLines() {
   lines.forEach((line) => {
     const product = findProduct(line.ref);
     const quantity = Math.max(Number(line.qty) || 0, 0);
-    const lineTotal = product ? product.price * quantity : 0;
+    const unitPrice = product ? getOrderUnitPrice(product) : 0;
+    const lineTotal = product ? unitPrice * quantity : 0;
     const row = document.createElement("tr");
     row.dataset.lineId = line.id;
 
@@ -4237,7 +4283,7 @@ function renderLines() {
       <td class="qty-cell">
         <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
       </td>
-      <td class="price-cell">${product ? formatter.format(product.price) : "-"}</td>
+      <td class="price-cell">${product ? formatter.format(unitPrice) : "-"}</td>
       <td class="line-total-cell">${product ? formatter.format(lineTotal) : "-"}</td>
       <td>
         <button class="remove-line" type="button" aria-label="Supprimer la ligne">x</button>
@@ -4281,16 +4327,23 @@ function renderLines() {
 
 function getValidLines() {
   return lines
-    .map((line) => ({
-      ...line,
-      product: findProduct(line.ref),
-      qty: Math.max(Number(line.qty) || 0, 0),
-    }))
+    .map((line) => {
+      const product = findProduct(line.ref);
+      const qty = Math.max(Number(line.qty) || 0, 0);
+      const unitPrice = getOrderUnitPrice(product);
+      return {
+        ...line,
+        product,
+        qty,
+        unitPrice,
+        lineTotal: unitPrice * qty,
+      };
+    })
     .filter((line) => line.product && line.qty > 0);
 }
 
 function getTotal() {
-  return getValidLines().reduce((sum, line) => sum + line.product.price * line.qty, 0);
+  return getValidLines().reduce((sum, line) => sum + line.lineTotal, 0);
 }
 
 function updateSummary() {
@@ -4347,8 +4400,8 @@ function buildOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
       name: line.product.name,
       udv: line.product.udv || "",
       qty: line.qty,
-      price: line.product.price,
-      total: line.product.price * line.qty,
+      price: line.unitPrice,
+      total: line.lineTotal,
     })),
   };
 }
@@ -5843,18 +5896,19 @@ function downloadErpCsv(filename, rows) {
 function pdfText(value) {
   return value
     .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[’]/g, "'")
-    .replace(/[€]/g, "EUR")
-    .replace(/[°]/g, "o")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function toUtf16Hex(value) {
-  const text = pdfText(value).replace(/[\\()]/g, "\\$&");
-  return `(${text})`;
+  const text = pdfText(value);
+  const bytes = [0xfe, 0xff];
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    bytes.push((code >> 8) & 0xff, code & 0xff);
+  }
+  return `<${bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("")}>`;
 }
 
 function pdfEscapeNumber(value) {
@@ -5869,7 +5923,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   let commands = [];
   let y = pageHeight - margin;
   let pageNumber = 0;
-  const pdfTotal = validLines.reduce((sum, line) => sum + line.product.price * line.qty, 0);
+  const pdfTotal = validLines.reduce((sum, line) => sum + line.lineTotal, 0);
 
   function addPage() {
     if (commands.length) {
@@ -5989,10 +6043,9 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     textAt(margin + 6, y + 3, 7.5, "Réf.", { bold: true });
     textAt(88, y + 3, 7.5, "Gencod", { bold: true });
     textAt(172, y + 3, 7.5, "Désignation", { bold: true });
-    textAt(382, y + 3, 7.5, "UDV", { bold: true });
-    textAt(417, y + 3, 7.5, "Qté", { bold: true });
-    textAt(456, y + 3, 7.5, "Prix U.", { bold: true });
-    textAt(515, y + 3, 7.5, "Total", { bold: true });
+    textAt(408, y + 3, 7.5, "Qté", { bold: true });
+    textAt(452, y + 3, 7.5, "Prix net HT", { bold: true });
+    textAt(522, y + 3, 7.5, "Total HT", { bold: true });
     setColor("#1E1E22");
     y -= 22;
   }
@@ -6005,14 +6058,13 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     if (index % 2 === 1) {
       fillRect(margin, y - 8, pageWidth - margin * 2, 20, "#F8F8F9");
     }
-    const lineTotal = line.product.price * line.qty;
+    const lineTotal = line.lineTotal;
     textAt(margin + 6, y, 7.5, line.product.ref);
     textAt(88, y, 7.2, line.product.gencod);
-    textAt(172, y, 7.6, line.product.name.slice(0, 42), { bold: true });
-    textAt(386, y, 7.5, line.product.udv || "-");
-    textAt(419, y, 7.5, line.qty);
-    textAt(456, y, 7.5, formatter.format(line.product.price));
-    textAt(515, y, 7.5, formatter.format(lineTotal));
+    textAt(172, y, 7.6, line.product.name.slice(0, 45), { bold: true });
+    textAt(410, y, 7.5, line.qty);
+    textAt(452, y, 7.5, formatter.format(line.unitPrice));
+    textAt(522, y, 7.5, formatter.format(lineTotal));
     y -= 20;
     hline(margin, pageWidth - margin, y + 7, "#E5E5E8");
   }
@@ -6026,15 +6078,13 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   y -= 10;
   ensureSpace(92);
   const recapX = pageWidth - 210;
-  fillRect(recapX, y - 55, 174, 66, "#F5F5F5");
-  strokeRect(recapX, y - 55, 174, 66);
-  fillRect(recapX, y - 55, 4, 66, "#E30613");
+  fillRect(recapX, y - 38, 174, 46, "#F5F5F5");
+  strokeRect(recapX, y - 38, 174, 46);
+  fillRect(recapX, y - 38, 4, 46, "#E30613");
   textAt(recapX + 14, y - 6, 9, "Récapitulatif", { bold: true });
   textAt(recapX + 14, y - 25, 8, "Total HT");
   textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
-  textAt(recapX + 14, y - 42, 8, "Total TTC");
-  textAt(recapX + 90, y - 42, 8, formatter.format(pdfTotal), { bold: true });
-  y -= 76;
+  y -= 56;
 
   if (note) {
     ensureSpace(46);
