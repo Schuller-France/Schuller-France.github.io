@@ -318,7 +318,7 @@
             <div>
               <p class="step">Analyse commerciale</p>
               <h2 id="statsTitle">Statistiques</h2>
-              <p class="helper-text">Filtrez par client, référence, article ou famille pour retrouver les quantités et le chiffre d'affaires N / N-1.</p>
+              <p class="helper-text">Filtrez par client, référence ou article pour retrouver les quantités et le chiffre d'affaires N / N-1.</p>
             </div>
             <span class="status-pill" id="statsSourceBadge">Drive</span>
           </div>
@@ -336,10 +336,6 @@
             <label>
               Article
               <input id="statsArticleFilter" type="search" autocomplete="off" placeholder="Nom article..." />
-            </label>
-            <label>
-              Famille
-              <input id="statsFamilyFilter" type="search" autocomplete="off" placeholder="Famille..." />
             </label>
             <label>
               Trier par
@@ -383,7 +379,6 @@
                   <th>Client</th>
                   <th>Référence</th>
                   <th>Désignation</th>
-                  <th>Famille</th>
                   <th>Qté 2026</th>
                   <th>Qté N-1</th>
                   <th>Écart Qté</th>
@@ -393,7 +388,7 @@
                 </tr>
               </thead>
               <tbody id="statsArticleBody">
-                <tr><td colspan="10" class="dashboard-empty">Les statistiques articles apparaîtront ici après chargement Drive.</td></tr>
+                <tr><td colspan="9" class="dashboard-empty">Les statistiques articles apparaîtront ici après chargement Drive.</td></tr>
               </tbody>
             </table>
           </div>
@@ -652,7 +647,7 @@
               <button class="ghost-button compact quote-add-line" type="button" id="addSampleLine">Ajouter une ligne vide</button>
               <label class="note-field" for="sampleNote">
                 Commentaire g&eacute;n&eacute;ral
-                <textarea id="sampleNote" rows="3" placeholder="Ex. urgent, client &agrave; visiter, chantier &agrave; venir..."></textarea>
+                <textarea id="sampleNote" rows="6" placeholder="Ex. urgent, client &agrave; visiter, chantier &agrave; venir..."></textarea>
               </label>
               <div class="quote-actions">
                 <button class="primary-button" type="button" id="sendSampleRequest">Envoyer la demande &eacute;chantillon</button>

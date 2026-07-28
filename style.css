@@ -469,8 +469,8 @@
 }
 .stats-table tr:last-child td { border-bottom: 0; }
 .stats-table tbody tr:hover { background: #fff8f8; }
-.stats-table th:nth-child(n+5),
-.stats-table td:nth-child(n+5) {
+.stats-table th:nth-child(n+4),
+.stats-table td:nth-child(n+4) {
   text-align: right;
   white-space: nowrap;
 }
@@ -5905,7 +5905,7 @@ body.tablet-mode .stats-table td {
   white-space: normal !important;
 }
 
-body.tablet-mode .stats-table td:nth-child(n+5) {
+body.tablet-mode .stats-table td:nth-child(n+4) {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -5925,13 +5925,12 @@ body.tablet-mode .stats-table td::before {
 body.tablet-mode .stats-table td:nth-child(1)::before { content: "Client"; }
 body.tablet-mode .stats-table td:nth-child(2)::before { content: "Référence"; }
 body.tablet-mode .stats-table td:nth-child(3)::before { content: "Désignation"; }
-body.tablet-mode .stats-table td:nth-child(4)::before { content: "Famille"; }
-body.tablet-mode .stats-table td:nth-child(5)::before { content: "Qté 2026"; }
-body.tablet-mode .stats-table td:nth-child(6)::before { content: "Qté N-1"; }
-body.tablet-mode .stats-table td:nth-child(7)::before { content: "Écart Qté"; }
-body.tablet-mode .stats-table td:nth-child(8)::before { content: "CA 2026"; }
-body.tablet-mode .stats-table td:nth-child(9)::before { content: "CA N-1"; }
-body.tablet-mode .stats-table td:nth-child(10)::before { content: "Écart CA"; }
+body.tablet-mode .stats-table td:nth-child(4)::before { content: "Qté 2026"; }
+body.tablet-mode .stats-table td:nth-child(5)::before { content: "Qté N-1"; }
+body.tablet-mode .stats-table td:nth-child(6)::before { content: "Écart Qté"; }
+body.tablet-mode .stats-table td:nth-child(7)::before { content: "CA 2026"; }
+body.tablet-mode .stats-table td:nth-child(8)::before { content: "CA N-1"; }
+body.tablet-mode .stats-table td:nth-child(9)::before { content: "Écart CA"; }
 
 body.tablet-mode .quote-client-card,
 body.tablet-mode .quote-lines-card,
@@ -6160,7 +6159,7 @@ body:not(.tablet-mode) #adminPrenetTab::before,
 body.tablet-mode #adminPrenetTab::before { content: "P" !important; }
 
 .sample-table {
-  min-width: 920px;
+    min-width: 1080px;
 }
 
 .sample-table th:nth-child(1),
@@ -6180,8 +6179,13 @@ body.tablet-mode #adminPrenetTab::before { content: "P" !important; }
 
 .sample-table th:nth-child(4),
 .sample-table td:nth-child(4) {
-  min-width: 280px;
-}
+    min-width: 430px;
+  }
+
+#sampleNote {
+    min-height: 150px;
+    resize: vertical;
+  }
 
 .sample-table .quote-qty-cell input {
   max-width: 130px;
@@ -6189,8 +6193,12 @@ body.tablet-mode #adminPrenetTab::before { content: "P" !important; }
 }
 
 body.tablet-mode .sample-table {
-  min-width: 0;
-}
+    min-width: 0;
+  }
+
+body.tablet-mode #sampleNote {
+    min-height: 190px;
+  }
 
 body.tablet-mode .sample-table td:nth-child(1)::before { content: "Référence"; }
 body.tablet-mode .sample-table td:nth-child(2)::before { content: "Désignation"; }

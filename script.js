@@ -2636,17 +2636,14 @@ function filterCommercialStatsRows() {
   const clientQuery = selectedStatsClient ? normalize(selectedStatsClient.code || selectedStatsClient.name || "") : "";
   const refQuery = normalize(statsReferenceFilter?.value || "");
   const articleQuery = normalize(statsArticleFilter?.value || "");
-  const familyQuery = normalize(statsFamilyFilter?.value || "");
   const sortMode = statsSortSelect?.value || "caDesc";
   const rows = getCommercialStatsRows().filter((row) => {
     const clientText = normalize([row.clientName, row.clientCode, row.sector].join(" "));
     const refText = normalize(row.articleCode);
     const articleText = normalize(row.articleName);
-    const familyText = normalize(row.family);
     return (!clientQuery || clientText.includes(clientQuery))
       && (!refQuery || refText.includes(refQuery))
-      && (!articleQuery || articleText.includes(articleQuery))
-      && (!familyQuery || familyText.includes(familyQuery));
+      && (!articleQuery || articleText.includes(articleQuery));
   });
   const sorters = {
     caDesc: (a, b) => b.ca2026 - a.ca2026,
@@ -2675,7 +2672,7 @@ function renderCommercialStats() {
     }
     if (statsTotalRows) statsTotalRows.textContent = "Client a valider";
     if (statsTotalGapQty) statsTotalGapQty.textContent = "Cliquez sur un client dans la liste.";
-    statsArticleBody.innerHTML = '<tr><td colspan="10" class="dashboard-empty">Saisis un client, puis clique sur le bon resultat pour afficher ses statistiques.</td></tr>';
+    statsArticleBody.innerHTML = '<tr><td colspan="9" class="dashboard-empty">Saisis un client, puis clique sur le bon resultat pour afficher ses statistiques.</td></tr>';
     return;
   }
   const rows = filterCommercialStatsRows();
@@ -2694,7 +2691,7 @@ function renderCommercialStats() {
   if (statsTotalRows) statsTotalRows.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
   if (statsTotalGapQty) statsTotalGapQty.textContent = `Écart quantités : ${formatNumberDelta(totalGapQty)}`;
   if (!rows.length) {
-    statsArticleBody.innerHTML = `<tr><td colspan="10" class="dashboard-empty">${
+    statsArticleBody.innerHTML = `<tr><td colspan="9" class="dashboard-empty">${
       clientArticleStats360?.available === false
         ? "Aucune statistique Drive chargée pour le moment."
         : "Aucune ligne ne correspond aux filtres."
@@ -2709,7 +2706,6 @@ function renderCommercialStats() {
         <td><strong>${escapeHtml(row.clientName)}</strong><small>${escapeHtml(row.clientCode)} ${escapeHtml(row.sector)}</small></td>
         <td><strong>${escapeHtml(row.articleCode || "-")}</strong></td>
         <td>${escapeHtml(row.articleName)}</td>
-        <td>${escapeHtml(row.family || "-")}</td>
         <td class="numeric"><strong>${escapeHtml(formatNumber(row.quantity2026))}</strong></td>
         <td class="numeric muted">${escapeHtml(formatNumber(row.quantity2025))}</td>
         <td class="numeric ${gapQtyClass}">${escapeHtml(formatNumberDelta(row.gapQuantity))}</td>
@@ -2724,7 +2720,7 @@ function renderCommercialStats() {
 function resetCommercialStatsFilters() {
   selectedStatsClient = null;
   statsClientSuggestions?.classList.remove("is-open");
-  [statsClientFilter, statsReferenceFilter, statsArticleFilter, statsFamilyFilter].forEach((input) => {
+  [statsClientFilter, statsReferenceFilter, statsArticleFilter].forEach((input) => {
     if (input) input.value = "";
   });
   if (statsSortSelect) statsSortSelect.value = "caDesc";
@@ -3522,6 +3518,13 @@ async function submitLogin() {
     });
     loginProgressValue = Math.max(loginProgressValue, 32);
     updateLoginProgress(58, "Compte reconnu", "Chargement des clients, articles, tarifs et secteurs...", "data");
+    if (result.user?.training || result.user?.id === "formation") {
+      loginSubmitButton.textContent = "Ouverture du mode formation…";
+      updateLoginProgress(96, "Mode formation prêt", "Préparation du parcours d'entraînement tablette...", "dashboard");
+      await waitForLoginProgressComplete();
+      showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
+      return;
+    }
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
       loginSubmitButton.textContent = "Chargement des données…";
@@ -6790,7 +6793,7 @@ statsClientFilter?.addEventListener("keydown", (event) => {
     firstSuggestion.click();
   }
 });
-[statsReferenceFilter, statsArticleFilter, statsFamilyFilter, statsSortSelect].forEach((control) => {
+[statsReferenceFilter, statsArticleFilter, statsSortSelect].forEach((control) => {
   control?.addEventListener("input", renderCommercialStats);
   control?.addEventListener("change", renderCommercialStats);
 });
