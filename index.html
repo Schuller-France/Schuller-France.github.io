@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260727tabletnav1" />
+    <link rel="stylesheet" href="style.css?v=20260728formation1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -125,6 +125,7 @@
           <span class="sidebar-logo"><img src="assets/schuller-logo.png" alt="" /></span>
           <span>Schuller Eh'Klar</span>
         </div>
+        <button class="tab-button is-hidden" type="button" id="tutorialTab">Formation tablette</button>
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="client360Tab">Fiche client</button>
         <button class="tab-button" type="button" id="statsTab">Statistiques</button>
@@ -143,6 +144,51 @@
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab">Prix nets</button>
       </nav>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
+
+      <main class="app-shell tutorial-shell is-hidden" id="tutorialView">
+        <section class="panel tutorial-hero" aria-labelledby="tutorialTitle">
+          <div>
+            <p class="step">Mode essai</p>
+            <h2 id="tutorialTitle">Formation tablette</h2>
+            <p>
+              Entra&icirc;nez-vous sur le site comme en rendez-vous client. Les e-mails,
+              devis, frais et documents sont simul&eacute;s : rien n'est envoy&eacute; pour de vrai.
+            </p>
+          </div>
+          <div class="tutorial-login-card">
+            <span>Compte d'essai</span>
+            <strong>formation</strong>
+            <small>Mot de passe : formation</small>
+          </div>
+        </section>
+
+        <section class="panel tutorial-progress-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Progression</p>
+              <h3>Parcours commercial tablette</h3>
+            </div>
+            <button class="ghost-button" type="button" id="resetTutorialProgress">Recommencer</button>
+          </div>
+          <div class="tutorial-progress-track" aria-label="Progression de la formation">
+            <span id="tutorialProgressBar"></span>
+          </div>
+          <p class="tutorial-progress-text" id="tutorialProgressText">0 &eacute;tape valid&eacute;e</p>
+        </section>
+
+        <section class="tutorial-layout">
+          <div class="tutorial-steps" id="tutorialSteps"></div>
+          <aside class="panel tutorial-help">
+            <p class="step">Conseils tablette</p>
+            <h3>Les 3 gestes &agrave; retenir</h3>
+            <ul>
+              <li>Touchez une zone de recherche, tapez quelques lettres, puis choisissez le bon client.</li>
+              <li>Utilisez les gros boutons rouges pour valider l'action principale de l'onglet.</li>
+              <li>Si vous &ecirc;tes perdu, revenez ici : la formation vous indique quoi faire ensuite.</li>
+            </ul>
+          </aside>
+        </section>
+      </main>
 
       <main class="app-shell dashboard-shell" id="homeView">
         <section class="panel dashboard-hero" aria-labelledby="homeTitle">
@@ -1201,7 +1247,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260727tabletnav1" charset="UTF-8"></script>
+    <script src="script.js?v=20260728formation1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

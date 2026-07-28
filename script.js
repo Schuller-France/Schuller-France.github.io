@@ -58,6 +58,7 @@ const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const dashboardStatsCacheKey = "schullerDashboardStatsCache";
 const dashboardStatsCacheMaxAgeMs = 5 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
+const tutorialProgressStorageKey = "schullerTutorialProgress";
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
@@ -90,6 +91,105 @@ const adminCommercials = [
   { id: "flo", name: "Flo", sectors: ["Secteur 9"] },
   { id: "purecrea", name: "Purecrea", sectors: ["Purecrea"], revenueSectors: purecreaAdminSectors, objectiveSectors: ["Purecrea"] },
   { id: "belgique", name: "Belgique", sectors: ["Belgique"], revenueSectors: ["Belgique"], objectiveSectors: ["Belgique"] },
+];
+
+const tutorialStepsConfig = [
+  {
+    id: "home",
+    tab: "home",
+    title: "Lire l'accueil",
+    icon: "1",
+    action: "Regarde le CA, l'objectif du mois et les comparaisons clés.",
+    result: "Tu sais où voir ton avance ou ton retard.",
+  },
+  {
+    id: "client360",
+    tab: "client360",
+    title: "Ouvrir une fiche client",
+    icon: "2",
+    action: "Tape un nom de client, clique sur le bon résultat, puis lis ses prix et statistiques.",
+    result: "Tu sais retrouver les infos principales d'un client.",
+  },
+  {
+    id: "order",
+    tab: "order",
+    title: "Préparer une commande",
+    icon: "3",
+    action: "Choisis un client, ajoute une référence, modifie la quantité, puis regarde le total.",
+    result: "En formation, la commande est simulée.",
+  },
+  {
+    id: "quote",
+    tab: "quote",
+    title: "Demander un devis",
+    icon: "4",
+    action: "Choisis un client, ajoute une référence à chiffrer et clique sur envoyer.",
+    result: "Aucun e-mail réel n'est envoyé avec ce compte.",
+  },
+  {
+    id: "sample",
+    tab: "sample",
+    title: "Demander un échantillon",
+    icon: "5",
+    action: "Choisis un client, ajoute la référence et le nombre d'échantillons.",
+    result: "La demande est validée uniquement en simulation.",
+  },
+  {
+    id: "notes",
+    tab: "notes",
+    title: "Faire une note de rendez-vous",
+    icon: "6",
+    action: "Choisis un client, écris une note ou teste le micro si la tablette le permet.",
+    result: "Tu sais garder une trace d'une visite.",
+  },
+  {
+    id: "promotion",
+    tab: "promotion",
+    title: "Montrer ou envoyer une promotion",
+    icon: "7",
+    action: "Ouvre une promotion en plein écran, puis teste l'envoi avec une adresse fictive.",
+    result: "En formation, l'envoi reste simulé.",
+  },
+  {
+    id: "tarif",
+    tab: "tarif",
+    title: "Envoyer un tarif ou un document",
+    icon: "8",
+    action: "Ouvre Tarifs & Documents, sélectionne un document, puis teste l'envoi.",
+    result: "Le compte formation valide l'étape sans envoyer de vrai mail.",
+  },
+  {
+    id: "prenet",
+    tab: "prenet",
+    title: "Consulter les prix nets",
+    icon: "9",
+    action: "Recherche un client, clique sur le bon résultat, puis regarde ses prix nets.",
+    result: "Tu sais retrouver le tarif client en rendez-vous.",
+  },
+  {
+    id: "tour",
+    tab: "tour",
+    title: "Préparer une tournée",
+    icon: "10",
+    action: "Recherche des clients, coche-les et observe l'itinéraire.",
+    result: "Tu sais préparer une journée terrain.",
+  },
+  {
+    id: "backlog",
+    tab: "backlog",
+    title: "Lire les reliquats et reprises",
+    icon: "11",
+    action: "Ouvre l'onglet, filtre par client ou référence, puis repère ce qui est à traiter.",
+    result: "Tu sais voir ce qui attend chez un client.",
+  },
+  {
+    id: "expenses",
+    tab: "expenses",
+    title: "Saisir une note de frais",
+    icon: "12",
+    action: "Ajoute un frais, une photo justificative si besoin, puis simule l'envoi.",
+    result: "Aucune note réelle n'est envoyée.",
+  },
 ];
 
 const clientSearch = document.querySelector("#clientSearch");
@@ -138,6 +238,7 @@ const globalSearchInput = document.querySelector("#globalSearchInput");
 const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
+const tutorialTab = document.querySelector("#tutorialTab");
 const homeTab = document.querySelector("#homeTab");
 const client360Tab = document.querySelector("#client360Tab");
 const statsTab = document.querySelector("#statsTab");
@@ -156,6 +257,7 @@ const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
+const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const statsView = document.querySelector("#statsView");
@@ -227,6 +329,10 @@ const adminPrenetSend = document.querySelector("#adminPrenetSend");
 const adminPrenetSendStatus = document.querySelector("#adminPrenetSendStatus");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
 const adminPrenetCount = document.querySelector("#adminPrenetCount");
+const tutorialSteps = document.querySelector("#tutorialSteps");
+const tutorialProgressBar = document.querySelector("#tutorialProgressBar");
+const tutorialProgressText = document.querySelector("#tutorialProgressText");
+const resetTutorialProgress = document.querySelector("#resetTutorialProgress");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -977,6 +1083,13 @@ async function sendTarif(event) {
     return;
   }
 
+  if (isTrainingAccount()) {
+    showTrainingStatus(tarifSendStatus, "Mode formation : document validé, aucun e-mail réel envoyé.");
+    markTutorialTabDone("tarif");
+    tarifRecipient.value = "";
+    return;
+  }
+
   if (!tariffConfig.endpoint) {
     tarifSendStatus.textContent = "L’adresse d’envoi doit d’abord être autorisée par Google.";
     tarifSendStatus.classList.add("is-warning");
@@ -1076,6 +1189,13 @@ async function sendPromotions(forcedId = "") {
   if (!ids.length) {
     promotionSendStatus.textContent = "Sélectionnez au moins une promotion.";
     promotionSendStatus.classList.add("is-error");
+    return;
+  }
+
+  if (isTrainingAccount()) {
+    showTrainingStatus(promotionSendStatus, `${ids.length} promotion${ids.length > 1 ? "s" : ""} validée${ids.length > 1 ? "s" : ""} en mode formation. Aucun e-mail réel envoyé.`);
+    markTutorialTabDone("promotion");
+    promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
     return;
   }
 
@@ -1249,6 +1369,7 @@ function renderPrenetReferenceResults(client, query = "") {
 
 function selectPrenetClient(client) {
   selectedPrenetClient = client;
+  markTutorialTabDone("prenet");
   prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
   prenetClientSuggestions.classList.remove("is-open");
   const newEntries = getPrenetNewEntries(client);
@@ -2100,6 +2221,7 @@ function renderDashboard(user) {
     : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
 
   renderHomeReminders();
+  markTutorialTabDone("notes");
 }
 
 function escapeHtml(value) {
@@ -2611,6 +2733,7 @@ function resetCommercialStatsFilters() {
 
 function selectClient360(client) {
   selectedClient360 = client;
+  markTutorialTabDone("client360");
   if (client360Search) client360Search.value = client.name;
   client360Suggestions?.classList.remove("is-open");
   document.querySelector("#client360Grid")?.classList.remove("is-empty");
@@ -2888,6 +3011,91 @@ function getClientsForUser(user) {
   return allClients.filter((client) => allowedSectors.has(normalize(client.sector)));
 }
 
+function isTrainingAccount(user = currentUser) {
+  return Boolean(user && (user.training || user.id === "formation"));
+}
+
+function getTutorialStorageKey() {
+  return `${tutorialProgressStorageKey}:${currentUser?.id || "formation"}`;
+}
+
+function getTutorialProgress() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(getTutorialStorageKey()) || "[]");
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function saveTutorialProgress(doneSet) {
+  try {
+    localStorage.setItem(getTutorialStorageKey(), JSON.stringify([...doneSet]));
+  } catch (error) {
+    // La formation reste utilisable même si le navigateur bloque le stockage local.
+  }
+}
+
+function setTutorialStepDone(stepId, done = true) {
+  if (!isTrainingAccount()) return;
+  const progress = getTutorialProgress();
+  if (done) progress.add(stepId);
+  else progress.delete(stepId);
+  saveTutorialProgress(progress);
+  renderTutorial();
+}
+
+function renderTutorial() {
+  if (!tutorialSteps) return;
+  const progress = getTutorialProgress();
+  const total = tutorialStepsConfig.length;
+  const doneCount = tutorialStepsConfig.filter((step) => progress.has(step.id)).length;
+  const percent = total ? Math.round((doneCount / total) * 100) : 0;
+  if (tutorialProgressBar) tutorialProgressBar.style.width = `${percent}%`;
+  if (tutorialProgressText) {
+    tutorialProgressText.textContent = `${doneCount} / ${total} étape${doneCount > 1 ? "s" : ""} validée${doneCount > 1 ? "s" : ""}`;
+  }
+  tutorialSteps.innerHTML = tutorialStepsConfig.map((step) => {
+    const done = progress.has(step.id);
+    return `
+      <article class="tutorial-step-card ${done ? "is-done" : ""}" data-tutorial-step="${escapeHtml(step.id)}">
+        <div class="tutorial-step-visual" aria-hidden="true">${escapeHtml(step.icon)}</div>
+        <div class="tutorial-step-content">
+          <div class="tutorial-step-title">
+            <h3>${escapeHtml(step.title)}</h3>
+            <span>${done ? "Validé" : "À faire"}</span>
+          </div>
+          <p>${escapeHtml(step.action)}</p>
+          <small>${escapeHtml(step.result)}</small>
+          <div class="tutorial-actions">
+            <button class="ghost-button" type="button" data-tutorial-open="${escapeHtml(step.id)}">Ouvrir l'onglet</button>
+            <button class="primary-button" type="button" data-tutorial-complete="${escapeHtml(step.id)}">${done ? "Validé" : "J'ai réussi"}</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openTutorialStep(stepId) {
+  const step = tutorialStepsConfig.find((item) => item.id === stepId);
+  if (!step) return;
+  setActiveTab(step.tab);
+}
+
+function markTutorialTabDone(tabName) {
+  if (!isTrainingAccount()) return;
+  const step = tutorialStepsConfig.find((item) => item.tab === tabName);
+  if (step) setTutorialStepDone(step.id, true);
+}
+
+function showTrainingStatus(element, message) {
+  if (element) {
+    element.className = "tarif-send-status is-success";
+    element.textContent = message || "Mode formation : action validée, aucun envoi réel.";
+  }
+}
+
 function arrangeTabsForUser(user) {
   if (!appTabs) return;
   if (user?.role === "admin") {
@@ -2900,6 +3108,7 @@ function arrangeTabsForUser(user) {
     return;
   }
   [
+    ...(isTrainingAccount(user) ? [tutorialTab] : []),
     homeTab,
     client360Tab,
     statsTab,
@@ -3174,6 +3383,7 @@ function showApp(user, token = user.token || "") {
 
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
+  tutorialTab?.classList.toggle("is-hidden", isAdmin || !isTrainingAccount(currentUser));
   [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
@@ -3211,6 +3421,13 @@ function showApp(user, token = user.token || "") {
   renderNotesEmpty();
   selectedTourCodes = new Set();
   renderTourPlanner();
+  if (isTrainingAccount(currentUser)) {
+    setDisplayMode("tablet");
+    renderTutorial();
+    setActiveTab("tutorial");
+    renderOrderHistory();
+    return;
+  }
   setActiveTab("home");
   renderOrderHistory();
 }
@@ -3740,6 +3957,12 @@ async function sendSampleRequestDraft() {
     return;
   }
 
+  if (isTrainingAccount()) {
+    showTrainingStatus(sampleSendStatus, "Mode formation : demande d'échantillon validée, aucun e-mail réel envoyé.");
+    markTutorialTabDone("sample");
+    return;
+  }
+
   if (!tariffConfig.endpoint) {
     sampleSendStatus.textContent = "L’envoi doit d’abord être autorisé côté Google.";
     sampleSendStatus.classList.add("is-warning");
@@ -4168,6 +4391,12 @@ async function sendExpenseReportDraft() {
     expensesSendStatus.classList.add("is-error");
     return;
   }
+  if (isTrainingAccount()) {
+    expensesSendStatus.className = "tarif-send-status";
+    showTrainingStatus(expensesSendStatus, "Mode formation : note de frais validée, aucun e-mail réel envoyé.");
+    markTutorialTabDone("expenses");
+    return;
+  }
   sendExpenseReport.disabled = true;
   sendExpenseReport.textContent = "Envoi en cours…";
   expensesSendStatus.textContent = "Préparation du fichier Excel et des justificatifs…";
@@ -4360,6 +4589,12 @@ async function sendQuoteRequestDraft() {
 
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
+  if (isTrainingAccount()) {
+    showTrainingStatus(quoteSendStatus, "Mode formation : demande de devis validée, aucun e-mail réel envoyé.");
+    addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
+    markTutorialTabDone("quote");
+    return;
+  }
   if (!tariffConfig.endpoint) {
     quoteSendStatus.textContent = "L’envoi doit d’abord être autorisé côté Google.";
     quoteSendStatus.classList.add("is-warning");
@@ -5981,6 +6216,7 @@ function openWazeNextClient() {
 
 function setActiveTab(tabName) {
   setTabletMenuOpen(false);
+  const showTutorial = tabName === "tutorial";
   const showHome = tabName === "home";
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
@@ -5997,6 +6233,7 @@ function setActiveTab(tabName) {
   const showAdmin = tabName === "admin";
   const showAdminChecking = tabName === "adminChecking";
   const showAdminPrenet = tabName === "adminPrenet";
+  tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
   statsTab.classList.toggle("is-active", showStats);
@@ -6013,6 +6250,7 @@ function setActiveTab(tabName) {
   adminTab.classList.toggle("is-active", showAdmin);
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
+  tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
   statsView.classList.toggle("is-hidden", !showStats);
@@ -6031,9 +6269,11 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
+
+  if (showTutorial) renderTutorial();
 
   if (showStats) {
     loadClientArticleStatsFromDrive();
@@ -6412,6 +6652,19 @@ function generateOrderFiles() {
   const safeClientCode = selectedClient.code.replace(/[^a-z0-9_-]/gi, "_");
   const baseName = `${orderNumber}_${safeClientCode}`;
   const orderSnapshot = buildOrderSnapshot({ orderNumber, orderDate, note, validLines });
+
+  if (isTrainingAccount()) {
+    storeOrder({
+      ...orderSnapshot,
+      orderNumber: `FORMATION-${Date.now().toString().slice(-4)}`,
+    });
+    markTutorialTabDone("order");
+    alert("Mode formation : commande validée sans téléchargement réel.");
+    resetOrder();
+    renderOrderHistory();
+    return;
+  }
+
   const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note });
 
   storeOrder(orderSnapshot);
@@ -6592,6 +6845,20 @@ adminPrenetReferenceChips?.addEventListener("click", (event) => {
 });
 adminPrenetDownload?.addEventListener("click", downloadAdminPrenetPdf);
 adminPrenetSend?.addEventListener("click", sendAdminPrenetPrices);
+tutorialTab?.addEventListener("click", () => setActiveTab("tutorial"));
+tutorialSteps?.addEventListener("click", (event) => {
+  const openButton = event.target.closest("[data-tutorial-open]");
+  if (openButton) {
+    openTutorialStep(openButton.dataset.tutorialOpen);
+    return;
+  }
+  const completeButton = event.target.closest("[data-tutorial-complete]");
+  if (completeButton) setTutorialStepDone(completeButton.dataset.tutorialComplete, true);
+});
+resetTutorialProgress?.addEventListener("click", () => {
+  saveTutorialProgress(new Set());
+  renderTutorial();
+});
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });
