@@ -6312,6 +6312,413 @@ body.dark-theme.tablet-mode .tablet-menu-backdrop {
   background: rgba(0, 0, 0, .55);
 }
 
+/* Tablette 12 pouces terrain — Xiaomi Redmi Pad Pro 12.1" / 16:10.
+   Cette couche ne touche pas au mode PC : elle rend le mode tablette vraiment tactile,
+   plus large, plus lisible et utilisable en rendez-vous. */
+body.tablet-mode {
+  --tablet-page: min(1560px, calc(100vw - 32px));
+  --touch: 68px;
+  --touch-radius: 16px;
+  font-size: 18px;
+}
+
+body.tablet-mode .app-header {
+  min-height: 82px;
+  padding: 14px 18px !important;
+}
+
+body.tablet-mode .tablet-menu-toggle {
+  width: 62px;
+  height: 58px;
+  border-radius: 16px;
+}
+
+body.tablet-mode .tablet-menu-toggle span {
+  width: 26px;
+  height: 3px;
+}
+
+body.tablet-mode .global-search {
+  max-width: min(780px, 54vw);
+}
+
+body.tablet-mode .global-search input {
+  min-height: 56px;
+  padding: 0 24px;
+  font-size: 18px;
+}
+
+body.tablet-mode .header-actions .ghost-button,
+body.tablet-mode .offline-status {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+body.tablet-mode .app-shell {
+  padding: 24px 16px 64px !important;
+}
+
+body.tablet-mode .app-shell > .panel,
+body.tablet-mode .dashboard-grid,
+body.tablet-mode .dashboard-main-grid,
+body.tablet-mode .dashboard-ranking-grid,
+body.tablet-mode .client-panel,
+body.tablet-mode .order-panel,
+body.tablet-mode .summary-panel,
+body.tablet-mode .history-panel,
+body.tablet-mode .quote-panel,
+body.tablet-mode .sample-panel,
+body.tablet-mode .notes-panel,
+body.tablet-mode .tour-panel,
+body.tablet-mode .backlog-panel,
+body.tablet-mode .prenet-panel,
+body.tablet-mode .tarif-panel,
+body.tablet-mode .promotion-panel,
+body.tablet-mode .expenses-panel,
+body.tablet-mode .stats-panel,
+body.tablet-mode .client360-panel {
+  width: 100% !important;
+  max-width: var(--tablet-page) !important;
+  margin-inline: auto !important;
+}
+
+body.tablet-mode .panel,
+body.tablet-mode .metric-card,
+body.tablet-mode .selected-client,
+body.tablet-mode .client360-card,
+body.tablet-mode .promotion-card,
+body.tablet-mode .tarif-card,
+body.tablet-mode .document-card {
+  border-radius: 22px !important;
+}
+
+body.tablet-mode .panel-heading {
+  gap: 16px;
+  padding: 24px 26px;
+}
+
+body.tablet-mode .panel-heading h2,
+body.tablet-mode .dashboard-hero h2 {
+  font-size: clamp(28px, 2.4vw, 38px);
+  line-height: 1.05;
+}
+
+body.tablet-mode input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+body.tablet-mode select,
+body.tablet-mode textarea {
+  min-height: var(--touch) !important;
+  padding: 15px 18px !important;
+  border-radius: var(--touch-radius) !important;
+  font-size: 20px !important;
+}
+
+body.tablet-mode textarea {
+  min-height: 230px !important;
+  line-height: 1.45;
+}
+
+body.tablet-mode button:not(.tab-button):not(.tablet-menu-toggle):not(.icon-button),
+body.tablet-mode .primary-button,
+body.tablet-mode .ghost-button {
+  min-height: var(--touch) !important;
+  border-radius: var(--touch-radius) !important;
+  font-size: 18px !important;
+  font-weight: 950;
+}
+
+body.tablet-mode .icon-button {
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 14px;
+  font-size: 22px;
+}
+
+body.tablet-mode .app-tabs {
+  width: min(360px, 86vw) !important;
+  padding: 26px 18px !important;
+}
+
+body.tablet-mode .app-tabs .tab-button {
+  min-height: 56px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-size: 17px;
+}
+
+body.tablet-mode .sidebar-brand {
+  margin-bottom: 28px;
+  font-size: 18px;
+}
+
+body.tablet-mode .sidebar-logo {
+  width: 50px;
+  height: 50px;
+}
+
+body.tablet-mode .sidebar-logo img {
+  width: 44px;
+  height: 44px;
+}
+
+body.tablet-mode .dashboard-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 18px;
+}
+
+body.tablet-mode .dashboard-main-grid,
+body.tablet-mode .client360-content-grid,
+body.tablet-mode .quote-layout,
+body.tablet-mode .sample-layout,
+body.tablet-mode .tour-layout,
+body.tablet-mode .prenet-layout,
+body.tablet-mode .admin-dashboard-grid {
+  gap: 20px;
+}
+
+body.tablet-mode .metric-card {
+  min-height: 160px;
+  padding: 26px;
+}
+
+body.tablet-mode .metric-card strong {
+  font-size: clamp(34px, 4vw, 54px);
+}
+
+body.tablet-mode .suggestions,
+body.tablet-mode .global-search-results {
+  font-size: 18px;
+}
+
+body.tablet-mode .suggestions button,
+body.tablet-mode .global-search-results button,
+body.tablet-mode [role="listbox"] button {
+  min-height: 64px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-size: 18px;
+}
+
+body.tablet-mode .order-table,
+body.tablet-mode .quote-table,
+body.tablet-mode .sample-table,
+body.tablet-mode .prenet-table,
+body.tablet-mode .backlog-table {
+  font-size: 18px;
+}
+
+body.tablet-mode .order-table input,
+body.tablet-mode .quote-table input,
+body.tablet-mode .sample-table input,
+body.tablet-mode .prenet-table input {
+  min-height: 62px !important;
+  font-size: 19px !important;
+}
+
+body.tablet-mode .quote-actions,
+body.tablet-mode .sample-actions,
+body.tablet-mode .expenses-actions,
+body.tablet-mode .tarif-actions,
+body.tablet-mode .promotion-actions {
+  gap: 14px;
+}
+
+body.tablet-mode .quick-note-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px;
+}
+
+body.tablet-mode .quick-note-buttons button {
+  min-height: 68px;
+  font-size: 18px;
+}
+
+body.tablet-mode .voice-note-button {
+  min-height: 150px !important;
+  font-size: 24px !important;
+}
+
+body.tablet-mode .tour-map-card,
+body.tablet-mode .tour-list-panel {
+  padding: 22px;
+}
+
+body.tablet-mode .france-map,
+body.tablet-mode .leaflet-map {
+  min-height: 520px !important;
+  border-radius: 18px;
+}
+
+body.tablet-mode .tour-client-list {
+  max-height: 560px !important;
+}
+
+body.tablet-mode .tour-client-card,
+body.tablet-mode .backlog-table tr,
+body.tablet-mode .prenet-table tr {
+  padding: 18px;
+  border-radius: 18px !important;
+}
+
+body.tablet-mode .promotion-grid,
+body.tablet-mode .tarif-documents-grid,
+body.tablet-mode .document-grid,
+body.tablet-mode .tarif-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 20px;
+}
+
+body.tablet-mode .promotion-card,
+body.tablet-mode .tarif-card,
+body.tablet-mode .document-card {
+  min-height: 360px;
+}
+
+body.tablet-mode .promotion-card iframe,
+body.tablet-mode .tarif-card iframe,
+body.tablet-mode .document-card iframe,
+body.tablet-mode .pdf-preview {
+  min-height: 230px;
+}
+
+body.tablet-mode .expenses-panel {
+  padding: 26px !important;
+  gap: 24px;
+}
+
+body.tablet-mode .expenses-rules,
+body.tablet-mode .expenses-meta,
+body.tablet-mode .expenses-actions,
+body.tablet-mode .expenses-summary {
+  grid-template-columns: 1fr !important;
+  gap: 16px;
+}
+
+body.tablet-mode .expenses-table-wrap {
+  overflow: visible !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+body.tablet-mode .expenses-table,
+body.tablet-mode .expenses-table tbody,
+body.tablet-mode .expenses-table tr,
+body.tablet-mode .expenses-table td {
+  display: block !important;
+}
+
+body.tablet-mode .expenses-table {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+body.tablet-mode .expenses-table thead {
+  display: none !important;
+}
+
+body.tablet-mode .expenses-table tbody {
+  display: grid !important;
+  gap: 22px !important;
+}
+
+body.tablet-mode .expenses-table tr {
+  padding: 24px !important;
+  background: #fff;
+  border: 1px solid #e1e5eb;
+  border-radius: 24px !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .08) !important;
+}
+
+body.dark-theme.tablet-mode .expenses-table tr {
+  background: #151b24;
+  border-color: #263244;
+}
+
+body.tablet-mode .expenses-table td {
+  width: 100% !important;
+  padding: 10px 0 !important;
+  border: 0 !important;
+}
+
+body.tablet-mode .expenses-table td::before {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+body.tablet-mode .expenses-table input,
+body.tablet-mode .expenses-table select {
+  min-height: 68px !important;
+  font-size: 20px !important;
+}
+
+body.tablet-mode .expense-upload span {
+  min-height: 112px !important;
+  padding: 18px !important;
+  border: 2px dashed #e30613 !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, #fff1f2 0%, #fff 100%) !important;
+  color: #e30613 !important;
+  font-size: 21px !important;
+  line-height: 1.2;
+}
+
+body.tablet-mode .expense-upload span::before {
+  content: "📷";
+  display: block;
+  margin-bottom: 8px;
+  font-size: 34px;
+  line-height: 1;
+}
+
+body.tablet-mode .expenses-table .icon-button {
+  width: 100%;
+  min-height: 60px;
+}
+
+body.tablet-mode .sample-table td:nth-child(4) input,
+body.tablet-mode .sample-table td:nth-child(4) textarea,
+body.tablet-mode #sampleNote {
+  min-height: 220px !important;
+}
+
+body.tablet-mode .sample-table td:nth-child(4) input {
+  white-space: normal;
+}
+
+body.tablet-mode .client360-top-grid,
+body.tablet-mode .client360-stats-row {
+  gap: 16px;
+}
+
+body.tablet-mode .client360-card {
+  padding: 22px;
+}
+
+@media (max-width: 980px) {
+  body.tablet-mode {
+    --tablet-page: calc(100vw - 24px);
+  }
+
+  body.tablet-mode .dashboard-grid,
+  body.tablet-mode .promotion-grid,
+  body.tablet-mode .tarif-documents-grid,
+  body.tablet-mode .document-grid,
+  body.tablet-mode .tarif-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.tablet-mode .global-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}
+
 .tutorial-shell {
   gap: 18px;
 }

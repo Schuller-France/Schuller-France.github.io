@@ -4138,7 +4138,7 @@ function renderExpenses() {
         <td>
           <label class="expense-upload">
             <input type="file" accept="image/*,.pdf" capture="environment" data-expense-field="receipt" />
-            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter photo"}</span>
+            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter un justificatif photo"}</span>
           </label>
         </td>
         <td><button class="icon-button" type="button" data-remove-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
