@@ -3636,9 +3636,20 @@ h2 {
 }
 
 .promotion-panel { overflow: hidden; }
+.promotion-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.promotion-header-actions .refresh-promotions-button {
+  min-height: 40px;
+  padding-inline: 16px;
+}
 .promotion-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) auto;
   gap: 14px;
   align-items: end;
   padding: 22px;

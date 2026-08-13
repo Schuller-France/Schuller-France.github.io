@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260813promodrive3" />
+    <link rel="stylesheet" href="style.css?v=20260813promoclean1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1034,13 +1034,15 @@
               <p class="step">Supports commerciaux</p>
               <h2 id="promotionTitle">Promotions</h2>
             </div>
-            <span class="status-pill">Aperçu tablette + envoi e-mail</span>
+            <div class="promotion-header-actions">
+              <button class="ghost-button refresh-promotions-button" type="button" id="refreshPromotionsButton">Actualiser les promotions Drive</button>
+              <span class="status-pill">Aperçu tablette + envoi e-mail</span>
+            </div>
           </div>
 
           <div class="promotion-toolbar">
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
-            <button class="ghost-button refresh-promotions-button" type="button" id="refreshPromotionsButton">Actualiser les promotions Drive</button>
             <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
@@ -1300,7 +1302,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260813promodrive3" charset="UTF-8"></script>
+    <script src="script.js?v=20260813promoclean1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -1310,4 +1312,3 @@
     </script>
   </body>
 </html>
-
