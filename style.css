@@ -3649,7 +3649,7 @@ h2 {
 }
 .promotion-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) auto;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(280px, 1fr) auto auto;
   gap: 14px;
   align-items: end;
   padding: 22px;
@@ -3657,6 +3657,10 @@ h2 {
   background: #fafbfc;
 }
 .refresh-promotions-button { white-space: nowrap; }
+.promotion-refresh-inline {
+  min-height: 44px;
+  align-self: end;
+}
 .promotion-toolbar .tarif-send-status { grid-column: 1 / -1; }
 .promotion-grid {
   display: grid;
@@ -6226,6 +6230,32 @@ body:not(.tablet-mode) #adminPrenetTab::before,
 body.tablet-mode #adminPrenetTab::before { content: "\20AC" !important; }
 body:not(.tablet-mode) #adminExecutiveExpensesTab::before,
 body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !important; }
+
+/* Les onglets utilisent maintenant les icones métiers définies dans le HTML. */
+#tutorialTab[data-icon]::before,
+#homeTab[data-icon]::before,
+#client360Tab[data-icon]::before,
+#statsTab[data-icon]::before,
+#orderTab[data-icon]::before,
+#quoteTab[data-icon]::before,
+#sampleTab[data-icon]::before,
+#expensesTab[data-icon]::before,
+#notesTab[data-icon]::before,
+#promotionTab[data-icon]::before,
+#tarifTab[data-icon]::before,
+#tourTab[data-icon]::before,
+#prenetTab[data-icon]::before,
+#backlogTab[data-icon]::before,
+#adminCheckingTab[data-icon]::before,
+#adminTab[data-icon]::before,
+#adminExecutiveExpensesTab[data-icon]::before,
+#adminPrenetTab[data-icon]::before {
+  content: attr(data-icon) !important;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Inter, system-ui, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+}
 
 .sample-table {
     min-width: 1080px;

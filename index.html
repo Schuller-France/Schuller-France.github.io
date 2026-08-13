@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260813promoclean1" />
+    <link rel="stylesheet" href="style.css?v=20260813offlinepromoicons1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -125,24 +125,24 @@
           <span class="sidebar-logo"><img src="assets/schuller-logo.png" alt="" /></span>
           <span>Schuller Eh'Klar</span>
         </div>
-        <button class="tab-button is-hidden" type="button" id="tutorialTab">Formation tablette</button>
-        <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
-        <button class="tab-button" type="button" id="client360Tab">Fiche client</button>
-        <button class="tab-button" type="button" id="statsTab">Statistiques</button>
-        <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
-        <button class="tab-button" type="button" id="quoteTab">Demande de devis</button>
-        <button class="tab-button" type="button" id="sampleTab">Demande &eacute;chantillon</button>
-        <button class="tab-button" type="button" id="expensesTab">Frais</button>
-        <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
-        <button class="tab-button" type="button" id="promotionTab">Promotions</button>
-        <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
-        <button class="tab-button" type="button" id="tourTab">Tournées</button>
-        <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
-        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; litiges</button>
-        <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Journal de bord</button>
-        <button class="tab-button is-hidden" type="button" id="adminTab">Consulting</button>
-        <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab">Frais dirigeants</button>
-        <button class="tab-button is-hidden" type="button" id="adminPrenetTab">Prix nets</button>
+        <button class="tab-button is-hidden" type="button" id="tutorialTab" data-icon="🎓">Formation tablette</button>
+        <button class="tab-button is-active" type="button" id="homeTab" data-icon="🏠">Accueil</button>
+        <button class="tab-button" type="button" id="client360Tab" data-icon="👤">Fiche client</button>
+        <button class="tab-button" type="button" id="statsTab" data-icon="📊">Statistiques</button>
+        <button class="tab-button" type="button" id="orderTab" data-icon="🧾">Saisie commande</button>
+        <button class="tab-button" type="button" id="quoteTab" data-icon="📝">Demande de devis</button>
+        <button class="tab-button" type="button" id="sampleTab" data-icon="📦">Demande &eacute;chantillon</button>
+        <button class="tab-button" type="button" id="expensesTab" data-icon="💳">Frais</button>
+        <button class="tab-button" type="button" id="notesTab" data-icon="🗒️">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
+        <button class="tab-button" type="button" id="promotionTab" data-icon="%">Promotions</button>
+        <button class="tab-button" type="button" id="tarifTab" data-icon="📚">Tarifs &amp; Documents</button>
+        <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
+        <button class="tab-button" type="button" id="prenetTab" data-icon="€">Prix nets</button>
+        <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
+        <button class="tab-button is-hidden" type="button" id="adminCheckingTab" data-icon="📈">Journal de bord</button>
+        <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
+        <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
+        <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="€">Prix nets</button>
       </nav>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
 
@@ -1043,6 +1043,7 @@
           <div class="promotion-toolbar">
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            <button class="ghost-button refresh-promotions-button promotion-refresh-inline" type="button">Actualiser les promotions Drive</button>
             <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
@@ -1302,7 +1303,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260813promoclean1" charset="UTF-8"></script>
+    <script src="script.js?v=20260813offlinepromoicons1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

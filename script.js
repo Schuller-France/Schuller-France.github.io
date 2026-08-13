@@ -58,7 +58,7 @@ const themeStorageKey = "schullerTheme";
 const secureDataCachePrefix = "schullerSecureDataCache:";
 const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const dashboardStatsCacheKey = "schullerDashboardStatsCache";
-const dashboardStatsCacheMaxAgeMs = 5 * 60 * 1000;
+const dashboardStatsCacheMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
 const tutorialProgressStorageKey = "schullerTutorialProgress";
 const backlogDoneStorageKey = "schullerBacklogDone";
@@ -451,7 +451,7 @@ const promotionGrid = document.querySelector("#promotionGrid");
 const promotionRecipient = document.querySelector("#promotionRecipient");
 const promotionSendStatus = document.querySelector("#promotionSendStatus");
 const sendSelectedPromotions = document.querySelector("#sendSelectedPromotions");
-const refreshPromotionsButton = document.querySelector("#refreshPromotionsButton");
+const refreshPromotionsButtons = Array.from(document.querySelectorAll(".refresh-promotions-button"));
 const promotionModal = document.querySelector("#promotionModal");
 const promotionModalTitle = document.querySelector("#promotionModalTitle");
 const promotionPreviewFrame = document.querySelector("#promotionPreviewFrame");
@@ -484,6 +484,13 @@ const noteReminderText = document.querySelector("#noteReminderText");
 const visitNextAction = document.querySelector("#visitNextAction");
 const visitFollowupDays = document.querySelector("#visitFollowupDays");
 const visitFollowupDaysLabel = document.querySelector("#visitFollowupDaysLabel");
+
+function setPromotionsRefreshButtonsDisabled(disabled) {
+  refreshPromotionsButtons.forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
 let adminLogsCache = [];
 let adminExpenseReportsCache = [];
 
@@ -618,7 +625,7 @@ async function refreshPromotionsFromDrive(force = false) {
   if (!force && Date.now() - lastPromotionsRefreshAt < 10000) return;
   promotionsRefreshInProgress = true;
   lastPromotionsRefreshAt = Date.now();
-  if (refreshPromotionsButton) refreshPromotionsButton.disabled = true;
+  setPromotionsRefreshButtonsDisabled(true);
   if (promotionSendStatus) {
     promotionSendStatus.textContent = "Actualisation des promotions Drive…";
     promotionSendStatus.className = "tarif-send-status";
@@ -647,7 +654,7 @@ async function refreshPromotionsFromDrive(force = false) {
     }
   } finally {
     promotionsRefreshInProgress = false;
-    if (refreshPromotionsButton) refreshPromotionsButton.disabled = false;
+    setPromotionsRefreshButtonsDisabled(false);
   }
 }
 
@@ -2128,7 +2135,8 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 
 async function loadDashboardStatsFromDrive(options = {}) {
   if (!currentSessionToken) return;
-  if (options.force) clearDashboardStatsCache();
+  // Ne vide jamais la derniere bonne lecture avant d'avoir une reponse Drive valide.
+  // Ainsi, si le reseau est lent ou absent, l'accueil garde les derniers chiffres fiables.
   if (dashboardStatsLoading) {
     if (currentUser?.role === "admin") {
       if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
@@ -2139,14 +2147,15 @@ async function loadDashboardStatsFromDrive(options = {}) {
     return;
   }
   dashboardStatsLoading = true;
-  const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
+  const dashboardUpdatedEl = document.querySelector("#dashboardUpdatedAt");
+  const previousUpdatedAt = dashboardUpdatedEl?.textContent || "";
   if (currentUser?.role === "admin") {
     if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
     if (adminCheckingBody && !dashboardStatsOverride) {
       adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
     }
   } else {
-    document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
+    if (dashboardUpdatedEl) dashboardUpdatedEl.textContent = "Actualisation Drive…";
   }
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
@@ -2181,10 +2190,18 @@ async function loadDashboardStatsFromDrive(options = {}) {
         : "Votre session a expiré. Reconnectez-vous pour actualiser les statistiques.");
       return;
     }
+    const hasCachedFallback = restoreDashboardStatsCache();
     if (currentUser?.role === "admin") {
-      renderAdminCheckingError();
-    } else {
-      document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
+      if (hasCachedFallback) {
+        renderAdminChecking();
+      } else {
+        renderAdminCheckingError();
+      }
+    } else if (hasCachedFallback) {
+      renderDashboardSectorSwitch(currentUser);
+      renderDashboard(currentUser);
+    } else if (dashboardUpdatedEl) {
+      dashboardUpdatedEl.textContent = previousUpdatedAt || "Dernières données enregistrées";
     }
   } finally {
     dashboardStatsLoading = false;
@@ -7432,7 +7449,9 @@ selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
-refreshPromotionsButton?.addEventListener("click", () => refreshPromotionsFromDrive(true));
+refreshPromotionsButtons.forEach((button) => {
+  button.addEventListener("click", () => refreshPromotionsFromDrive(true));
+});
 promotionGrid.addEventListener("click", (event) => {
   const previewId = event.target.closest("[data-preview-promotion]")?.dataset.previewPromotion;
   const sendId = event.target.closest("[data-send-promotion]")?.dataset.sendPromotion;
