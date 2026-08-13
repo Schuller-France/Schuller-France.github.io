@@ -3190,10 +3190,14 @@ function isBacklogItemForCurrentUser(item) {
 
 function normalizeBacklogItem(item) {
   const client = getBacklogClientMatch(item);
-  const id = item.id || `${item.date || ""}-${item.orderNumber || item.numeroCommande || item.commande || ""}-${item.clientCode || item.client || ""}-${item.reference || item.ref || ""}-${item.product || item.produit || ""}-${item.quantity || item.quantite || ""}`;
+  const itemType = item.type === "litige" ? "litige" : "reliquat";
+  const id = item.id || `${itemType}-${item.date || ""}-${item.orderNumber || item.numeroCommande || item.commande || ""}-${item.clientCode || item.client || ""}-${item.reference || item.ref || ""}-${item.product || item.produit || ""}-${item.quantity || item.quantite || ""}`;
+  const resolved = itemType === "litige" ? Boolean(item.resolved) : false;
   return {
     id,
-    type: "reliquat",
+    type: itemType,
+    resolved,
+    statusText: item.statusText || item.statut || item.etat || (itemType === "litige" ? (resolved ? "Résolu" : "En cours") : ""),
     date: item.date || item.createdAt || item.jour || "",
     orderNumber: item.orderNumber || item.numeroCommande || item.commande || item.order || "",
     sector: item.sector || item.secteur || client?.sector || "",
@@ -3202,6 +3206,9 @@ function normalizeBacklogItem(item) {
     product: item.product || item.produit || item.designation || item.article || "",
     reference: item.reference || item.ref || item.codeArticle || "",
     quantity: item.quantity || item.quantite || item.qty || "",
+    reason: item.reason || item.raison || item.motif || "",
+    errorBy: item.errorBy || item.erreur || item.responsable || "",
+    creditNote: item.creditNote || item.avoir || item.numeroAvoir || "",
     detail: item.detail || item.commentaire || item.note || item.motif || "",
   };
 }
@@ -3267,6 +3274,10 @@ function getFilteredBacklogItems() {
         item.reference,
         item.product,
         item.quantity,
+        item.reason,
+        item.errorBy,
+        item.creditNote,
+        item.statusText,
         item.detail,
       ].join(" ")).includes(query);
     })
@@ -3277,10 +3288,12 @@ function renderBacklog() {
   if (!backlogBody) return;
   const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id));
   const filteredItems = getFilteredBacklogItems();
-  const uniqueClients = new Set(sectorItems.map((item) => normalize(item.clientCode || item.clientName)).filter(Boolean));
-  backlogRemainderCount.textContent = String(sectorItems.length);
-  backlogReturnCount.textContent = String(uniqueClients.size);
-  backlogTotalCount.textContent = String(filteredItems.length);
+  const reliquatCount = sectorItems.filter((item) => item.type === "reliquat").length;
+  const openLitigeCount = sectorItems.filter((item) => item.type === "litige" && !item.resolved).length;
+  const resolvedLitigeCount = sectorItems.filter((item) => item.type === "litige" && item.resolved).length;
+  backlogRemainderCount.textContent = String(reliquatCount);
+  backlogReturnCount.textContent = String(openLitigeCount);
+  backlogTotalCount.textContent = String(resolvedLitigeCount);
 
   if (!backlogItemsCache.length) {
     backlogBody.innerHTML = `<tr><td colspan="9" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
@@ -3288,25 +3301,34 @@ function renderBacklog() {
   }
 
   backlogBody.innerHTML = filteredItems.length
-    ? filteredItems.map((item) => `
-      <tr>
+    ? filteredItems.map((item) => {
+      const isLitige = item.type === "litige";
+      const rowClass = isLitige ? (item.resolved ? "is-litige-resolved" : "is-litige-open") : "";
+      const badgeClass = isLitige ? (item.resolved ? "is-litige-resolved" : "is-litige-open") : "is-remainder";
+      const badgeLabel = isLitige ? (item.resolved ? "Litige résolu" : "Litige en cours") : "Souffrance";
+      const subject = isLitige ? (item.reason || item.product || "Litige client") : (item.product || "-");
+      const quantityOrCredit = item.creditNote || item.quantity || "-";
+      const litigeDetails = [item.errorBy ? `Erreur : ${item.errorBy}` : "", item.creditNote ? `Avoir : ${item.creditNote}` : "", item.detail].filter(Boolean).join(" · ");
+      return `
+      <tr class="${rowClass}">
         <td><strong>${escapeHtml(item.date || "-")}</strong><small>${escapeHtml(item.sector || "")}</small></td>
-        <td><span class="backlog-badge is-remainder">Souffrance</span></td>
+        <td><span class="backlog-badge ${badgeClass}">${escapeHtml(badgeLabel)}</span></td>
         <td><strong>${escapeHtml(item.orderNumber || "-")}</strong></td>
         <td><strong>${escapeHtml(item.clientName || "-")}</strong><small>${escapeHtml(item.clientCode || "")}</small></td>
-        <td><strong>${escapeHtml(item.product || "-")}</strong><small>${escapeHtml(item.reference || "")}</small></td>
-        <td><strong>${escapeHtml(item.quantity || "-")}</strong></td>
-        <td>${escapeHtml(item.detail || "-")}</td>
+        <td><strong>${escapeHtml(subject)}</strong><small>${escapeHtml(item.reference || "")}</small></td>
+        <td><strong>${escapeHtml(quantityOrCredit)}</strong></td>
+        <td>${escapeHtml(isLitige ? (litigeDetails || "-") : (item.detail || "-"))}</td>
         <td class="backlog-done-cell">
-          <label class="backlog-done-check">
+          ${isLitige ? `<span class="backlog-status-chip ${item.resolved ? "is-resolved" : "is-open"}">${escapeHtml(item.statusText || (item.resolved ? "Résolu" : "En cours"))}</span>` : `<label class="backlog-done-check">
             <input type="checkbox" data-backlog-done="${escapeHtml(item.id)}" ${isBacklogDone(item.id) ? "checked" : ""} />
             <span>Fait</span>
-          </label>
+          </label>`}
         </td>
         <td class="backlog-action-cell"><button class="icon-button backlog-delete-button" type="button" data-backlog-hide="${escapeHtml(item.id)}" aria-label="Masquer cette ligne">&times;</button></td>
       </tr>
-    `).join("")
-    : `<tr><td colspan="9" class="backlog-empty">Aucune commande en souffrance trouvée avec ce filtre.</td></tr>`;
+    `;
+    }).join("")
+    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou litige trouvé avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems(silent = false) {
@@ -6458,7 +6480,7 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 

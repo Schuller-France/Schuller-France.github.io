@@ -4611,6 +4611,30 @@ h2 {
 }
 .backlog-badge.is-remainder { color: #075985; background: #e0f2fe; }
 .backlog-badge.is-return { color: #9a3412; background: #ffedd5; }
+.backlog-badge.is-litige-open { color: #9f1239; background: #ffe4e6; }
+.backlog-badge.is-litige-resolved { color: #475569; background: #e2e8f0; }
+.backlog-table tr.is-litige-open { background: linear-gradient(90deg, #fff1f2 0%, #fff 34%); }
+.backlog-table tr.is-litige-resolved { background: #f8fafc; opacity: .62; }
+.backlog-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.backlog-status-chip.is-open { color: #9f1239; background: #ffe4e6; }
+.backlog-status-chip.is-resolved { color: #475569; background: #e2e8f0; }
+.dark-mode .backlog-table tr.is-litige-open { background: linear-gradient(90deg, rgba(225, 29, 72, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%); }
+.dark-mode .backlog-table tr.is-litige-resolved { background: rgba(148, 163, 184, 0.08); opacity: 0.68; }
+.dark-mode .backlog-badge.is-litige-open,
+.dark-mode .backlog-status-chip.is-open { color: #fecdd3; background: rgba(225, 29, 72, 0.22); }
+.dark-mode .backlog-badge.is-litige-resolved,
+.dark-mode .backlog-status-chip.is-resolved { color: #cbd5e1; background: rgba(148, 163, 184, 0.18); }
 .backlog-empty { padding: 40px !important; color: var(--muted); text-align: center !important; font-weight: 800; }
 
 @media (max-width: 1180px) {
