@@ -3638,13 +3638,14 @@ h2 {
 .promotion-panel { overflow: hidden; }
 .promotion-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr) auto;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1fr) auto auto;
   gap: 14px;
   align-items: end;
   padding: 22px;
   border-bottom: 1px solid var(--line);
   background: #fafbfc;
 }
+.refresh-promotions-button { white-space: nowrap; }
 .promotion-toolbar .tarif-send-status { grid-column: 1 / -1; }
 .promotion-grid {
   display: grid;
@@ -6082,6 +6083,10 @@ body.tablet-mode .promotion-toolbar {
 body.tablet-mode .promotion-card-actions .primary-button,
 body.tablet-mode .tarif-send-form .primary-button,
 body.tablet-mode .promotion-toolbar .primary-button {
+  width: 100%;
+}
+
+body.tablet-mode .promotion-toolbar .ghost-button {
   width: 100%;
 }
 

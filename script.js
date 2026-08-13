@@ -451,6 +451,7 @@ const promotionGrid = document.querySelector("#promotionGrid");
 const promotionRecipient = document.querySelector("#promotionRecipient");
 const promotionSendStatus = document.querySelector("#promotionSendStatus");
 const sendSelectedPromotions = document.querySelector("#sendSelectedPromotions");
+const refreshPromotionsButton = document.querySelector("#refreshPromotionsButton");
 const promotionModal = document.querySelector("#promotionModal");
 const promotionModalTitle = document.querySelector("#promotionModalTitle");
 const promotionPreviewFrame = document.querySelector("#promotionPreviewFrame");
@@ -557,6 +558,24 @@ function saveSecureDataCache(userId, result) {
   }
 }
 
+function savePromotionConfigCache(userId, updatedTariffConfig) {
+  if (!userId || !updatedTariffConfig) return;
+  try {
+    const key = secureDataCacheKey(userId);
+    const cached = JSON.parse(localStorage.getItem(key) || "null");
+    if (!cached?.result) return;
+    cached.savedAt = Date.now();
+    cached.result.tariffConfig = {
+      ...(cached.result.tariffConfig || {}),
+      ...updatedTariffConfig,
+      endpoint: cached.result.tariffConfig?.endpoint || tariffConfig.endpoint || "",
+    };
+    localStorage.setItem(key, JSON.stringify(cached));
+  } catch (error) {
+    // Le cache local n'est qu'un accélérateur : s'il est invalide, Drive reste la source.
+  }
+}
+
 function restoreSecureDataCache(userId) {
   try {
     const cached = JSON.parse(localStorage.getItem(secureDataCacheKey(userId)) || "null");
@@ -599,16 +618,26 @@ async function refreshPromotionsFromDrive(force = false) {
   if (!force && Date.now() - lastPromotionsRefreshAt < 10000) return;
   promotionsRefreshInProgress = true;
   lastPromotionsRefreshAt = Date.now();
+  if (refreshPromotionsButton) refreshPromotionsButton.disabled = true;
   if (promotionSendStatus) {
     promotionSendStatus.textContent = "Actualisation des promotions Drive…";
     promotionSendStatus.className = "tarif-send-status";
   }
   try {
-    const result = await postService({ action: "getAppData", token: currentSessionToken });
-    applySecureAppData(result);
-    saveSecureDataCache(currentUser?.id || "", result);
+    const result = await postService({ action: "getPromotions", token: currentSessionToken, forceDrive: force ? "1" : "" });
+    if (!result?.ok || !result.tariffConfig) {
+      throw new Error(result?.message || "Promotions Drive indisponibles.");
+    }
+    tariffConfig = {
+      ...tariffConfig,
+      ...result.tariffConfig,
+      endpoint: tariffConfig.endpoint || result.tariffConfig.endpoint || "",
+    };
+    renderPromotions();
+    savePromotionConfigCache(currentUser?.id || "", tariffConfig);
     if (promotionSendStatus) {
-      promotionSendStatus.textContent = "Promotions Drive à jour.";
+      const count = Number(result.promotionsCount || getPromotions().length || 0);
+      promotionSendStatus.textContent = `Promotions Drive à jour (${count} fichier${count > 1 ? "s" : ""}).`;
       promotionSendStatus.classList.add("is-success");
     }
   } catch (error) {
@@ -618,6 +647,7 @@ async function refreshPromotionsFromDrive(force = false) {
     }
   } finally {
     promotionsRefreshInProgress = false;
+    if (refreshPromotionsButton) refreshPromotionsButton.disabled = false;
   }
 }
 
@@ -7402,6 +7432,7 @@ selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
+refreshPromotionsButton?.addEventListener("click", () => refreshPromotionsFromDrive(true));
 promotionGrid.addEventListener("click", (event) => {
   const previewId = event.target.closest("[data-preview-promotion]")?.dataset.previewPromotion;
   const sendId = event.target.closest("[data-send-promotion]")?.dataset.sendPromotion;
