@@ -432,6 +432,7 @@ const backlogSearch = document.querySelector("#backlogSearch");
 const backlogTypeFilter = document.querySelector("#backlogTypeFilter");
 const refreshBacklog = document.querySelector("#refreshBacklog");
 const backlogBody = document.querySelector("#backlogBody");
+const refreshDashboardData = document.querySelector("#refreshDashboardData");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -2127,6 +2128,23 @@ async function loadDashboardStatsFromDrive(options = {}) {
   }
 }
 
+async function refreshDashboardDataFromDrive() {
+  if (!currentSessionToken || dashboardStatsLoading) return;
+  if (!refreshDashboardData) {
+    await loadDashboardStatsFromDrive({ force: true });
+    return;
+  }
+  const previousLabel = refreshDashboardData.textContent || "Actualiser les données";
+  refreshDashboardData.disabled = true;
+  refreshDashboardData.textContent = "Actualisation…";
+  try {
+    await loadDashboardStatsFromDrive({ force: true });
+  } finally {
+    refreshDashboardData.disabled = false;
+    refreshDashboardData.textContent = previousLabel;
+  }
+}
+
 async function loadClientArticleStatsFromDrive() {
   if (!currentSessionToken) return;
   try {
@@ -3175,7 +3193,7 @@ function normalizeBacklogItem(item) {
   const id = item.id || `${item.date || ""}-${item.orderNumber || item.numeroCommande || item.commande || ""}-${item.clientCode || item.client || ""}-${item.reference || item.ref || ""}-${item.product || item.produit || ""}-${item.quantity || item.quantite || ""}`;
   return {
     id,
-    type: normalizeBacklogType(item.type || item.nature || item.statut || ""),
+    type: "reliquat",
     date: item.date || item.createdAt || item.jour || "",
     orderNumber: item.orderNumber || item.numeroCommande || item.commande || item.order || "",
     sector: item.sector || item.secteur || client?.sector || "",
@@ -3259,10 +3277,9 @@ function renderBacklog() {
   if (!backlogBody) return;
   const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id));
   const filteredItems = getFilteredBacklogItems();
-  const reliquatCount = sectorItems.filter((item) => item.type === "reliquat").length;
-  const repriseCount = sectorItems.filter((item) => item.type === "reprise").length;
-  backlogRemainderCount.textContent = String(reliquatCount);
-  backlogReturnCount.textContent = String(repriseCount);
+  const uniqueClients = new Set(sectorItems.map((item) => normalize(item.clientCode || item.clientName)).filter(Boolean));
+  backlogRemainderCount.textContent = String(sectorItems.length);
+  backlogReturnCount.textContent = String(uniqueClients.size);
   backlogTotalCount.textContent = String(filteredItems.length);
 
   if (!backlogItemsCache.length) {
@@ -3274,7 +3291,7 @@ function renderBacklog() {
     ? filteredItems.map((item) => `
       <tr>
         <td><strong>${escapeHtml(item.date || "-")}</strong><small>${escapeHtml(item.sector || "")}</small></td>
-        <td><span class="backlog-badge ${item.type === "reprise" ? "is-return" : "is-remainder"}">${item.type === "reprise" ? "Reprise" : "Reliquat"}</span></td>
+        <td><span class="backlog-badge is-remainder">Souffrance</span></td>
         <td><strong>${escapeHtml(item.orderNumber || "-")}</strong></td>
         <td><strong>${escapeHtml(item.clientName || "-")}</strong><small>${escapeHtml(item.clientCode || "")}</small></td>
         <td><strong>${escapeHtml(item.product || "-")}</strong><small>${escapeHtml(item.reference || "")}</small></td>
@@ -3289,7 +3306,7 @@ function renderBacklog() {
         <td class="backlog-action-cell"><button class="icon-button backlog-delete-button" type="button" data-backlog-hide="${escapeHtml(item.id)}" aria-label="Masquer cette ligne">&times;</button></td>
       </tr>
     `).join("")
-    : `<tr><td colspan="9" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
+    : `<tr><td colspan="9" class="backlog-empty">Aucune commande en souffrance trouvée avec ce filtre.</td></tr>`;
 }
 
 async function loadBacklogItems(silent = false) {
@@ -6441,7 +6458,7 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -6958,6 +6975,7 @@ refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
+refreshDashboardData?.addEventListener("click", refreshDashboardDataFromDrive);
 statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
 statsClientFilter?.addEventListener("input", renderCommercialStatsClientSuggestions);
 statsClientFilter?.addEventListener("keydown", (event) => {
@@ -7040,7 +7058,7 @@ resetTutorialProgress?.addEventListener("click", () => {
 document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tabletTab));
 });
-refreshBacklog.addEventListener("click", loadBacklogItems);
+refreshBacklog.addEventListener("click", () => loadBacklogItems(false));
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
 backlogBody.addEventListener("change", (event) => {

@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260813darkfix2" />
+    <link rel="stylesheet" href="style.css?v=20260813reliquatsrefresh" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -138,7 +138,7 @@
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="tourTab">Tournées</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
-        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
+        <button class="tab-button" type="button" id="backlogTab">Reliquats</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab">Frais dirigeants</button>
@@ -202,6 +202,7 @@
           <div class="dashboard-status">
             <span>Données actualisées</span>
             <strong id="dashboardUpdatedAt">En attente</strong>
+            <button class="dashboard-refresh-button" type="button" id="refreshDashboardData">Actualiser les donnÃ©es</button>
           </div>
         </section>
 
@@ -247,7 +248,7 @@
             <button type="button" data-tablet-tab="sample">Demande &eacute;chantillon</button>
             <button type="button" data-tablet-tab="expenses">Frais</button>
             <button type="button" data-tablet-tab="tour">Tournées</button>
-            <button type="button" data-tablet-tab="backlog">Reliquats & reprise</button>
+            <button type="button" data-tablet-tab="backlog">Reliquats</button>
           </div>
         </section>
 
@@ -928,16 +929,16 @@
           <div class="panel-heading">
             <div>
               <p class="step">Suivi terrain</p>
-              <h2 id="backlogTitle">Reliquats &amp; reprise</h2>
-              <p class="helper-text">Consultez les commandes en attente et les marchandises à récupérer chez les clients de votre secteur.</p>
+              <h2 id="backlogTitle">Reliquats</h2>
+              <p class="helper-text">Consultez uniquement les commandes en souffrance de votre secteur, depuis le fichier rempli par les secrétaires.</p>
             </div>
             <span class="status-pill" id="backlogStatus">À connecter au Drive</span>
           </div>
 
-          <section class="dashboard-grid backlog-metrics" aria-label="Résumé reliquats et reprises">
-            <article class="panel metric-card"><span>Reliquats</span><strong id="backlogRemainderCount">0</strong><small>Commandes en attente</small></article>
-            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises à récupérer</small></article>
-            <article class="panel metric-card"><span>Total affiché</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
+          <section class="dashboard-grid backlog-metrics" aria-label="Résumé commandes en souffrance">
+            <article class="panel metric-card"><span>Commandes en souffrance</span><strong id="backlogRemainderCount">0</strong><small>Sur votre secteur</small></article>
+            <article class="panel metric-card"><span>Clients concernés</span><strong id="backlogReturnCount">0</strong><small>Avec au moins une ligne</small></article>
+            <article class="panel metric-card"><span>Lignes affichées</span><strong id="backlogTotalCount">0</strong><small>Après recherche</small></article>
           </section>
 
           <div class="backlog-toolbar">
@@ -945,14 +946,7 @@
               Rechercher
               <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, référence, ville…" />
             </label>
-            <label for="backlogTypeFilter">
-              Type
-              <select id="backlogTypeFilter">
-                <option value="all">Tout afficher</option>
-                <option value="reliquat">Reliquats uniquement</option>
-                <option value="reprise">Reprises uniquement</option>
-              </select>
-            </label>
+            <input id="backlogTypeFilter" type="hidden" value="all" />
             <button class="primary-button compact" type="button" id="refreshBacklog">Actualiser</button>
           </div>
 
@@ -1305,7 +1299,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260813darkfix2" charset="UTF-8"></script>
+    <script src="script.js?v=20260813reliquatsrefresh" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
