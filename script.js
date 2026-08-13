@@ -1196,17 +1196,70 @@ function getPromotions() {
   return Array.isArray(tariffConfig.promotions) ? tariffConfig.promotions : [];
 }
 
-function drivePreviewUrl(fileId) {
-  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+let promotionPreviewObjectUrl = "";
+
+function driveThumbnailUrl(fileId) {
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1000`;
 }
 
-function getPromotionPreviewUrl(promotion) {
+function getPromotionThumbnailUrl(promotion) {
   if (!promotion?.driveFileId) return "";
-  const mimeType = String(promotion.mimeType || "").toLowerCase();
-  if (mimeType.indexOf("image/") === 0) {
-    return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(promotion.driveFileId)}`;
+  return promotion.thumbnailUrl || driveThumbnailUrl(promotion.driveFileId);
+}
+
+function renderPromotionPreviewThumb(promotion) {
+  const thumbnailUrl = getPromotionThumbnailUrl(promotion);
+  return `
+      <div class="promotion-preview-thumb">
+        ${thumbnailUrl ? `<img src="${escapeHtml(thumbnailUrl)}" alt="${escapeHtml(promotion.name)}" loading="lazy" onerror="this.closest('.promotion-preview-thumb').classList.add('is-preview-unavailable')" />` : ""}
+        <div class="promotion-preview-fallback">
+          <strong>Aperçu indisponible</strong>
+          <span>Le plein écran tentera quand même d’ouvrir le document.</span>
+        </div>
+      </div>`;
+}
+
+function clearPromotionPreviewObjectUrl() {
+  if (!promotionPreviewObjectUrl) return;
+  URL.revokeObjectURL(promotionPreviewObjectUrl);
+  promotionPreviewObjectUrl = "";
+}
+
+function base64ToBlob(base64, mimeType = "application/pdf") {
+  const binary = atob(base64 || "");
+  const chunks = [];
+  for (let offset = 0; offset < binary.length; offset += 1024) {
+    const slice = binary.slice(offset, offset + 1024);
+    const bytes = new Uint8Array(slice.length);
+    for (let index = 0; index < slice.length; index += 1) {
+      bytes[index] = slice.charCodeAt(index);
+    }
+    chunks.push(bytes);
   }
-  return drivePreviewUrl(promotion.driveFileId);
+  return new Blob(chunks, { type: mimeType });
+}
+
+function setPromotionPreviewMessage(title, message) {
+  if (!promotionPreviewFrame) return;
+  promotionPreviewFrame.removeAttribute("src");
+  promotionPreviewFrame.srcdoc = `<!doctype html>
+    <html lang="fr">
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Inter, Arial, sans-serif; color: #171717; background: #f5f6f8; }
+          .box { max-width: 520px; padding: 32px; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; text-align: center; box-shadow: 0 18px 45px rgba(15, 23, 42, .10); }
+          h1 { margin: 0 0 10px; font-size: 22px; }
+          p { margin: 0; color: #5f6b7a; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <h1>${escapeHtml(title)}</h1>
+          <p>${escapeHtml(message)}</p>
+        </div>
+      </body>
+    </html>`;
 }
 
 function renderPromotions() {
@@ -1228,9 +1281,7 @@ function renderPromotions() {
         <input type="checkbox" value="${escapeHtml(promotion.id)}" />
         <span>Sélectionner</span>
       </label>
-      <div class="promotion-preview-thumb">
-        <iframe src="${escapeHtml(getPromotionPreviewUrl(promotion))}" title="${escapeHtml(promotion.name)}"></iframe>
-      </div>
+      ${renderPromotionPreviewThumb(promotion)}
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
@@ -1248,18 +1299,37 @@ function selectedPromotionIds(forcedId = "") {
   return [...promotionGrid.querySelectorAll(".promotion-check input:checked")].map((input) => input.value);
 }
 
-function openPromotionPreview(promotionId) {
+async function openPromotionPreview(promotionId) {
   const promotion = getPromotions().find((item) => item.id === promotionId);
   if (!promotion) return;
+  clearPromotionPreviewObjectUrl();
   promotionModalTitle.textContent = promotion.name;
-  promotionPreviewFrame.src = getPromotionPreviewUrl(promotion);
   promotionModal.classList.remove("is-hidden");
-  recordActivity("Promotion consultée", promotion.name);
+  setPromotionPreviewMessage("Chargement de l’aperçu", "Préparation du document depuis Google Drive...");
+  try {
+    const result = await postService({
+      action: "getPromotionPreview",
+      fileId: promotion.driveFileId || promotion.fileId || "",
+      documentId: promotion.id || "",
+    });
+    const blob = base64ToBlob(result.base64, result.mimeType || "application/pdf");
+    promotionPreviewObjectUrl = URL.createObjectURL(blob);
+    promotionPreviewFrame.removeAttribute("srcdoc");
+    promotionPreviewFrame.src = promotionPreviewObjectUrl;
+    recordActivity("Promotion consultée", promotion.name);
+  } catch (error) {
+    setPromotionPreviewMessage(
+      "Aperçu indisponible",
+      error.message || "Impossible d’ouvrir ce document. Le format PDF reste le plus fiable pour les promotions client."
+    );
+  }
 }
 
 function closePromotionPreview() {
   promotionModal.classList.add("is-hidden");
+  promotionPreviewFrame.removeAttribute("srcdoc");
   promotionPreviewFrame.src = "";
+  clearPromotionPreviewObjectUrl();
 }
 
 async function sendPromotions(forcedId = "") {

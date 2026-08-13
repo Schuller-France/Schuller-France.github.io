@@ -134,15 +134,15 @@
         <button class="tab-button" type="button" id="sampleTab" data-icon="📦">Demande &eacute;chantillon</button>
         <button class="tab-button" type="button" id="expensesTab" data-icon="💳">Frais</button>
         <button class="tab-button" type="button" id="notesTab" data-icon="🗒️">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
-        <button class="tab-button" type="button" id="promotionTab" data-icon="%">Promotions</button>
+        <button class="tab-button" type="button" id="promotionTab" data-icon="🎯">Promotions</button>
         <button class="tab-button" type="button" id="tarifTab" data-icon="📚">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
-        <button class="tab-button" type="button" id="prenetTab" data-icon="€">Prix nets</button>
+        <button class="tab-button" type="button" id="prenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab" data-icon="📈">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
-        <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="€">Prix nets</button>
+        <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
       </nav>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
 
@@ -1043,7 +1043,6 @@
           <div class="promotion-toolbar">
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
-            <button class="ghost-button refresh-promotions-button promotion-refresh-inline" type="button">Actualiser les promotions Drive</button>
             <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>

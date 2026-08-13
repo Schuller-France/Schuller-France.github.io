@@ -3695,11 +3695,45 @@ h2 {
   background: #f3f4f6;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.promotion-preview-thumb iframe {
+.promotion-preview-thumb iframe,
+.promotion-preview-thumb img {
   width: 100%;
   height: 100%;
   border: 0;
+  display: block;
+  object-fit: cover;
+  background: #fff;
+}
+.promotion-preview-fallback {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.promotion-preview-fallback strong {
+  color: var(--dark);
+}
+.promotion-preview-fallback span {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.promotion-preview-thumb.is-preview-unavailable iframe,
+.promotion-preview-thumb.is-preview-unavailable img {
+  display: none;
+}
+.promotion-preview-thumb.is-preview-unavailable .promotion-preview-fallback {
+  display: flex;
 }
 .promotion-card-actions {
   display: flex;
@@ -7581,4 +7615,74 @@ body.dark-theme .empty-state,
 body.dark-theme small,
 body.dark-theme .subtle {
   color: #a8b5c8 !important;
+}
+
+/* Icônes finales des onglets : écrase les anciennes lettres héritées (H, C, %, P...). */
+html body #tutorialTab[data-icon]::before,
+html body #homeTab[data-icon]::before,
+html body #client360Tab[data-icon]::before,
+html body #statsTab[data-icon]::before,
+html body #orderTab[data-icon]::before,
+html body #quoteTab[data-icon]::before,
+html body #sampleTab[data-icon]::before,
+html body #expensesTab[data-icon]::before,
+html body #notesTab[data-icon]::before,
+html body #promotionTab[data-icon]::before,
+html body #tarifTab[data-icon]::before,
+html body #tourTab[data-icon]::before,
+html body #prenetTab[data-icon]::before,
+html body #backlogTab[data-icon]::before,
+html body #adminCheckingTab[data-icon]::before,
+html body #adminTab[data-icon]::before,
+html body #adminExecutiveExpensesTab[data-icon]::before,
+html body #adminPrenetTab[data-icon]::before {
+  content: attr(data-icon) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  margin-right: 8px !important;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Inter, system-ui, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  color: inherit !important;
+  background: transparent !important;
+  text-transform: none !important;
+}
+
+html body.tablet-mode #tutorialTab[data-icon]::before,
+html body.tablet-mode #homeTab[data-icon]::before,
+html body.tablet-mode #client360Tab[data-icon]::before,
+html body.tablet-mode #statsTab[data-icon]::before,
+html body.tablet-mode #orderTab[data-icon]::before,
+html body.tablet-mode #quoteTab[data-icon]::before,
+html body.tablet-mode #sampleTab[data-icon]::before,
+html body.tablet-mode #expensesTab[data-icon]::before,
+html body.tablet-mode #notesTab[data-icon]::before,
+html body.tablet-mode #promotionTab[data-icon]::before,
+html body.tablet-mode #tarifTab[data-icon]::before,
+html body.tablet-mode #tourTab[data-icon]::before,
+html body.tablet-mode #prenetTab[data-icon]::before,
+html body.tablet-mode #backlogTab[data-icon]::before,
+html body.tablet-mode #adminCheckingTab[data-icon]::before,
+html body.tablet-mode #adminTab[data-icon]::before,
+html body.tablet-mode #adminExecutiveExpensesTab[data-icon]::before,
+html body.tablet-mode #adminPrenetTab[data-icon]::before {
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  margin-right: 10px !important;
+  font-size: 18px !important;
+}
+
+body.dark-theme .promotion-preview-fallback {
+  background: #101826;
+  color: #a8b5c8;
+}
+
+body.dark-theme .promotion-preview-fallback strong {
+  color: #f8fafc;
 }
