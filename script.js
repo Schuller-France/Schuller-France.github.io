@@ -3112,11 +3112,11 @@ function arrangeTabsForUser(user) {
   if (user?.role === "admin") {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
-    appTabs.insertBefore(adminTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(adminExecutiveExpensesTab, adminTab.nextSibling);
-    appTabs.insertBefore(statsTab, adminExecutiveExpensesTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
+    appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
+    appTabs.insertBefore(adminTab, statsTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, adminTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
+    appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
     return;
   }
   [

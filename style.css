@@ -6152,11 +6152,15 @@ body.tablet-mode #prenetTab::before { content: "P" !important; }
 body:not(.tablet-mode) #backlogTab::before,
 body.tablet-mode #backlogTab::before { content: "!" !important; }
 body:not(.tablet-mode) #adminCheckingTab::before,
-body.tablet-mode #adminCheckingTab::before { content: "J" !important; }
+body.tablet-mode #adminCheckingTab::before { content: "\25A6" !important; }
+body:not(.tablet-mode) #statsTab::before,
+body.tablet-mode #statsTab::before { content: "\2197" !important; }
 body:not(.tablet-mode) #adminTab::before,
-body.tablet-mode #adminTab::before { content: "C" !important; }
+body.tablet-mode #adminTab::before { content: "\25C6" !important; }
 body:not(.tablet-mode) #adminPrenetTab::before,
-body.tablet-mode #adminPrenetTab::before { content: "P" !important; }
+body.tablet-mode #adminPrenetTab::before { content: "\20AC" !important; }
+body:not(.tablet-mode) #adminExecutiveExpensesTab::before,
+body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !important; }
 
 .sample-table {
     min-width: 1080px;
@@ -7083,4 +7087,242 @@ body.tablet-mode .executive-expenses-table td:nth-child(6)::before {
 body.tablet-mode .executive-expenses-table td:nth-child(7)::before {
   content: "";
   display: none;
+}
+
+/* Dark mode premium — placé en fin de fichier pour couvrir toutes les cartes du site */
+body.dark-theme {
+  --red: #e30613;
+  --red-dark: #b8000d;
+  --red-soft: rgba(227, 6, 19, .16);
+  --dark: #f8fafc;
+  --ink: #f8fafc;
+  --muted: #a7b0c0;
+  --subtle: #7f8a9b;
+  --line: rgba(148, 163, 184, .22);
+  --soft: #0a0f17;
+  --soft-2: #141b26;
+  --white: #151b24;
+  --shadow: 0 20px 55px rgba(0, 0, 0, .38);
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(227, 6, 19, .16), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, .06), transparent 30%),
+    #070a0f;
+}
+
+body.dark-theme .login-card,
+body.dark-theme .app-shell,
+body.dark-theme .app-view,
+body.dark-theme .app-header,
+body.dark-theme .app-tabs,
+body.dark-theme .panel,
+body.dark-theme .dashboard-hero,
+body.dark-theme .metric-card,
+body.dark-theme .dashboard-card,
+body.dark-theme .dashboard-empty,
+body.dark-theme .selected-client,
+body.dark-theme .client-card,
+body.dark-theme .client360-search-card,
+body.dark-theme .client360-identity,
+body.dark-theme .client360-card,
+body.dark-theme .client360-stat,
+body.dark-theme .order-panel,
+body.dark-theme .quote-client-card,
+body.dark-theme .quote-lines-card,
+body.dark-theme .quote-history-card,
+body.dark-theme .sample-panel,
+body.dark-theme .notes-card,
+body.dark-theme .notes-history-card,
+body.dark-theme .note-result-card,
+body.dark-theme .promotion-card,
+body.dark-theme .document-card,
+body.dark-theme .tarif-card,
+body.dark-theme .tarif-send-form,
+body.dark-theme .tour-card,
+body.dark-theme .tour-map-card,
+body.dark-theme .tour-list-card,
+body.dark-theme .expense-card,
+body.dark-theme .expenses-panel,
+body.dark-theme .executive-expenses-panel,
+body.dark-theme .executive-expense-rules article,
+body.dark-theme .admin-card,
+body.dark-theme .admin-hero,
+body.dark-theme .admin-log-panel,
+body.dark-theme .admin-expense-panel,
+body.dark-theme .admin-prenet-panel,
+body.dark-theme .admin-prenet-selected,
+body.dark-theme .stats-panel,
+body.dark-theme .stats-card,
+body.dark-theme .tutorial-hero,
+body.dark-theme .tutorial-progress-panel,
+body.dark-theme .tutorial-help,
+body.dark-theme .tutorial-step-card,
+body.dark-theme .global-search-results {
+  background: linear-gradient(180deg, rgba(21, 27, 36, .98), rgba(17, 23, 32, .98)) !important;
+  border-color: rgba(148, 163, 184, .22) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .34) !important;
+  color: #f8fafc !important;
+}
+
+body.dark-theme .app-sidebar,
+body.dark-theme:not(.tablet-mode) .app-tabs {
+  background: linear-gradient(180deg, #07090d 0%, #10151d 100%) !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+}
+
+body.dark-theme .tab-button,
+body.dark-theme .ghost-button,
+body.dark-theme .secondary-button,
+body.dark-theme .theme-toggle,
+body.dark-theme .tablet-menu-toggle,
+body.dark-theme .chip,
+body.dark-theme .quick-note-chip,
+body.dark-theme .tarif-category-tab,
+body.dark-theme .status-pill,
+body.dark-theme .client360-pill {
+  background: rgba(255, 255, 255, .055) !important;
+  border-color: rgba(255, 255, 255, .10) !important;
+  color: #d8dee9 !important;
+}
+
+body.dark-theme .tab-button.is-active,
+body.dark-theme .tarif-category-tab.is-active,
+body.dark-theme .primary-button,
+body.dark-theme .danger-button {
+  background: linear-gradient(135deg, #e30613, #b8000d) !important;
+  border-color: rgba(227, 6, 19, .9) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 26px rgba(227, 6, 19, .22) !important;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select,
+body.dark-theme .global-search input,
+body.dark-theme .search-input,
+body.dark-theme .reference-input,
+body.dark-theme .quantity-input,
+body.dark-theme .comment-input {
+  background: #0b1018 !important;
+  border-color: rgba(148, 163, 184, .28) !important;
+  color: #f8fafc !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03) !important;
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+  color: #6f7b8c !important;
+}
+
+body.dark-theme .suggestions,
+body.dark-theme .client-suggestions,
+body.dark-theme .reference-suggestions,
+body.dark-theme .dropdown-menu,
+body.dark-theme .global-search-results {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, .24) !important;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, .45) !important;
+}
+
+body.dark-theme .suggestion-item,
+body.dark-theme .global-search-result,
+body.dark-theme .client-option {
+  color: #edf2f7 !important;
+  border-color: rgba(148, 163, 184, .16) !important;
+}
+
+body.dark-theme .suggestion-item:hover,
+body.dark-theme .global-search-result:hover,
+body.dark-theme .client-option:hover {
+  background: rgba(227, 6, 19, .12) !important;
+}
+
+body.dark-theme table,
+body.dark-theme th,
+body.dark-theme td {
+  color: #edf2f7 !important;
+  border-color: rgba(148, 163, 184, .18) !important;
+}
+
+body.dark-theme th,
+body.dark-theme .table-header,
+body.dark-theme .order-table th,
+body.dark-theme .quote-table th,
+body.dark-theme .stats-table th,
+body.dark-theme .dashboard-table th,
+body.dark-theme .admin-log-table th,
+body.dark-theme .expenses-table th,
+body.dark-theme .prenet-table th {
+  background: #0f1622 !important;
+  color: #b9c4d4 !important;
+}
+
+body.dark-theme tbody tr:hover td,
+body.dark-theme .table-row:hover {
+  background: rgba(227, 6, 19, .065) !important;
+}
+
+body.dark-theme .muted,
+body.dark-theme small,
+body.dark-theme .section-subtitle,
+body.dark-theme .panel-subtitle,
+body.dark-theme .metric-label,
+body.dark-theme .dashboard-card small,
+body.dark-theme .help-text {
+  color: #98a4b7 !important;
+}
+
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme strong,
+body.dark-theme .metric-value,
+body.dark-theme .dashboard-title,
+body.dark-theme .panel-title {
+  color: #ffffff !important;
+}
+
+body.dark-theme .metric-icon,
+body.dark-theme .app-status,
+body.dark-theme .tab-badge,
+body.dark-theme .count-badge {
+  background: rgba(227, 6, 19, .18) !important;
+  color: #ffccd0 !important;
+  border-color: rgba(227, 6, 19, .28) !important;
+}
+
+body.dark-theme .chart-area,
+body.dark-theme .chart-bar-track,
+body.dark-theme .goal-track,
+body.dark-theme .progress-track,
+body.dark-theme .login-progress-track,
+body.dark-theme .empty-state {
+  background: rgba(255, 255, 255, .055) !important;
+  border-color: rgba(148, 163, 184, .18) !important;
+}
+
+body.dark-theme .chart-bar,
+body.dark-theme .goal-fill,
+body.dark-theme .progress-fill,
+body.dark-theme .login-progress-fill {
+  background: linear-gradient(180deg, #ff3b46, #e30613) !important;
+  box-shadow: 0 12px 24px rgba(227, 6, 19, .24) !important;
+}
+
+body.dark-theme .is-success,
+body.dark-theme .positive,
+body.dark-theme .text-success {
+  color: #65d889 !important;
+}
+
+body.dark-theme .is-danger,
+body.dark-theme .negative,
+body.dark-theme .text-danger {
+  color: #ff6b74 !important;
+}
+
+body.dark-theme .login-card {
+  background: rgba(13, 18, 27, .86) !important;
+  backdrop-filter: blur(14px);
 }
