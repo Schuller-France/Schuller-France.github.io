@@ -95,6 +95,12 @@ const adminCommercials = [
   { id: "belgique", name: "Belgique", sectors: ["Belgique"], revenueSectors: ["Belgique"], objectiveSectors: ["Belgique"] },
 ];
 
+const knownUserProfiles = [
+  ...adminCommercials,
+  { id: "formation", name: "Formation tablette", sectors: ["Secteur 9"], role: "commercial", training: true },
+  { id: "admin", name: "Administrateur", sectors: [], role: "admin" },
+];
+
 const tutorialStepsConfig = [
   {
     id: "home",
@@ -3415,10 +3421,58 @@ function showLogin() {
   requestAnimationFrame(() => loginId.focus());
 }
 
+function splitUserSectors(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  return String(value)
+    .split(/[,+/;|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getKnownUserProfile(user = {}) {
+  const id = normalize(user.id || user.identifier || user.login || "");
+  const email = normalize(user.email || "");
+  const name = normalize(user.name || user.displayName || user.userName || "");
+  return knownUserProfiles.find((profile) => {
+    if (id && normalize(profile.id) === id) return true;
+    if (email && normalize(profile.email || "") === email) return true;
+    if (name && normalize(profile.name) === name) return true;
+    return false;
+  }) || null;
+}
+
+function normalizeSessionUser(user = {}, token = "") {
+  const profile = getKnownUserProfile(user);
+  const merged = { ...(profile || {}), ...user };
+  const sectors = [
+    ...splitUserSectors(profile?.sectors),
+    ...splitUserSectors(user.sectors),
+    ...splitUserSectors(user.sector),
+    ...splitUserSectors(user.secteur),
+  ]
+    .map((sector) => normalizeStatsSector(sector) || sector)
+    .filter(Boolean);
+  const uniqueSectors = [...new Set(sectors)];
+  const id = merged.id || profile?.id || merged.identifier || merged.login || "";
+  const name = merged.name || merged.displayName || merged.userName || profile?.name || id || "Commercial";
+  const role = merged.role || profile?.role || "commercial";
+  return {
+    ...merged,
+    id,
+    name,
+    role,
+    sectors: role === "admin" ? [] : uniqueSectors,
+    sector: uniqueSectors[0] || merged.sector || "",
+    token,
+    training: Boolean(merged.training || profile?.training),
+  };
+}
+
 function showApp(user, token = user.token || "") {
-  const sectors = Array.isArray(user.sectors) && user.sectors.length ? user.sectors : [user.sector].filter(Boolean);
+  const normalizedUser = normalizeSessionUser(user, token);
   currentSessionToken = token;
-  currentUser = { ...user, sectors, sector: sectors[0] || "Secteur", token };
+  currentUser = normalizedUser;
   activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
   const remembered = Boolean(user.remember || rememberLogin.checked);
@@ -3429,7 +3483,9 @@ function showApp(user, token = user.token || "") {
   } else {
     localStorage.removeItem(rememberedSessionKey);
   }
-  sessionLabel.textContent = currentUser.role === "admin" ? "Schuller France - Administration" : `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
+  sessionLabel.textContent = currentUser.role === "admin"
+    ? "Schuller France - Administration"
+    : `${currentUser.name} - ${currentUser.sectors.join(" + ") || "Secteur non défini"}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
 
