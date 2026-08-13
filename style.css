@@ -7326,3 +7326,164 @@ body.dark-theme .login-card {
   background: rgba(13, 18, 27, .86) !important;
   backdrop-filter: blur(14px);
 }
+
+/* Dark mode lisible — dernier filet de sécurité pour les tableaux, formulaires et écrans admin */
+body.dark-theme .dashboard-table-wrap,
+body.dark-theme .stats-table-wrap,
+body.dark-theme .expenses-table-wrap,
+body.dark-theme .executive-expenses-table-wrap,
+body.dark-theme .prenet-table-wrap,
+body.dark-theme .admin-prenet-table-wrap,
+body.dark-theme .table-wrap,
+body.dark-theme .quote-table-wrap,
+body.dark-theme .order-table-wrap,
+body.dark-theme .tour-route-summary,
+body.dark-theme .tour-clients-list,
+body.dark-theme .tour-saved-routes,
+body.dark-theme .tour-controls,
+body.dark-theme .tour-form,
+body.dark-theme .admin-table-wrap {
+  background: #0f1724 !important;
+  border-color: rgba(148, 163, 184, .22) !important;
+  color: #eef4ff !important;
+}
+
+body.dark-theme table {
+  background: #0f1724 !important;
+}
+
+body.dark-theme tbody,
+body.dark-theme tr,
+body.dark-theme td {
+  background-color: #101827 !important;
+  color: #eaf2ff !important;
+}
+
+body.dark-theme tbody tr:nth-child(even) td {
+  background-color: #0d1421 !important;
+}
+
+body.dark-theme tbody tr:hover td {
+  background-color: rgba(227, 6, 19, .13) !important;
+}
+
+body.dark-theme thead,
+body.dark-theme th {
+  background: #070d16 !important;
+  color: #c9d7ea !important;
+}
+
+body.dark-theme .stats-table td strong,
+body.dark-theme .dashboard-table td strong,
+body.dark-theme .admin-log-table td strong,
+body.dark-theme .expenses-table td strong,
+body.dark-theme .prenet-table td strong,
+body.dark-theme .executive-expenses-table td strong,
+body.dark-theme .table-wrap strong,
+body.dark-theme .metric-value,
+body.dark-theme .kpi-value,
+body.dark-theme .stat-value,
+body.dark-theme .admin-stat-value {
+  color: #ffffff !important;
+  font-weight: 950 !important;
+}
+
+body.dark-theme .metric-label,
+body.dark-theme .kpi-label,
+body.dark-theme .stat-label,
+body.dark-theme .admin-stat-label,
+body.dark-theme .panel-kicker,
+body.dark-theme .section-kicker,
+body.dark-theme .table-kicker,
+body.dark-theme label,
+body.dark-theme th {
+  color: #9ec5ff !important;
+}
+
+body.dark-theme .panel-kicker,
+body.dark-theme .section-kicker,
+body.dark-theme .table-kicker,
+body.dark-theme .metric-label,
+body.dark-theme .kpi-label {
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+body.dark-theme .admin-header,
+body.dark-theme .panel-heading,
+body.dark-theme .stats-header,
+body.dark-theme .prenet-client-header,
+body.dark-theme .executive-expenses-meta,
+body.dark-theme .executive-expenses-actions,
+body.dark-theme .executive-expenses-summary div,
+body.dark-theme .expenses-summary div,
+body.dark-theme .expense-history-item,
+body.dark-theme .tour-client-card,
+body.dark-theme .tour-selected-card,
+body.dark-theme .tour-route-card,
+body.dark-theme .tour-saved-card {
+  background: linear-gradient(180deg, #121b2a, #0e1623) !important;
+  border-color: rgba(148, 163, 184, .22) !important;
+  color: #eef4ff !important;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select,
+body.dark-theme .input-like,
+body.dark-theme .fake-input,
+body.dark-theme .amount-box,
+body.dark-theme .total-box,
+body.dark-theme .summary-box,
+body.dark-theme .executive-expenses-total,
+body.dark-theme .executive-expenses-vat {
+  background: #070d16 !important;
+  color: #f8fbff !important;
+  border-color: rgba(158, 197, 255, .28) !important;
+}
+
+body.dark-theme input:focus,
+body.dark-theme textarea:focus,
+body.dark-theme select:focus {
+  border-color: rgba(227, 6, 19, .78) !important;
+  box-shadow: 0 0 0 4px rgba(227, 6, 19, .16) !important;
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+  color: #8191a8 !important;
+}
+
+body.dark-theme .expense-upload span,
+body.dark-theme .upload-label,
+body.dark-theme .file-upload-label,
+body.dark-theme .justificatif-upload,
+body.dark-theme .photo-upload {
+  background: rgba(227, 6, 19, .12) !important;
+  color: #ffd6da !important;
+  border-color: rgba(227, 6, 19, .55) !important;
+}
+
+body.dark-theme .positive,
+body.dark-theme .is-positive,
+body.dark-theme .text-success,
+body.dark-theme .success,
+body.dark-theme .amount-positive {
+  color: #65e39b !important;
+}
+
+body.dark-theme .negative,
+body.dark-theme .is-negative,
+body.dark-theme .text-danger,
+body.dark-theme .danger,
+body.dark-theme .amount-negative {
+  color: #ff7a84 !important;
+}
+
+body.dark-theme .muted,
+body.dark-theme .help-text,
+body.dark-theme .empty-state,
+body.dark-theme small,
+body.dark-theme .subtle {
+  color: #a8b5c8 !important;
+}
