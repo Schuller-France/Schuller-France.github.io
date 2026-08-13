@@ -7031,3 +7031,56 @@ body.tablet-mode .tutorial-help {
     grid-template-columns: 1fr;
   }
 }
+
+.executive-expenses-panel .panel-heading {
+  background: linear-gradient(135deg, rgba(227, 6, 19, .08), rgba(255, 255, 255, .96));
+  border-radius: 18px;
+}
+
+.executive-expense-rules article {
+  background: linear-gradient(135deg, #fff7f7, #ffffff);
+}
+
+.executive-expenses-meta {
+  grid-template-columns: minmax(220px, .3fr) minmax(220px, .25fr) minmax(320px, .45fr);
+}
+
+.executive-expenses-table {
+  min-width: 1040px;
+}
+
+.executive-expenses-table td:nth-child(3) {
+  width: 340px;
+}
+
+.executive-expenses-table td:nth-child(6) {
+  width: 220px;
+}
+
+.executive-expenses-summary {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.executive-expenses-actions {
+  grid-template-columns: auto minmax(260px, 1fr) auto auto;
+}
+
+body.dark-theme .executive-expenses-panel .panel-heading,
+body.dark-theme .executive-expense-rules article {
+  background: linear-gradient(135deg, rgba(227, 6, 19, .16), rgba(24, 24, 27, .96));
+}
+
+body.tablet-mode .executive-expenses-meta,
+body.tablet-mode .executive-expenses-actions,
+body.tablet-mode .executive-expenses-summary {
+  grid-template-columns: 1fr;
+}
+
+body.tablet-mode .executive-expenses-table td:nth-child(6)::before {
+  content: "Justificatif";
+}
+
+body.tablet-mode .executive-expenses-table td:nth-child(7)::before {
+  content: "";
+  display: none;
+}

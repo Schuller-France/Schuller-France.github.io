@@ -141,6 +141,7 @@
         <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Consulting</button>
+        <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab">Prix nets</button>
       </nav>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
@@ -1120,6 +1121,68 @@
         </section>
       </main>
 
+      <main class="app-shell admin-shell is-hidden" id="adminExecutiveExpensesView">
+        <section class="panel expenses-panel executive-expenses-panel" aria-labelledby="executiveExpensesTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Direction</p>
+              <h2 id="executiveExpensesTitle">Frais dirigeants</h2>
+              <p class="helper-text">Saisie libre pour les cadres dirigeants : aucun plafond, aucun calcul de remboursement, le total saisi est transmis directement.</p>
+            </div>
+            <span class="status-pill" id="executiveExpensesStatus">En pr&eacute;paration</span>
+          </div>
+
+          <section class="expenses-rules executive-expense-rules" aria-label="Principe frais dirigeants">
+            <article><strong>Aucun plafond</strong><span>Les montants sont repris tels qu'ils sont saisis.</span></article>
+            <article><strong>Justificatifs</strong><span>Ajoutez une photo ou un PDF pour chaque ligne si besoin.</span></article>
+            <article><strong>Envoi automatique</strong><span>Le tableau complet part &agrave; l'adresse configur&eacute;e : flogilet44@gmail.com.</span></article>
+          </section>
+
+          <div class="expenses-meta executive-expenses-meta">
+            <label>
+              Dirigeant / cadre
+              <input id="executiveExpenseOwner" type="text" autocomplete="off" placeholder="Ex. Florent Gilet, Alain Gilet..." />
+            </label>
+            <label>
+              Semaine / p&eacute;riode
+              <input id="executiveExpensesPeriod" type="text" autocomplete="off" placeholder="Ex. Semaine 31, juillet 2026..." />
+            </label>
+            <label>
+              Commentaire g&eacute;n&eacute;ral
+              <input id="executiveExpensesNote" type="text" autocomplete="off" placeholder="Optionnel : pr&eacute;cision pour la secr&eacute;taire..." />
+            </label>
+          </div>
+
+          <div class="expenses-table-wrap">
+            <table class="expenses-table executive-expenses-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type de frais</th>
+                  <th>Pr&eacute;cision</th>
+                  <th>Montant TTC</th>
+                  <th>Dont TVA</th>
+                  <th>Justificatif</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="executiveExpensesLines"></tbody>
+            </table>
+          </div>
+
+          <div class="expenses-actions executive-expenses-actions">
+            <button class="ghost-button compact" type="button" id="addExecutiveExpenseLine">Ajouter une ligne</button>
+            <dl class="expenses-summary executive-expenses-summary">
+              <div><dt>Total TTC</dt><dd id="executiveExpensesTotalAmount">0,00 &euro;</dd></div>
+              <div><dt>TVA</dt><dd id="executiveExpensesTotalVat">0,00 &euro;</dd></div>
+            </dl>
+            <button class="ghost-button" type="button" id="resetExecutiveExpenses">Nouvelle note</button>
+            <button class="primary-button" type="button" id="sendExecutiveExpenseReport">Envoyer les frais dirigeants</button>
+            <p class="tarif-send-status" id="executiveExpensesSendStatus"></p>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell admin-shell is-hidden" id="adminCheckingView">
         <section class="panel admin-hero">
           <div>
@@ -1242,7 +1305,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260728formation1" charset="UTF-8"></script>
+    <script src="script.js?v=20260813executiveexpenses1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

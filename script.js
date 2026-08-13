@@ -23,6 +23,7 @@ let lines = [];
 let quoteLineItems = [];
 let sampleLineItems = [];
 let expenseLineItems = [];
+let executiveExpenseLineItems = [];
 let activeExpenseDraftId = null;
 let currentUser = null;
 let visibleClients = [];
@@ -75,6 +76,7 @@ const wholeCurrencyFormatter = new Intl.NumberFormat("fr-FR", {
   minimumFractionDigits: 0,
 });
 const expenseTypes = ["HOTEL", "REPAS SOIR", "REPAS MIDI", "INVITATION CLIENT", "PARKING", "CARBURANT", "DIVERS"];
+const executiveExpenseTypes = ["REPAS", "HOTEL", "CARBURANT", "PEAGE", "PARKING", "TRAIN", "AVION", "TAXI", "FOURNITURES", "INVITATION CLIENT", "DIVERS"];
 const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
 const expenseHotelDinnerLimit = 115;
@@ -256,6 +258,7 @@ const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const adminCheckingTab = document.querySelector("#adminCheckingTab");
+const adminExecutiveExpensesTab = document.querySelector("#adminExecutiveExpensesTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
@@ -274,6 +277,7 @@ const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
 const adminView = document.querySelector("#adminView");
 const adminCheckingView = document.querySelector("#adminCheckingView");
+const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
 const adminPrenetView = document.querySelector("#adminPrenetView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogBody = document.querySelector("#adminLogBody");
@@ -371,6 +375,17 @@ const expensesTotalVat = document.querySelector("#expensesTotalVat");
 const expensesTotalRefund = document.querySelector("#expensesTotalRefund");
 const expenseHistorySearch = document.querySelector("#expenseHistorySearch");
 const expenseHistoryList = document.querySelector("#expenseHistoryList");
+const executiveExpenseOwner = document.querySelector("#executiveExpenseOwner");
+const executiveExpensesPeriod = document.querySelector("#executiveExpensesPeriod");
+const executiveExpensesNote = document.querySelector("#executiveExpensesNote");
+const executiveExpensesLines = document.querySelector("#executiveExpensesLines");
+const addExecutiveExpenseLine = document.querySelector("#addExecutiveExpenseLine");
+const resetExecutiveExpenses = document.querySelector("#resetExecutiveExpenses");
+const sendExecutiveExpenseReport = document.querySelector("#sendExecutiveExpenseReport");
+const executiveExpensesSendStatus = document.querySelector("#executiveExpensesSendStatus");
+const executiveExpensesStatus = document.querySelector("#executiveExpensesStatus");
+const executiveExpensesTotalAmount = document.querySelector("#executiveExpensesTotalAmount");
+const executiveExpensesTotalVat = document.querySelector("#executiveExpensesTotalVat");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -3098,7 +3113,8 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(adminTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(statsTab, adminTab.nextSibling);
+    appTabs.insertBefore(adminExecutiveExpensesTab, adminTab.nextSibling);
+    appTabs.insertBefore(statsTab, adminExecutiveExpensesTab.nextSibling);
     appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
     return;
@@ -3121,6 +3137,7 @@ function arrangeTabsForUser(user) {
   ].forEach((tab) => appTabs.appendChild(tab));
   appTabs.appendChild(adminTab);
   appTabs.appendChild(adminCheckingTab);
+  appTabs.appendChild(adminExecutiveExpensesTab);
   appTabs.appendChild(adminPrenetTab);
 }
 
@@ -3385,6 +3402,7 @@ function showApp(user, token = user.token || "") {
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
+  adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
     selectedTourCodes = new Set();
@@ -4439,6 +4457,154 @@ async function sendExpenseReportDraft() {
   } finally {
     sendExpenseReport.disabled = false;
     sendExpenseReport.textContent = "Envoyer mes frais";
+  }
+}
+
+function newExecutiveExpenseLine() {
+  return {
+    id: crypto.randomUUID(),
+    date: todayIsoDate(),
+    type: "REPAS",
+    precision: "",
+    amount: "",
+    vat: "",
+    receiptName: "",
+    receiptDataUrl: "",
+    receiptMimeType: "",
+    receiptFile: null,
+  };
+}
+
+function getExecutiveExpenseTotals() {
+  return executiveExpenseLineItems.reduce((acc, line) => {
+    acc.amount += parseAmount(line.amount);
+    acc.vat += parseAmount(line.vat);
+    return acc;
+  }, { amount: 0, vat: 0 });
+}
+
+function ensureExecutiveExpenseLines() {
+  if (!executiveExpenseLineItems.length) executiveExpenseLineItems = [newExecutiveExpenseLine()];
+}
+
+function renderExecutiveExpenses() {
+  if (!executiveExpensesLines) return;
+  ensureExecutiveExpenseLines();
+  executiveExpensesLines.innerHTML = executiveExpenseLineItems.map((line) => `
+    <tr data-executive-expense-line="${escapeHtml(line.id)}">
+      <td><input type="date" value="${escapeHtml(line.date)}" data-executive-expense-field="date" /></td>
+      <td><select data-executive-expense-field="type">${executiveExpenseTypes.map((type) => `<option value="${escapeHtml(type)}" ${line.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></td>
+      <td><input type="text" value="${escapeHtml(line.precision)}" placeholder="Client, fournisseur, détail..." data-executive-expense-field="precision" /></td>
+      <td><input type="text" inputmode="decimal" value="${escapeHtml(line.amount)}" placeholder="0,00" data-executive-expense-field="amount" /></td>
+      <td><input type="text" inputmode="decimal" value="${escapeHtml(line.vat)}" placeholder="0,00" data-executive-expense-field="vat" /></td>
+      <td>
+        <label class="expense-upload">
+          <input type="file" accept="image/*,.pdf" capture="environment" data-executive-expense-field="receipt" />
+          <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter un justificatif photo"}</span>
+        </label>
+      </td>
+      <td><button class="icon-button" type="button" data-remove-executive-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
+    </tr>
+  `).join("");
+  updateExecutiveExpenseSummary();
+}
+
+function updateExecutiveExpenseSummary() {
+  if (!executiveExpensesTotalAmount || !executiveExpensesTotalVat || !executiveExpensesStatus) return;
+  const totals = getExecutiveExpenseTotals();
+  executiveExpensesTotalAmount.textContent = formatter.format(roundMoney(totals.amount));
+  executiveExpensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
+  const filledCount = executiveExpenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
+  executiveExpensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}`;
+}
+
+function resetExecutiveExpensesForm() {
+  executiveExpenseLineItems = [newExecutiveExpenseLine()];
+  if (executiveExpenseOwner) executiveExpenseOwner.value = "";
+  if (executiveExpensesPeriod) executiveExpensesPeriod.value = "";
+  if (executiveExpensesNote) executiveExpensesNote.value = "";
+  if (executiveExpensesSendStatus) {
+    executiveExpensesSendStatus.textContent = "";
+    executiveExpensesSendStatus.className = "tarif-send-status";
+  }
+  renderExecutiveExpenses();
+}
+
+function setExecutiveExpenseLineField(id, field, value) {
+  const line = executiveExpenseLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+  updateExecutiveExpenseSummary();
+}
+
+function updateExecutiveExpenseLine(id, field, value) {
+  const line = executiveExpenseLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+  renderExecutiveExpenses();
+}
+
+function addExecutiveExpenseLineItem() {
+  executiveExpenseLineItems.push(newExecutiveExpenseLine());
+  renderExecutiveExpenses();
+}
+
+function removeExecutiveExpenseLine(id) {
+  executiveExpenseLineItems = executiveExpenseLineItems.filter((line) => line.id !== id);
+  if (!executiveExpenseLineItems.length) executiveExpenseLineItems.push(newExecutiveExpenseLine());
+  renderExecutiveExpenses();
+}
+
+async function sendExecutiveExpenseReportDraft() {
+  if (!currentUser || currentUser.role !== "admin") return;
+  const filledLines = executiveExpenseLineItems
+    .map((line, index) => ({ ...line, index, amountNumber: parseAmount(line.amount), vatNumber: parseAmount(line.vat) }))
+    .filter((line) => line.date || line.type || line.precision || line.amountNumber || line.vatNumber || line.receiptFile || line.receiptDataUrl);
+  if (!filledLines.length || !filledLines.some((line) => line.amountNumber > 0)) {
+    executiveExpensesSendStatus.textContent = "Ajoute au moins une ligne de frais avec un montant.";
+    executiveExpensesSendStatus.className = "tarif-send-status is-error";
+    return;
+  }
+  const owner = executiveExpenseOwner?.value.trim() || "Direction Schuller";
+  sendExecutiveExpenseReport.disabled = true;
+  sendExecutiveExpenseReport.textContent = "Envoi en cours…";
+  executiveExpensesSendStatus.textContent = "Préparation du tableau et des justificatifs…";
+  executiveExpensesSendStatus.className = "tarif-send-status";
+  try {
+    const receiptEntries = [];
+    for (const line of filledLines) {
+      const receipt = await prepareExpenseReceipt(line, line.index);
+      if (receipt) receiptEntries.push({ lineId: line.id, ...receipt });
+    }
+    const payloadLines = filledLines.map((line) => ({
+      date: line.date,
+      type: line.type,
+      precision: line.precision,
+      amount: line.amountNumber,
+      vat: line.vatNumber,
+      refund: line.amountNumber,
+      receiptName: receiptEntries.find((receipt) => receipt.lineId === line.id)?.name || "",
+    }));
+    const result = await postService({
+      action: "sendExecutiveExpenseReport",
+      owner,
+      period: executiveExpensesPeriod?.value.trim() || "",
+      note: executiveExpensesNote?.value.trim() || "",
+      lines: JSON.stringify(payloadLines),
+      receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
+    });
+    resetExecutiveExpensesForm();
+    if (executiveExpensesSendStatus) {
+      executiveExpensesSendStatus.textContent = result.message || "Frais dirigeants envoyés.";
+      executiveExpensesSendStatus.className = "tarif-send-status is-success";
+    }
+    loadAdminLogs();
+  } catch (error) {
+    executiveExpensesSendStatus.textContent = error.message || "L'envoi des frais dirigeants a échoué.";
+    executiveExpensesSendStatus.className = "tarif-send-status is-error";
+  } finally {
+    sendExecutiveExpenseReport.disabled = false;
+    sendExecutiveExpenseReport.textContent = "Envoyer les frais dirigeants";
   }
 }
 
@@ -6235,6 +6401,7 @@ function setActiveTab(tabName) {
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   const showAdminChecking = tabName === "adminChecking";
+  const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
   const showAdminPrenet = tabName === "adminPrenet";
   tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
@@ -6252,6 +6419,7 @@ function setActiveTab(tabName) {
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
+  adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
@@ -6269,6 +6437,7 @@ function setActiveTab(tabName) {
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
   adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
+  adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
@@ -6304,6 +6473,11 @@ function setActiveTab(tabName) {
   if (showExpenses) {
     renderExpenses();
     requestAnimationFrame(() => expensesPeriod?.focus());
+  }
+
+  if (showAdminExecutiveExpenses) {
+    renderExecutiveExpenses();
+    requestAnimationFrame(() => executiveExpenseOwner?.focus());
   }
 
   if (showNotes) {
@@ -6778,6 +6952,7 @@ tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
+adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
@@ -6967,6 +7142,37 @@ expensesLines.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-expense-line]");
   if (!button) return;
   removeExpenseLine(button.dataset.removeExpenseLine);
+});
+addExecutiveExpenseLine?.addEventListener("click", addExecutiveExpenseLineItem);
+resetExecutiveExpenses?.addEventListener("click", resetExecutiveExpensesForm);
+sendExecutiveExpenseReport?.addEventListener("click", sendExecutiveExpenseReportDraft);
+executiveExpensesLines?.addEventListener("input", (event) => {
+  const row = event.target.closest("[data-executive-expense-line]");
+  const field = event.target.dataset.executiveExpenseField;
+  if (!row || !field || field === "receipt") return;
+  setExecutiveExpenseLineField(row.dataset.executiveExpenseLine, field, event.target.value);
+});
+executiveExpensesLines?.addEventListener("change", (event) => {
+  const row = event.target.closest("[data-executive-expense-line]");
+  const field = event.target.dataset.executiveExpenseField;
+  if (!row || !field) return;
+  const line = executiveExpenseLineItems.find((item) => item.id === row.dataset.executiveExpenseLine);
+  if (!line) return;
+  if (field === "receipt") {
+    const file = event.target.files?.[0] || null;
+    line.receiptFile = file;
+    line.receiptName = file ? file.name : "";
+    line.receiptDataUrl = "";
+    line.receiptMimeType = "";
+    renderExecutiveExpenses();
+    return;
+  }
+  updateExecutiveExpenseLine(line.id, field, event.target.value);
+});
+executiveExpensesLines?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-executive-expense-line]");
+  if (!button) return;
+  removeExecutiveExpenseLine(button.dataset.removeExecutiveExpenseLine);
 });
 expenseHistoryList.addEventListener("click", (event) => {
   const openButton = event.target.closest("[data-open-expense-draft]");
