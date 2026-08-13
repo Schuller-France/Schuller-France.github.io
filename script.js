@@ -9,6 +9,7 @@ let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
 let lastPromotionsRefreshAt = 0;
+let promotionsAutoRefreshTimer = null;
 const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
@@ -595,7 +596,7 @@ async function refreshSecureAppDataInBackground(token, userId) {
 
 async function refreshPromotionsFromDrive(force = false) {
   if (!currentSessionToken || promotionsRefreshInProgress) return;
-  if (!force && Date.now() - lastPromotionsRefreshAt < 30000) return;
+  if (!force && Date.now() - lastPromotionsRefreshAt < 10000) return;
   promotionsRefreshInProgress = true;
   lastPromotionsRefreshAt = Date.now();
   if (promotionSendStatus) {
@@ -618,6 +619,23 @@ async function refreshPromotionsFromDrive(force = false) {
   } finally {
     promotionsRefreshInProgress = false;
   }
+}
+
+function startPromotionsAutoRefresh() {
+  if (promotionsAutoRefreshTimer || !currentSessionToken) return;
+  promotionsAutoRefreshTimer = window.setInterval(() => {
+    if (!promotionView || promotionView.classList.contains("is-hidden")) {
+      stopPromotionsAutoRefresh();
+      return;
+    }
+    refreshPromotionsFromDrive(true);
+  }, 45000);
+}
+
+function stopPromotionsAutoRefresh() {
+  if (!promotionsAutoRefreshTimer) return;
+  window.clearInterval(promotionsAutoRefreshTimer);
+  promotionsAutoRefreshTimer = null;
 }
 
 function clearSecureAppData() {
@@ -1145,6 +1163,15 @@ function drivePreviewUrl(fileId) {
   return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
 }
 
+function getPromotionPreviewUrl(promotion) {
+  if (!promotion?.driveFileId) return "";
+  const mimeType = String(promotion.mimeType || "").toLowerCase();
+  if (mimeType.indexOf("image/") === 0) {
+    return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(promotion.driveFileId)}`;
+  }
+  return drivePreviewUrl(promotion.driveFileId);
+}
+
 function renderPromotions() {
   const promotions = getPromotions();
   promotionSendStatus.textContent = "";
@@ -1153,7 +1180,7 @@ function renderPromotions() {
     promotionGrid.innerHTML = `
       <div class="promotion-empty">
         <strong>Aucune promotion configurée pour le moment.</strong>
-        <span>Ajoute les PDF dans le Drive, puis indique leurs fichiers dans la configuration pour les afficher ici.</span>
+        <span>Ajoute les documents dans le Drive : ils apparaîtront automatiquement ici après actualisation.</span>
       </div>`;
     return;
   }
@@ -1165,12 +1192,12 @@ function renderPromotions() {
         <span>Sélectionner</span>
       </label>
       <div class="promotion-preview-thumb">
-        <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
+        <iframe src="${escapeHtml(getPromotionPreviewUrl(promotion))}" title="${escapeHtml(promotion.name)}"></iframe>
       </div>
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
-        <p>${escapeHtml(promotion.description || "PDF promotionnel prêt à présenter ou envoyer.")}</p>
+        <p>${escapeHtml(promotion.description || "Document promotionnel prêt à présenter ou envoyer.")}</p>
       </div>
       <div class="promotion-card-actions">
         <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">Aperçu plein écran</button>
@@ -1188,7 +1215,7 @@ function openPromotionPreview(promotionId) {
   const promotion = getPromotions().find((item) => item.id === promotionId);
   if (!promotion) return;
   promotionModalTitle.textContent = promotion.name;
-  promotionPreviewFrame.src = drivePreviewUrl(promotion.driveFileId);
+  promotionPreviewFrame.src = getPromotionPreviewUrl(promotion);
   promotionModal.classList.remove("is-hidden");
   recordActivity("Promotion consultée", promotion.name);
 }
@@ -6616,7 +6643,10 @@ function setActiveTab(tabName) {
 
   if (showPromotion) {
     renderPromotions();
-    refreshPromotionsFromDrive();
+    refreshPromotionsFromDrive(true);
+    startPromotionsAutoRefresh();
+  } else {
+    stopPromotionsAutoRefresh();
   }
 }
 
