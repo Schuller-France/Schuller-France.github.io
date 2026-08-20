@@ -1214,6 +1214,8 @@ function getPromotions() {
 }
 
 let promotionPreviewObjectUrl = "";
+let promotionCardPreviewObjectUrls = [];
+let promotionPreviewRenderToken = 0;
 
 function driveThumbnailUrl(fileId) {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1000`;
@@ -1224,16 +1226,65 @@ function getPromotionThumbnailUrl(promotion) {
   return promotion.thumbnailUrl || driveThumbnailUrl(promotion.driveFileId);
 }
 
-function renderPromotionPreviewThumb(promotion) {
-  const thumbnailUrl = getPromotionThumbnailUrl(promotion);
+function renderPromotionPreviewThumb(promotion, index) {
   return `
-      <div class="promotion-preview-thumb">
-        ${thumbnailUrl ? `<img src="${escapeHtml(thumbnailUrl)}" alt="${escapeHtml(promotion.name)}" loading="lazy" onerror="this.closest('.promotion-preview-thumb').classList.add('is-preview-unavailable')" />` : ""}
+      <div class="promotion-preview-thumb is-loading" data-promotion-preview-index="${index}">
+        <div class="promotion-preview-loader"><i></i><span>Chargement de l’aperçu…</span></div>
         <div class="promotion-preview-fallback">
           <strong>Aperçu indisponible</strong>
           <span>Le plein écran tentera quand même d’ouvrir le document.</span>
         </div>
       </div>`;
+}
+
+function clearPromotionCardPreviewObjectUrls() {
+  promotionCardPreviewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  promotionCardPreviewObjectUrls = [];
+}
+
+function applyPromotionCardPreview(index, promotion, result, renderToken) {
+  if (renderToken !== promotionPreviewRenderToken) return;
+  const target = promotionGrid.querySelector(`[data-promotion-preview-index="${index}"]`);
+  if (!target) return;
+  let previewUrl = result?.previewUrl || "";
+  const mimeType = result?.mimeType || promotion?.mimeType || "application/pdf";
+  if (result?.base64) {
+    previewUrl = URL.createObjectURL(base64ToBlob(result.base64, mimeType));
+    promotionCardPreviewObjectUrls.push(previewUrl);
+  }
+  if (!previewUrl) {
+    target.classList.remove("is-loading");
+    target.classList.add("is-preview-unavailable");
+    return;
+  }
+  target.classList.remove("is-loading", "is-preview-unavailable");
+  target.innerHTML = mimeType.startsWith("image/")
+    ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(promotion.name)}" loading="lazy" />`
+    : `<iframe src="${escapeHtml(previewUrl)}#page=1&toolbar=0&navpanes=0" title="Aperçu de ${escapeHtml(promotion.name)}" loading="lazy" tabindex="-1"></iframe>`;
+}
+
+async function hydratePromotionPreviewThumbs(promotions, renderToken) {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < promotions.length && renderToken === promotionPreviewRenderToken) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const promotion = promotions[index];
+      try {
+        const result = await postService({
+          action: "getPromotionPreview",
+          fileId: promotion.driveFileId || promotion.fileId || "",
+          documentId: promotion.id || "",
+        });
+        applyPromotionCardPreview(index, promotion, result, renderToken);
+      } catch (error) {
+        const target = promotionGrid.querySelector(`[data-promotion-preview-index="${index}"]`);
+        target?.classList.remove("is-loading");
+        target?.classList.add("is-preview-unavailable");
+      }
+    }
+  }
+  await Promise.all([worker(), worker()]);
 }
 
 function clearPromotionPreviewObjectUrl() {
@@ -1281,6 +1332,9 @@ function setPromotionPreviewMessage(title, message) {
 
 function renderPromotions() {
   const promotions = getPromotions();
+  promotionPreviewRenderToken += 1;
+  const renderToken = promotionPreviewRenderToken;
+  clearPromotionCardPreviewObjectUrls();
   promotionSendStatus.textContent = "";
   promotionSendStatus.className = "tarif-send-status";
   if (!promotions.length) {
@@ -1292,13 +1346,13 @@ function renderPromotions() {
     return;
   }
 
-  promotionGrid.innerHTML = promotions.map((promotion) => `
+  promotionGrid.innerHTML = promotions.map((promotion, index) => `
     <article class="promotion-card">
       <label class="promotion-check">
         <input type="checkbox" value="${escapeHtml(promotion.id)}" />
         <span>Sélectionner</span>
       </label>
-      ${renderPromotionPreviewThumb(promotion)}
+      ${renderPromotionPreviewThumb(promotion, index)}
       <div class="tarif-card-copy">
         <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
@@ -1309,6 +1363,7 @@ function renderPromotions() {
         <button class="primary-button compact" type="button" data-send-promotion="${escapeHtml(promotion.id)}">Envoyer</button>
       </div>
     </article>`).join("");
+  void hydratePromotionPreviewThumbs(promotions, renderToken);
 }
 
 function selectedPromotionIds(forcedId = "") {

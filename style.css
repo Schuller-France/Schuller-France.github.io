@@ -7760,3 +7760,150 @@ body.tablet-mode .prospection-fields button { min-height: 58px; font-size: 17px;
   .prospection-notes,
   .prospection-fields .primary-button { grid-column: 1; width: 100%; }
 }
+
+/* Promotions : aperçus fiables et grille stable */
+#promotionGrid.promotion-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 20px !important;
+  align-items: stretch;
+  width: 100%;
+}
+
+#promotionGrid .promotion-card {
+  display: flex;
+  flex-direction: column;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 100%;
+  overflow: hidden;
+}
+
+#promotionGrid .promotion-preview-thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(240px, 22vw, 330px);
+  overflow: hidden;
+  background: #f5f6f8;
+}
+
+#promotionGrid .promotion-preview-thumb iframe,
+#promotionGrid .promotion-preview-thumb img {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+  background: #f5f6f8;
+  pointer-events: none;
+}
+
+#promotionGrid .promotion-preview-loader,
+#promotionGrid .promotion-preview-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  text-align: center;
+  color: #667085;
+  background: linear-gradient(145deg, #fafafa, #f1f3f5);
+}
+
+#promotionGrid .promotion-preview-loader::before {
+  width: 26px;
+  height: 26px;
+  content: "";
+  border: 3px solid #e0e4e9;
+  border-top-color: #e30613;
+  border-radius: 50%;
+  animation: promotion-preview-spin .75s linear infinite;
+}
+
+#promotionGrid .promotion-preview-thumb.is-loading .promotion-preview-loader,
+#promotionGrid .promotion-preview-thumb.is-preview-unavailable .promotion-preview-fallback {
+  display: flex;
+}
+
+#promotionGrid .tarif-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+#promotionGrid .tarif-card-copy h3 {
+  overflow-wrap: anywhere;
+}
+
+#promotionGrid .promotion-card-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#promotionGrid .promotion-card-actions button {
+  width: 100%;
+  min-width: 0;
+}
+
+@keyframes promotion-preview-spin {
+  to { transform: rotate(360deg); }
+}
+
+body.dark-theme #promotionGrid .promotion-preview-thumb,
+body.dark-theme #promotionGrid .promotion-preview-thumb iframe,
+body.dark-theme #promotionGrid .promotion-preview-thumb img,
+body.dark-theme #promotionGrid .promotion-preview-loader,
+body.dark-theme #promotionGrid .promotion-preview-fallback {
+  background: #101826;
+  color: #a8b5c8;
+}
+
+/* Prospection : davantage d'espace et une lecture plus nette */
+#prospectionView .prospection-hero,
+#prospectionView .prospection-panel {
+  padding: 28px !important;
+}
+
+#prospectionView .prospection-toolbar {
+  gap: 18px !important;
+  margin-bottom: 24px !important;
+  padding: 18px;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+#prospectionView .prospection-list { gap: 16px; }
+#prospectionView .prospection-card summary { padding: 20px 22px; }
+#prospectionView .prospection-fields { gap: 18px; padding: 4px 22px 24px; }
+#prospectionView .prospection-fields textarea { min-height: 120px; }
+
+body.dark-theme #prospectionView .prospection-toolbar {
+  border-color: rgba(158, 197, 255, .22);
+  background: #0d1522;
+}
+
+@media (max-width: 1500px) {
+  #promotionGrid.promotion-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 1100px) {
+  #promotionGrid.promotion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+body.tablet-mode #promotionGrid.promotion-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 18px !important;
+}
+
+body.tablet-mode #prospectionView .prospection-hero,
+body.tablet-mode #prospectionView .prospection-panel { padding: 22px !important; }
+
+@media (max-width: 700px) {
+  #promotionGrid.promotion-grid,
+  body.tablet-mode #promotionGrid.promotion-grid { grid-template-columns: 1fr !important; }
+}
