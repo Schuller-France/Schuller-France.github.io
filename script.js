@@ -447,6 +447,23 @@ const prenetSector = document.querySelector("#prenetSector");
 const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
 const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
+const selectAccountOpening = document.querySelector("#selectAccountOpening");
+const prospectionTab = document.querySelector("#prospectionTab");
+const prospectionView = document.querySelector("#prospectionView");
+const prospectionProgressValue = document.querySelector("#prospectionProgressValue");
+const prospectionProgressBar = document.querySelector("#prospectionProgressBar");
+const prospectionWeekLabel = document.querySelector("#prospectionWeekLabel");
+const prospectionCommercialFilterWrap = document.querySelector("#prospectionCommercialFilterWrap");
+const prospectionCommercialFilter = document.querySelector("#prospectionCommercialFilter");
+const prospectionCompany = document.querySelector("#prospectionCompany");
+const prospectionCity = document.querySelector("#prospectionCity");
+const prospectionAddButton = document.querySelector("#prospectionAddButton");
+const prospectionExportButton = document.querySelector("#prospectionExportButton");
+const prospectionStatus = document.querySelector("#prospectionStatus");
+const prospectionList = document.querySelector("#prospectionList");
+let prospectionRecords = [];
+let prospectionUsers = [];
+let prospectionWeekKey = "";
 const promotionGrid = document.querySelector("#promotionGrid");
 const promotionRecipient = document.querySelector("#promotionRecipient");
 const promotionSendStatus = document.querySelector("#promotionSendStatus");
@@ -1312,6 +1329,12 @@ async function openPromotionPreview(promotionId) {
       fileId: promotion.driveFileId || promotion.fileId || "",
       documentId: promotion.id || "",
     });
+    if (result.previewUrl) {
+      promotionPreviewFrame.removeAttribute("srcdoc");
+      promotionPreviewFrame.src = result.previewUrl;
+      recordActivity("Promotion consultée", promotion.name);
+      return;
+    }
     const blob = base64ToBlob(result.base64, result.mimeType || "application/pdf");
     promotionPreviewObjectUrl = URL.createObjectURL(blob);
     promotionPreviewFrame.removeAttribute("srcdoc");
@@ -3282,7 +3305,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
     appTabs.insertBefore(adminTab, statsTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, adminTab.nextSibling);
+    appTabs.insertBefore(prospectionTab, adminTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, prospectionTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
     appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
     return;
@@ -3297,6 +3321,7 @@ function arrangeTabsForUser(user) {
     sampleTab,
     expensesTab,
     notesTab,
+    prospectionTab,
     promotionTab,
     tarifTab,
     tourTab,
@@ -3637,6 +3662,7 @@ function showApp(user, token = user.token || "") {
   arrangeTabsForUser(currentUser);
   tutorialTab?.classList.toggle("is-hidden", isAdmin || !isTrainingAccount(currentUser));
   [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
@@ -6622,6 +6648,117 @@ function openWazeNextClient() {
   window.open(url, "_blank", "noopener");
 }
 
+function prospectionUserName(userId) {
+  return prospectionUsers.find((user) => user.id === userId)?.name || userId || "Commercial";
+}
+
+function getVisibleProspectionRecords() {
+  const scope = currentUser?.role === "admin" ? prospectionCommercialFilter.value : currentUser?.id;
+  return prospectionRecords.filter((record) => scope === "all" || record.userId === scope);
+}
+
+function updateProspectionProgress() {
+  const visible = getVisibleProspectionRecords();
+  const completed = visible.filter((record) => record.weekKey === prospectionWeekKey && record.completed).length;
+  const userCount = currentUser?.role === "admin" && prospectionCommercialFilter.value === "all"
+    ? Math.max(1, prospectionUsers.length)
+    : 1;
+  const goal = 5 * userCount;
+  prospectionProgressValue.textContent = `${completed} / ${goal}`;
+  prospectionProgressBar.style.width = `${Math.min(100, Math.round((completed / goal) * 100))}%`;
+  prospectionWeekLabel.textContent = prospectionWeekKey ? `Semaine ${prospectionWeekKey.split("-W")[1]}` : "Semaine en cours";
+}
+
+function renderProspectionRecords() {
+  updateProspectionProgress();
+  const records = getVisibleProspectionRecords().slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  if (!records.length) {
+    prospectionList.innerHTML = `<div class="empty-state prospection-empty"><strong>Aucun prospect enregistré</strong><span>Ajoutez le premier prospect de la semaine avec son entreprise et sa ville.</span></div>`;
+    return;
+  }
+  prospectionList.innerHTML = records.map((record) => `
+    <details class="prospection-card ${record.completed ? "is-complete" : ""}" data-prospection-card="${escapeHtml(record.id)}">
+      <summary>
+        <span><strong>${escapeHtml(record.company)}</strong><small>${escapeHtml(record.city || "Ville non renseignée")}${currentUser?.role === "admin" ? ` · ${escapeHtml(prospectionUserName(record.userId))}` : ""}</small></span>
+        <span class="status-pill">${record.completed ? "Validé" : "À compléter"}</span>
+      </summary>
+      <div class="prospection-fields">
+        <label>Nom du dirigeant<input data-prospect-field="manager" value="${escapeHtml(record.manager || "")}" placeholder="Prénom et nom" /></label>
+        <label>Téléphone<input data-prospect-field="phone" value="${escapeHtml(record.phone || "")}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
+        <label>Adresse e-mail<input data-prospect-field="email" value="${escapeHtml(record.email || "")}" inputmode="email" placeholder="contact@entreprise.fr" /></label>
+        <label class="prospection-notes">Notes<textarea data-prospect-field="notes" rows="3" placeholder="Échange, besoin, prochaine action…">${escapeHtml(record.notes || "")}</textarea></label>
+        <button class="primary-button" type="button" data-save-prospect="${escapeHtml(record.id)}">Enregistrer</button>
+      </div>
+    </details>`).join("");
+}
+
+async function loadProspectionData() {
+  if (!currentUser) return;
+  prospectionStatus.textContent = "Chargement de la prospection…";
+  try {
+    const result = await postService({ action: "getProspectionData" });
+    prospectionRecords = Array.isArray(result.records) ? result.records : [];
+    prospectionUsers = Array.isArray(result.users) ? result.users : [];
+    prospectionWeekKey = result.weekKey || "";
+    const admin = currentUser.role === "admin";
+    prospectionCommercialFilterWrap.classList.toggle("is-hidden", !admin);
+    prospectionExportButton.classList.toggle("is-hidden", !admin);
+    if (admin) {
+      const selected = prospectionCommercialFilter.value || "all";
+      prospectionCommercialFilter.innerHTML = `<option value="all">Tous les commerciaux</option>${prospectionUsers.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}`;
+      prospectionCommercialFilter.value = prospectionUsers.some((user) => user.id === selected) ? selected : "all";
+    }
+    prospectionStatus.textContent = "Données à jour.";
+    renderProspectionRecords();
+  } catch (error) {
+    prospectionStatus.textContent = error.message;
+    prospectionList.innerHTML = `<div class="empty-state"><strong>Prospection indisponible</strong><span>${escapeHtml(error.message)}</span></div>`;
+  }
+}
+
+async function saveProspectionRecord(record) {
+  prospectionStatus.textContent = "Enregistrement…";
+  try {
+    await postService({ action: "saveProspection", ...record });
+    prospectionStatus.textContent = "Prospect enregistré.";
+    await loadProspectionData();
+  } catch (error) {
+    prospectionStatus.textContent = error.message;
+  }
+}
+
+function addProspectionRecord() {
+  const company = prospectionCompany.value.trim();
+  const city = prospectionCity.value.trim();
+  if (!company) {
+    prospectionStatus.textContent = "Saisissez le nom de l’entreprise.";
+    prospectionCompany.focus();
+    return;
+  }
+  const userId = currentUser.role === "admin" && prospectionCommercialFilter.value !== "all"
+    ? prospectionCommercialFilter.value
+    : currentUser.id;
+  saveProspectionRecord({ company, city, userId });
+  prospectionCompany.value = "";
+  prospectionCity.value = "";
+}
+
+function saveProspectionCard(button) {
+  const card = button.closest("[data-prospection-card]");
+  const source = prospectionRecords.find((record) => record.id === card?.dataset.prospectionCard);
+  if (!source) return;
+  const value = (field) => card.querySelector(`[data-prospect-field="${field}"]`)?.value.trim() || "";
+  saveProspectionRecord({ id: source.id, userId: source.userId, company: source.company, city: source.city, manager: value("manager"), phone: value("phone"), email: value("email"), notes: value("notes") });
+}
+
+function exportProspectionRecords() {
+  const rows = [["Commercial", "Entreprise", "Ville", "Dirigeant", "Téléphone", "E-mail", "Notes", "Statut", "Semaine"]];
+  getVisibleProspectionRecords().forEach((record) => rows.push([
+    prospectionUserName(record.userId), record.company, record.city || "", record.manager || "", record.phone || "", record.email || "", record.notes || "", record.completed ? "Validé" : "À compléter", record.weekKey || "",
+  ]));
+  downloadCsv(`prospection-${prospectionWeekKey || "export"}.csv`, rows);
+}
+
 function setActiveTab(tabName) {
   setTabletMenuOpen(false);
   const showTutorial = tabName === "tutorial";
@@ -6638,6 +6775,7 @@ function setActiveTab(tabName) {
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
+  const showProspection = tabName === "prospection";
   const showAdmin = tabName === "admin";
   const showAdminChecking = tabName === "adminChecking";
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
@@ -6656,6 +6794,7 @@ function setActiveTab(tabName) {
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
+  prospectionTab.classList.toggle("is-active", showProspection);
   adminTab.classList.toggle("is-active", showAdmin);
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
@@ -6674,17 +6813,19 @@ function setActiveTab(tabName) {
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
+  prospectionView.classList.toggle("is-hidden", !showProspection);
   adminView.classList.toggle("is-hidden", !showAdmin);
   adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
   if (showTutorial) renderTutorial();
+  if (showProspection) loadProspectionData();
 
   if (showStats) {
     loadClientArticleStatsFromDrive();
@@ -7192,6 +7333,7 @@ backlogTab.addEventListener("click", () => setActiveTab("backlog"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
+prospectionTab.addEventListener("click", () => setActiveTab("prospection"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
@@ -7517,6 +7659,14 @@ prenetResult.addEventListener("input", (event) => {
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
+selectAccountOpening.addEventListener("click", () => openTarifForm("ouverture-de-compte"));
+prospectionCommercialFilter.addEventListener("change", renderProspectionRecords);
+prospectionAddButton.addEventListener("click", addProspectionRecord);
+prospectionExportButton.addEventListener("click", exportProspectionRecords);
+prospectionList.addEventListener("click", (event) => {
+  const saveButton = event.target.closest("[data-save-prospect]");
+  if (saveButton) saveProspectionCard(saveButton);
+});
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
 refreshPromotionsButtons.forEach((button) => {
