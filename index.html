@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260824prospection2" />
+    <link rel="stylesheet" href="style.css?v=20260824workflow1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -119,6 +119,7 @@
         </div>
         <div class="header-actions">
           <span class="offline-status is-online" id="offlineStatus">En ligne</span>
+          <span class="sync-status is-ready" id="syncStatus">Synchronisé</span>
           <button class="ghost-button theme-toggle" type="button" id="themeToggle">Mode sombre</button>
           <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
           <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
@@ -1066,9 +1067,11 @@
             <label>Suivi
               <select id="prospectionStatusFilter">
                 <option value="active">À traiter</option>
+                <option value="today">Relances aujourd’hui</option>
                 <option value="all">Tous</option>
                 <option value="to_call">À appeler</option>
                 <option value="callback">À relancer</option>
+                <option value="done">Rappel fait</option>
                 <option value="interested">Intéressé</option>
                 <option value="not_interested">Pas intéressé</option>
               </select>
@@ -1081,6 +1084,9 @@
             </label>
             <button class="primary-button" type="button" id="prospectionAddButton">Ajouter un prospect</button>
             <button class="ghost-button is-hidden" type="button" id="prospectionExportButton">Exporter le fichier</button>
+            <label class="prospection-import is-hidden" id="prospectionImportWrap">Importer CSV
+              <input id="prospectionImportFile" type="file" accept=".csv,.txt" />
+            </label>
           </div>
           <p class="tarif-send-status" id="prospectionStatus" role="status"></p>
           <div class="prospection-admin-summary is-hidden" id="prospectionAdminSummary"></div>
@@ -1102,11 +1108,14 @@
           </div>
 
           <div class="promotion-toolbar">
+            <label for="promotionClientSearch">Client</label>
+            <input id="promotionClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
             <label for="promotionRecipient">Adresse e-mail du client</label>
             <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
             <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
+          <div class="promotion-history" id="promotionHistory"></div>
 
           <div class="promotion-grid" id="promotionGrid"></div>
         </section>
@@ -1363,7 +1372,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260824prospection2" charset="UTF-8"></script>
+    <script src="script.js?v=20260824workflow1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

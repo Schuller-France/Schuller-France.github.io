@@ -46,6 +46,7 @@ let tourMarkersLayer = null;
 let tourRouteLayer = null;
 let tourMarkerByCode = new Map();
 let driveAutoRefreshTimer = null;
+let selectedPromotionClient = null;
 let loginProgressTimer = null;
 let loginProgressValue = 0;
 let loginProgressTarget = 0;
@@ -66,6 +67,8 @@ const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
 const expenseDraftStorageKey = "schullerExpenseDrafts";
 const prospectionLocalStorageKey = "schullerProspectionFollowup";
+const orderDraftStorageKey = "schullerOrderDraft";
+const promotionHistoryStorageKey = "schullerPromotionHistory";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -108,12 +111,13 @@ const prospectionStatusOptions = {
   to_call: "À appeler",
   callback: "À relancer",
   no_answer: "Pas de réponse",
+  done: "Rappel fait",
   interested: "Intéressé",
   not_interested: "Pas intéressé",
   wrong_number: "Numéro faux",
 };
 
-const completedProspectionStatuses = new Set(["interested", "not_interested", "wrong_number"]);
+const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number"]);
 const initialProspectionRows = [
   ["Grusson Matériaux", "59100", "ROUBAIX", "0320758834", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
   ["Durand Matériaux", "62350", "BUSNES", "0321275361", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
@@ -318,6 +322,7 @@ const tabletMenuToggle = document.querySelector("#tabletMenuToggle");
 const tabletMenuBackdrop = document.querySelector("#tabletMenuBackdrop");
 const themeToggle = document.querySelector("#themeToggle");
 const offlineStatus = document.querySelector("#offlineStatus");
+const syncStatus = document.querySelector("#syncStatus");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
@@ -535,6 +540,8 @@ const prospectionCompany = document.querySelector("#prospectionCompany");
 const prospectionCity = document.querySelector("#prospectionCity");
 const prospectionAddButton = document.querySelector("#prospectionAddButton");
 const prospectionExportButton = document.querySelector("#prospectionExportButton");
+const prospectionImportWrap = document.querySelector("#prospectionImportWrap");
+const prospectionImportFile = document.querySelector("#prospectionImportFile");
 const prospectionStatus = document.querySelector("#prospectionStatus");
 const prospectionAdminSummary = document.querySelector("#prospectionAdminSummary");
 const prospectionList = document.querySelector("#prospectionList");
@@ -542,6 +549,8 @@ let prospectionRecords = [];
 let prospectionUsers = [];
 let prospectionWeekKey = "";
 const promotionGrid = document.querySelector("#promotionGrid");
+const promotionClientSearch = document.querySelector("#promotionClientSearch");
+const promotionHistory = document.querySelector("#promotionHistory");
 const promotionRecipient = document.querySelector("#promotionRecipient");
 const promotionSendStatus = document.querySelector("#promotionSendStatus");
 const sendSelectedPromotions = document.querySelector("#sendSelectedPromotions");
@@ -585,11 +594,21 @@ function setPromotionsRefreshButtonsDisabled(disabled) {
   });
 }
 
+function setSyncStatus(state, message) {
+  if (!syncStatus) return;
+  syncStatus.className = `sync-status is-${state}`;
+  syncStatus.textContent = message;
+}
+
 let adminLogsCache = [];
 let adminExpenseReportsCache = [];
 
 async function postService(parameters) {
-  if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
+  setSyncStatus("syncing", "Synchro...");
+  if (!tariffConfig.endpoint) {
+    setSyncStatus("local", "Local");
+    throw new Error("Service indisponible.");
+  }
   const payload = { ...parameters };
   if (currentSessionToken && !payload.token) payload.token = currentSessionToken;
   let response;
@@ -600,6 +619,7 @@ async function postService(parameters) {
       body: new URLSearchParams(payload).toString(),
     });
   } catch (error) {
+    setSyncStatus("error", "Hors ligne");
     throw new Error("Connexion au service Google impossible. Vérifiez la connexion internet puis réessayez.");
   }
   const rawText = await response.text();
@@ -612,14 +632,17 @@ async function postService(parameters) {
       action: payload.action,
       preview: rawText.slice(0, 300),
     });
+    setSyncStatus("error", "Synchro à vérifier");
     throw new Error("Le service Google a renvoyé une réponse invalide. Reconnectez-vous ou réessayez dans quelques instants.");
   }
   if (!result.ok) {
+    setSyncStatus("error", "Synchro à vérifier");
     const serviceError = new Error(result.message || "Opération impossible.");
     serviceError.servicePayload = result;
     serviceError.serviceAction = payload.action;
     throw serviceError;
   }
+  setSyncStatus("ready", "Synchronisé");
   return result;
 }
 
@@ -1296,6 +1319,70 @@ function getPromotions() {
 
 let promotionPreviewObjectUrl = "";
 
+function getPromotionHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(promotionHistoryStorageKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePromotionHistory(items) {
+  localStorage.setItem(promotionHistoryStorageKey, JSON.stringify(items.slice(0, 200)));
+}
+
+function addPromotionHistoryItem(recipient, ids) {
+  const promotions = getPromotions().filter((item) => ids.includes(item.id));
+  const item = {
+    id: crypto.randomUUID(),
+    date: new Date().toISOString(),
+    recipient,
+    clientCode: selectedPromotionClient?.code || "",
+    clientName: selectedPromotionClient?.name || "",
+    city: selectedPromotionClient?.billingCity || selectedPromotionClient?.deliveryCity || "",
+    promotions: promotions.map((promotion) => promotion.name),
+  };
+  savePromotionHistory([item, ...getPromotionHistory()]);
+  renderPromotionHistory();
+}
+
+function renderPromotionHistory() {
+  if (!promotionHistory) return;
+  const history = getPromotionHistory()
+    .filter((item) => !selectedPromotionClient || item.clientCode === selectedPromotionClient.code || normalize(item.clientName || "") === normalize(selectedPromotionClient.name || ""))
+    .slice(0, 6);
+  if (!history.length) {
+    promotionHistory.innerHTML = `<div class="promotion-history-empty">Aucun envoi promotion enregistré pour ce client.</div>`;
+    return;
+  }
+  promotionHistory.innerHTML = history.map((item) => `
+    <article>
+      <strong>${escapeHtml(item.clientName || item.recipient)}</strong>
+      <span>${escapeHtml(item.promotions.join(", "))}</span>
+      <small>${escapeHtml(new Date(item.date).toLocaleDateString("fr-FR"))} · ${escapeHtml(item.recipient || "")}</small>
+    </article>
+  `).join("");
+}
+
+function selectPromotionClient(client) {
+  selectedPromotionClient = client;
+  promotionClientSearch.value = `${client.name} · ${client.code}`;
+  if (client.email) promotionRecipient.value = client.email;
+  if (!client.email && promotionRecipient.value) promotionRecipient.value = "";
+  renderPromotionHistory();
+}
+
+function handlePromotionClientSearch(value) {
+  const cleanQuery = normalize(value.trim());
+  if (!cleanQuery) {
+    selectedPromotionClient = null;
+    renderPromotionHistory();
+    return;
+  }
+  const client = visibleClients.find((item) => normalize([item.code, item.name, item.billingCity, item.deliveryCity, item.email].join(" ")).includes(cleanQuery));
+  if (client) selectPromotionClient(client);
+}
+
 function driveThumbnailUrl(fileId) {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1000`;
 }
@@ -1454,6 +1541,7 @@ async function sendPromotions(forcedId = "") {
 
   if (isTrainingAccount()) {
     showTrainingStatus(promotionSendStatus, `${ids.length} promotion${ids.length > 1 ? "s" : ""} validée${ids.length > 1 ? "s" : ""} en mode formation. Aucun e-mail réel envoyé.`);
+    addPromotionHistoryItem(recipient, ids);
     markTutorialTabDone("promotion");
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
     return;
@@ -1467,6 +1555,7 @@ async function sendPromotions(forcedId = "") {
     promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyée${ids.length > 1 ? "s" : ""} à ${recipient}.`;
     promotionSendStatus.classList.add("is-success");
     recordActivity("Promotion envoyée", `${names} envoyé à ${recipient}`);
+    addPromotionHistoryItem(recipient, ids);
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
   } catch (error) {
     promotionSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
@@ -3147,6 +3236,23 @@ function buildGlobalSearchResults(query) {
       });
     });
 
+  getVisibleProspectionRecords()
+    .filter((record) => normalize([record.company, record.city, record.zip, record.phone, record.sector, record.notes, prospectionStatusLabel(record.status)].join(" ")).includes(cleanQuery))
+    .slice(0, 6)
+    .forEach((record) => {
+      results.push({
+        type: "prospect",
+        title: record.company,
+        meta: `${record.zip || ""} ${record.city || ""} - ${prospectionStatusLabel(record.status)}`,
+        action: () => {
+          setActiveTab("prospection");
+          prospectionStatusFilter.value = "all";
+          renderProspectionRecords();
+          requestAnimationFrame(() => document.querySelector(`[data-prospection-card="${CSS.escape(record.id)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+        },
+      });
+    });
+
   products
     .filter((product) => normalize([product.ref, product.gencod, product.name].join(" ")).includes(cleanQuery))
     .slice(0, 5)
@@ -3181,6 +3287,39 @@ function buildGlobalSearchResults(query) {
         },
       });
     });
+
+  getPromotionHistory()
+    .filter((item) => normalize([item.clientName, item.recipient, item.city, ...(item.promotions || [])].join(" ")).includes(cleanQuery))
+    .slice(0, 4)
+    .forEach((item) => {
+      results.push({
+        type: "promotion",
+        title: item.clientName || item.recipient,
+        meta: `${new Date(item.date).toLocaleDateString("fr-FR")} - ${(item.promotions || []).join(", ")}`,
+        action: () => {
+          setActiveTab("promotion");
+          if (item.clientCode) {
+            const client = visibleClients.find((clientItem) => clientItem.code === item.clientCode);
+            if (client) selectPromotionClient(client);
+          }
+        },
+      });
+    });
+
+  try {
+    const draft = JSON.parse(localStorage.getItem(`${orderDraftStorageKey}:${currentUser.id}`) || "null");
+    if (draft && normalize([draft.clientCode, draft.note, ...(draft.lines || []).map((line) => line.ref)].join(" ")).includes(cleanQuery)) {
+      results.push({
+        type: "brouillon",
+        title: "Commande en cours",
+        meta: `${draft.clientCode || "Sans client"} - sauvegardée localement`,
+        action: () => {
+          setActiveTab("order");
+          restoreOrderDraft();
+        },
+      });
+    }
+  } catch {}
 
   Object.entries(tariffConfig.documents || {})
     .filter(([, doc]) => normalize([doc.name, doc.id].join(" ")).includes(cleanQuery))
@@ -3669,7 +3808,7 @@ function showLogin() {
   loginError.className = "login-error";
   resetLoginProgress();
   closePasswordReset();
-  resetOrder();
+  resetOrder(false);
   renderPrenetEmpty();
   renderNotesEmpty();
   resetTarifForm();
@@ -3756,6 +3895,8 @@ function showApp(user, token = user.token || "") {
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
+  prospectionRecords = mergeProspectionRecords(prospectionRecords);
+  prospectionUsers = buildProspectionUsers(prospectionUsers);
   if (isAdmin) {
     selectedTourCodes = new Set();
     renderTourPlanner();
@@ -3785,6 +3926,7 @@ function showApp(user, token = user.token || "") {
   resetCommercialStatsFilters();
   renderPrenetEmpty();
   renderNotesEmpty();
+  renderPromotionHistory();
   selectedTourCodes = new Set();
   renderTourPlanner();
   if (isTrainingAccount(currentUser)) {
@@ -3796,6 +3938,7 @@ function showApp(user, token = user.token || "") {
   }
   setActiveTab("home");
   renderOrderHistory();
+  restoreOrderDraft();
 }
 
 function setLoginProgressStep(activeStep) {
@@ -4024,6 +4167,7 @@ function selectClient(client) {
     <span>${escapeHtml(client.phone)} - ${escapeHtml(client.email)}</span>
   `;
   updateSummary();
+  saveOrderDraft();
 }
 
 function clearSelectedClient() {
@@ -4033,6 +4177,39 @@ function clearSelectedClient() {
   clientStatus.classList.remove("is-ready");
   selectedClientBox.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   updateSummary();
+  saveOrderDraft();
+}
+
+function saveOrderDraft() {
+  if (!currentUser) return;
+  const hasContent = selectedClient || orderNote.value.trim() || lines.some((line) => line.ref || Number(line.qty) !== 1);
+  if (!hasContent) {
+    localStorage.removeItem(`${orderDraftStorageKey}:${currentUser.id}`);
+    return;
+  }
+  localStorage.setItem(`${orderDraftStorageKey}:${currentUser.id}`, JSON.stringify({
+    savedAt: new Date().toISOString(),
+    clientCode: selectedClient?.code || "",
+    note: orderNote.value,
+    lines,
+  }));
+  setSyncStatus("local", "Brouillon local");
+}
+
+function restoreOrderDraft() {
+  if (!currentUser) return;
+  try {
+    const draft = JSON.parse(localStorage.getItem(`${orderDraftStorageKey}:${currentUser.id}`) || "null");
+    if (!draft) return;
+    const client = visibleClients.find((item) => item.code === draft.clientCode);
+    if (client) selectClient(client);
+    orderNote.value = draft.note || "";
+    lines = Array.isArray(draft.lines) && draft.lines.length ? draft.lines : [{ id: crypto.randomUUID(), ref: "", qty: 1 }];
+    renderLines();
+    setSyncStatus("local", "Brouillon repris");
+  } catch {
+    localStorage.removeItem(`${orderDraftStorageKey}:${currentUser.id}`);
+  }
 }
 
 function renderQuoteClientSuggestions(query) {
@@ -5201,11 +5378,13 @@ function setLineReference(id, ref) {
   const product = findProduct(ref);
   if (product) recordActivity("Référence consultée", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderLines();
+  saveOrderDraft();
 }
 
 function updateLine(id, changes) {
   lines = lines.map((line) => (line.id === id ? { ...line, ...changes } : line));
   renderLines();
+  saveOrderDraft();
 }
 
 function removeLine(id) {
@@ -5215,6 +5394,7 @@ function removeLine(id) {
     return;
   }
   renderLines();
+  saveOrderDraft();
 }
 
 function focusLineRef(id) {
@@ -5265,6 +5445,7 @@ function completeQuantity(id, qty) {
   lines = lines.map((line) => (line.id === id ? { ...line, qty } : line));
   const nextLineId = getNextLineId(id);
   renderLines();
+  saveOrderDraft();
   if (nextLineId) {
     focusLineRef(nextLineId);
   }
@@ -6827,9 +7008,11 @@ function buildProspectionUsers(serviceUsers = []) {
 function getVisibleProspectionRecords() {
   const scope = currentUser?.role === "admin" ? prospectionCommercialFilter.value : currentUser?.id;
   const statusScope = prospectionStatusFilter?.value || "active";
+  const today = todayInputDate();
   return prospectionRecords.filter((record) => {
     const sameUser = scope === "all" || record.userId === scope;
     const sameStatus = statusScope === "all"
+      || (statusScope === "today" ? record.status === "callback" && (!record.callbackDate || record.callbackDate <= today) : false)
       || (statusScope === "active" ? !isProspectionComplete(record) : record.status === statusScope);
     return sameUser && sameStatus;
   });
@@ -6859,7 +7042,10 @@ function renderProspectionAdminSummary() {
     const records = prospectionRecords.filter((record) => record.userId === user.id);
     const done = records.filter(isProspectionComplete).length;
     const callbacks = records.filter((record) => record.status === "callback").length;
-    return `<article><strong>${escapeHtml(user.name)}</strong><span>${done}/${records.length} traités</span><small>${callbacks} relance${callbacks > 1 ? "s" : ""}</small></article>`;
+    const interested = records.filter((record) => record.status === "interested").length;
+    const noAnswer = records.filter((record) => record.status === "no_answer").length;
+    const rate = records.length ? Math.round((done / records.length) * 100) : 0;
+    return `<article><strong>${escapeHtml(user.name)}</strong><span>${done}/${records.length} traités</span><small>${callbacks} relance${callbacks > 1 ? "s" : ""} · ${interested} intéressé${interested > 1 ? "s" : ""} · ${noAnswer} sans réponse · ${rate}%</small></article>`;
   }).join("");
   const reviewCount = prospectionRecords.filter((record) => record.reviewNote).length;
   prospectionAdminSummary.innerHTML = `${cards}<article class="is-review"><strong>À contrôler</strong><span>${reviewCount}</span><small>affectations particulières</small></article>`;
@@ -6900,6 +7086,7 @@ function renderProspectionRecords() {
         <div class="prospection-quick-actions">
           <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="no_answer">Pas de réponse</button>
           <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="callback">À relancer</button>
+          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="done">Rappel fait</button>
           <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="not_interested">Pas intéressé</button>
           <button class="primary-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="interested">Intéressé</button>
         </div>
@@ -6919,6 +7106,7 @@ async function loadProspectionData() {
     const admin = currentUser.role === "admin";
     prospectionCommercialFilterWrap.classList.toggle("is-hidden", !admin);
     prospectionExportButton.classList.toggle("is-hidden", !admin);
+    prospectionImportWrap?.classList.toggle("is-hidden", !admin);
     if (admin) {
       const selected = prospectionCommercialFilter.value || "all";
       prospectionCommercialFilter.innerHTML = `<option value="all">Tous les commerciaux</option>${prospectionUsers.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}`;
@@ -6994,6 +7182,79 @@ function exportProspectionRecords() {
     record.userName || prospectionUserName(record.userId), record.sector || "", record.company, record.zip || "", record.city || "", record.manager || "", record.phone || "", record.email || "", prospectionStatusLabel(record.status), record.callbackDate || "", record.nextAction || "", record.notes || "", record.reviewNote || "",
   ]));
   downloadCsv(`prospection-${prospectionWeekKey || "export"}.csv`, rows);
+}
+
+function parseCsvLine(line) {
+  const cells = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && line[index + 1] === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if ((char === ";" || char === ",") && !quoted) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function importedProspectValue(row, names) {
+  const wanted = names.map(normalize);
+  const found = Object.entries(row).find(([key]) => wanted.includes(normalize(key)));
+  return found ? String(found[1] || "").trim() : "";
+}
+
+function assignImportedProspect(row, index) {
+  const company = importedProspectValue(row, ["Entreprise", "Nom du magasin", "Prospect", "Client"]);
+  if (!company) return null;
+  const sector = importedProspectValue(row, ["Secteur"]);
+  const userName = importedProspectValue(row, ["Commercial"]);
+  const user = prospectionUsers.find((item) => normalize(item.name) === normalize(userName));
+  return normalizeProspectionRecord({
+    id: `import-${Date.now()}-${index}`,
+    company,
+    zip: importedProspectValue(row, ["Code postal", "CP", "Zip"]),
+    city: importedProspectValue(row, ["Ville"]),
+    phone: importedProspectValue(row, ["Téléphone", "Telephone", "Tel"]),
+    email: importedProspectValue(row, ["Email", "E-mail", "Adresse mail"]),
+    manager: importedProspectValue(row, ["Contact", "Dirigeant", "Nom+prénom"]),
+    sector,
+    userId: user?.id || (currentUser?.role === "admin" && prospectionCommercialFilter.value !== "all" ? prospectionCommercialFilter.value : currentUser?.id),
+    userName: user?.name || userName || prospectionUserName(currentUser?.id),
+    notes: importedProspectValue(row, ["Commentaire", "Notes"]),
+    status: "to_call",
+    source: "Import CSV",
+  });
+}
+
+async function importProspectionFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const linesCsv = text.split(/\r?\n/).filter((line) => line.trim());
+  if (linesCsv.length < 2) {
+    prospectionStatus.textContent = "Fichier import vide ou illisible.";
+    return;
+  }
+  const headers = parseCsvLine(linesCsv[0]).map((cell) => cell.replace(/^\uFEFF/, ""));
+  const imported = linesCsv.slice(1).map((line, index) => {
+    const cells = parseCsvLine(line);
+    const row = Object.fromEntries(headers.map((header, cellIndex) => [header, cells[cellIndex] || ""]));
+    return assignImportedProspect(row, index);
+  }).filter(Boolean);
+  imported.forEach(saveProspectionLocalFollowup);
+  prospectionRecords = mergeProspectionRecords(imported);
+  prospectionStatus.textContent = `${imported.length} prospect${imported.length > 1 ? "s" : ""} importé${imported.length > 1 ? "s" : ""} localement.`;
+  renderProspectionRecords();
+  event.target.value = "";
 }
 
 function setActiveTab(tabName) {
@@ -7469,9 +7730,11 @@ function generateOrderFiles() {
   downloadErpCsv(`${baseName}_ERP_REFERENCES.csv`, buildErpCsvRows(validLines));
   downloadBlob(`${baseName}_COMMANDE_COMPLETE.pdf`, pdfBlob);
   recordActivity("Commande prête à envoyer", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+  localStorage.removeItem(`${orderDraftStorageKey}:${currentUser?.id || ""}`);
+  setSyncStatus("ready", "Commande prête");
 }
 
-function resetOrder() {
+function resetOrder(clearDraft = true) {
   selectedClient = null;
   lines = [];
   clientSearch.value = "";
@@ -7481,6 +7744,7 @@ function resetOrder() {
   selectedClientBox.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   addLine();
   updateSummary();
+  if (clearDraft) localStorage.removeItem(`${orderDraftStorageKey}:${currentUser?.id || ""}`);
 }
 
 function clearOrderClientForSearch(query) {
@@ -7557,7 +7821,11 @@ function updateOfflineStatus() {
 }
 
 clientSearch.addEventListener("input", (event) => handleOrderClientSearchInput(event.target.value));
-document.querySelector("#addLine").addEventListener("click", addLine);
+orderNote.addEventListener("input", saveOrderDraft);
+document.querySelector("#addLine").addEventListener("click", () => {
+  addLine();
+  saveOrderDraft();
+});
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
@@ -7903,6 +8171,7 @@ prospectionCommercialFilter.addEventListener("change", renderProspectionRecords)
 prospectionStatusFilter?.addEventListener("change", renderProspectionRecords);
 prospectionAddButton.addEventListener("click", addProspectionRecord);
 prospectionExportButton.addEventListener("click", exportProspectionRecords);
+prospectionImportFile?.addEventListener("change", importProspectionFile);
 prospectionList.addEventListener("click", (event) => {
   const saveButton = event.target.closest("[data-save-prospect]");
   if (saveButton) saveProspectionCard(saveButton);
@@ -7911,6 +8180,8 @@ prospectionList.addEventListener("click", (event) => {
 });
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
+promotionClientSearch?.addEventListener("change", (event) => handlePromotionClientSearch(event.target.value));
+promotionClientSearch?.addEventListener("blur", (event) => handlePromotionClientSearch(event.target.value));
 refreshPromotionsButtons.forEach((button) => {
   button.addEventListener("click", () => refreshPromotionsFromDrive(true));
 });

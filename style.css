@@ -891,6 +891,23 @@ button {
   font-weight: 700;
 }
 
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  color: #0f5132;
+  background: #dff7e8;
+  border: 1px solid #a9e8bf;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.sync-status.is-syncing { color: #7c2d12; background: #ffedd5; border-color: #fed7aa; }
+.sync-status.is-local { color: #1e3a8a; background: #dbeafe; border-color: #bfdbfe; }
+.sync-status.is-error { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
+
 .password-field {
   display: flex;
   align-items: center;
@@ -3677,7 +3694,7 @@ h2 {
 }
 .promotion-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, 0.55fr) minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, .7fr) minmax(220px, .8fr) minmax(260px, 1fr) auto;
   gap: 14px;
   align-items: end;
   padding: 22px;
@@ -3690,6 +3707,14 @@ h2 {
   align-self: end;
 }
 .promotion-toolbar .tarif-send-status { grid-column: 1 / -1; }
+.promotion-history { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 0 22px 18px; background: #fafbfc; border-bottom: 1px solid var(--line); }
+.promotion-history article,
+.promotion-history-empty { padding: 12px 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; }
+.promotion-history article { display: grid; gap: 4px; }
+.promotion-history strong { font-size: 15px; }
+.promotion-history span { color: #374151; font-weight: 800; }
+.promotion-history small,
+.promotion-history-empty { color: #667085; font-weight: 750; }
 .promotion-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -7743,6 +7768,7 @@ body.dark-theme .promotion-preview-fallback strong {
 .prospection-toolbar label { display: grid; gap: 6px; font-weight: 700; }
 .prospection-toolbar input,
 .prospection-toolbar select { min-height: 46px; }
+.prospection-import input { padding: 10px; border: 1px dashed #cfd5dd; border-radius: 12px; background: #fff; }
 .prospection-list { display: grid; gap: 12px; }
 .prospection-admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 0 0 18px; }
 .prospection-admin-summary article { display: grid; gap: 4px; padding: 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; }
@@ -7783,6 +7809,7 @@ body.dark-theme .prospection-card summary { color: #f8fbff; }
 @media (max-width: 1100px) {
   .prospection-toolbar { grid-template-columns: 1fr 1fr; }
   .prospection-toolbar button { min-height: 52px; }
+  .promotion-toolbar { grid-template-columns: 1fr 1fr; }
 }
 
 body.tablet-mode .prospection-hero { align-items: stretch; }
