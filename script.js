@@ -170,7 +170,7 @@ const initialProspectionRecords = initialProspectionRows.map(([company, zip, cit
   source: "France Matériaux 2023",
   status: "to_call",
   priority: "normal",
-  nextAction: "Appeler",
+  nextAction: "Voir le numéro",
   notes: "",
   completed: false,
   seed: true,
@@ -6792,7 +6792,7 @@ function normalizeProspectionRecord(record) {
     userId: record.userId || record.commercialId || currentUser?.id || "",
     userName: record.userName || record.commercial || prospectionUserName(record.userId),
     status,
-    nextAction: record.nextAction || (status === "callback" ? "Relancer" : "Appeler"),
+    nextAction: record.nextAction || (status === "callback" ? "Relancer" : "Voir le numéro"),
     callbackDate: record.callbackDate || record.recallDate || "",
     response: record.response || "",
     notes: record.notes || "",
@@ -6880,7 +6880,7 @@ function renderProspectionRecords() {
         <span class="status-pill">${escapeHtml(prospectionStatusLabel(record.status))}</span>
       </summary>
       <div class="prospection-contact-row">
-        ${record.phone ? `<a class="primary-button" href="tel:${escapeHtml(record.phone.replace(/\s+/g, ""))}">Appeler</a>` : `<span class="prospection-muted">Téléphone manquant</span>`}
+        ${record.phone ? `<span class="prospection-phone"><small>Numéro</small><strong>${escapeHtml(record.phone)}</strong></span>` : `<span class="prospection-muted">Téléphone manquant</span>`}
         ${record.email ? `<a class="ghost-button" href="mailto:${escapeHtml(record.email)}">E-mail</a>` : ""}
         <a class="ghost-button" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([record.company, record.zip, record.city].filter(Boolean).join(" "))}">Itinéraire</a>
       </div>

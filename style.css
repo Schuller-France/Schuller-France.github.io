@@ -7761,6 +7761,9 @@ body.dark-theme .promotion-preview-fallback strong {
 .prospection-contact-row { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 18px 16px; }
 .prospection-contact-row .primary-button,
 .prospection-contact-row .ghost-button { min-height: 42px; text-decoration: none; }
+.prospection-phone { display: inline-flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 14px; color: #111827; background: #f8fafc; border: 1px solid #dfe3e8; border-radius: 10px; }
+.prospection-phone small { color: #667085; font-size: 11px; font-weight: 950; letter-spacing: .05em; text-transform: uppercase; }
+.prospection-phone strong { font-size: 18px; letter-spacing: .02em; }
 .prospection-muted { display: inline-flex; align-items: center; min-height: 42px; padding: 0 12px; color: #667085; background: #f3f4f6; border-radius: 10px; font-weight: 850; }
 .prospection-review-note { margin: 0 18px 14px; padding: 10px 12px; color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; font-weight: 800; }
 .prospection-fields { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 12px; padding: 0 18px 18px; border-top: 1px solid #edf0f2; }
@@ -7803,6 +7806,7 @@ body.tablet-mode .prospection-fields button { min-height: 58px; font-size: 17px;
   body.tablet-mode .prospection-fields { grid-template-columns: 1fr; }
   .prospection-card summary { align-items: stretch; flex-direction: column; }
   .prospection-contact-row { display: grid; grid-template-columns: 1fr; }
+  .prospection-phone { justify-content: space-between; }
   .prospection-notes,
   .prospection-fields .primary-button { grid-column: 1; width: 100%; }
 }
