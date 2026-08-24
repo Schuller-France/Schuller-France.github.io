@@ -8350,3 +8350,256 @@ body.tablet-mode .expense-history-heading {
     padding-inline: 20px;
   }
 }
+
+/* Frais mobile : vraie saisie terrain, plus de tableau illisible. */
+@media (max-width: 860px) {
+  #expensesView .expenses-panel {
+    gap: 12px !important;
+    padding: 12px !important;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  #expensesView .panel-heading {
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  #expensesView .panel-heading .helper-text {
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+
+  #expensesView .expenses-rules {
+    gap: 8px;
+  }
+
+  #expensesView .expenses-rules article {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  #expensesView .expenses-rules strong {
+    font-size: 14px;
+  }
+
+  #expensesView .expenses-rules span {
+    font-size: 12px;
+  }
+
+  #expensesView .expenses-meta {
+    gap: 10px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  #expensesView .expenses-meta label {
+    gap: 6px;
+    color: #374151;
+    font-size: 13px;
+  }
+
+  #expensesView .expenses-table-wrap {
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  #expensesView .expenses-table,
+  #expensesView .expenses-table tbody,
+  #expensesView .expenses-table tr,
+  #expensesView .expenses-table td {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #expensesView .expenses-table thead {
+    display: none !important;
+  }
+
+  #expensesView .expenses-table tbody {
+    display: grid !important;
+    gap: 12px !important;
+    counter-reset: expense-line;
+  }
+
+  #expensesView .expenses-table tr {
+    position: relative;
+    display: grid !important;
+    gap: 10px;
+    padding: 52px 14px 14px !important;
+    background: #fff;
+    border: 1px solid #e1e5eb;
+    border-radius: 18px !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .08) !important;
+    counter-increment: expense-line;
+  }
+
+  #expensesView .expenses-table tr::before {
+    content: "Frais " counter(expense-line);
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    color: #fff;
+    background: #e30613;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  #expensesView .expenses-table td {
+    display: grid !important;
+    gap: 6px;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  #expensesView .expenses-table td::before {
+    display: block !important;
+    margin: 0 !important;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  #expensesView .expenses-table td:nth-child(1)::before { content: "Date"; }
+  #expensesView .expenses-table td:nth-child(2)::before { content: "Type de frais"; }
+  #expensesView .expenses-table td:nth-child(3)::before { content: "Précision"; }
+  #expensesView .expenses-table td:nth-child(4)::before { content: "Montant TTC"; }
+  #expensesView .expenses-table td:nth-child(5)::before { content: "TVA"; }
+  #expensesView .expenses-table td:nth-child(6)::before { content: "Remboursé"; }
+  #expensesView .expenses-table td:nth-child(7)::before { content: "Justificatif"; }
+  #expensesView .expenses-table td:nth-child(8)::before { content: ""; display: none !important; }
+
+  #expensesView .expenses-table input,
+  #expensesView .expenses-table select,
+  #expensesView .expenses-meta input {
+    min-height: 50px !important;
+    width: 100% !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+  }
+
+  #expensesView .expenses-table td:nth-child(4),
+  #expensesView .expenses-table td:nth-child(5),
+  #expensesView .expenses-table td:nth-child(6) {
+    padding: 10px !important;
+    background: #f8fafc;
+    border-radius: 14px;
+  }
+
+  #expensesView .expense-warning {
+    margin-top: 0;
+    padding: 8px 10px;
+    background: #fff1f2;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  #expensesView .expense-upload span {
+    min-height: 72px !important;
+    padding: 14px !important;
+    border-width: 1px !important;
+    border-radius: 14px !important;
+    font-size: 15px !important;
+  }
+
+  #expensesView .expense-upload span::before {
+    content: "";
+    display: none;
+  }
+
+  #expensesView .expenses-table .icon-button {
+    min-height: 48px !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    background: #fff1f2;
+  }
+
+  #expensesView .expenses-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 18;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-inline: -10px;
+    padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(245, 246, 248, .94);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(14px);
+  }
+
+  #expensesView .expenses-summary {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  #expensesView .expenses-summary div {
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  #expensesView .expenses-summary dt {
+    font-size: 9px;
+    line-height: 1.1;
+  }
+
+  #expensesView .expenses-summary dd {
+    margin-top: 4px;
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  #expensesView .expenses-actions > .ghost-button,
+  #expensesView .expenses-actions > .primary-button {
+    min-height: 50px !important;
+    width: 100%;
+  }
+
+  #expensesView .expenses-actions .tarif-send-status {
+    min-height: 0;
+    font-size: 13px;
+  }
+
+  #expensesView .expense-history-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  #expensesView .expense-history-heading {
+    gap: 10px;
+  }
+
+  #expensesView .expense-history-heading h3 {
+    font-size: 20px;
+  }
+
+  #expensesView .expense-history-item {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  #expensesView .expense-history-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+}

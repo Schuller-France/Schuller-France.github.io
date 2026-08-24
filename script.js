@@ -81,6 +81,7 @@ const executiveExpenseTypes = ["REPAS", "HOTEL", "CARBURANT", "PEAGE", "PARKING"
 const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
 const expenseHotelDinnerLimit = 115;
+const schullerOperationsEmail = "france@schuller.eu";
 const purecreaAdminSectors = ["Secteur 20", "Secteur 21", "Secteur 22", "Secteur 23", "Secteur 24", "Secteur 25", "Secteur 26"];
 const adminCommercials = [
   { id: "agilet", name: "Alain Gilet", sectors: ["Secteur 1"] },
@@ -4726,12 +4727,14 @@ async function sendExpenseReportDraft() {
     const result = await postService({
       action: "sendExpenseReport",
       draftId: activeExpenseDraftId || "",
+      recipient: schullerOperationsEmail,
+      destinationEmail: schullerOperationsEmail,
       period: expensesPeriod.value.trim(),
       note: expensesNote.value.trim(),
       lines: JSON.stringify(payloadLines),
       receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
     });
-    const successMessage = result.message || "Frais envoyés.";
+    const successMessage = result.message || `Frais envoyés à ${schullerOperationsEmail}.`;
     recordActivity("Frais envoyés", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
     resetExpenses();
     expensesSendStatus.textContent = successMessage;
@@ -5320,6 +5323,7 @@ function buildOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
     orderDate,
     isoDate,
     dayKey: isoDate.slice(0, 10),
+    recipient: schullerOperationsEmail,
     user: currentUser ? { id: currentUser.id, name: currentUser.name, sector: currentUser.sector } : null,
     client: { ...selectedClient },
     note,
@@ -5432,6 +5436,10 @@ function renderOrderDetail(order) {
         <strong>Livraison</strong>
         <span>${escapeHtml(order.client.deliveryAddress)}</span>
         <span>${escapeHtml(order.client.deliveryZip)} ${escapeHtml(order.client.deliveryCity)}</span>
+      </div>
+      <div class="history-detail-box">
+        <strong>Destinataire commande</strong>
+        <span>${escapeHtml(order.recipient || schullerOperationsEmail)}</span>
       </div>
     </div>
     <table class="history-table">
@@ -7061,13 +7069,14 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     textAt(margin, pageHeight - 30, 18, "Schuller Eh'klar", { bold: true });
     textAt(margin, pageHeight - 45, 7.5, "BROSSERIE ET OUTILLAGE POUR PEINTRES");
     textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lhen - 67560 ROSHEIM - Tel. 03 88 04 68 04");
-    textAt(margin, pageHeight - 70, 7.5, "www.schuller.eu - france@schuller.eu");
+    textAt(margin, pageHeight - 70, 7.5, `www.schuller.eu - ${schullerOperationsEmail}`);
 
     textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
     fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
     strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
     textAt(pageWidth - 190, pageHeight - 47, 8.5, `N° ${orderNumber}`, { bold: true });
     textAt(pageWidth - 190, pageHeight - 66, 8.5, `Date : ${orderDate}`);
+    textAt(pageWidth - 190, pageHeight - 78, 7.5, `Dest. : ${schullerOperationsEmail}`);
     hline(margin, pageWidth - margin, pageHeight - 82, "#E30613");
     y = pageHeight - 104;
   }
@@ -7250,6 +7259,7 @@ function generateOrderFiles() {
   storeOrder(orderSnapshot);
   downloadErpCsv(`${baseName}_ERP_REFERENCES.csv`, buildErpCsvRows(validLines));
   downloadBlob(`${baseName}_COMMANDE_COMPLETE.pdf`, pdfBlob);
+  recordActivity("Commande prête à envoyer", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
 }
 
 function resetOrder() {
