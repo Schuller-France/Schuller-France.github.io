@@ -9,7 +9,7 @@
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260820prospection1" />
+    <link rel="stylesheet" href="style.css?v=20260824preview1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -39,7 +39,12 @@
 
         <label for="loginPassword">
           Mot de passe
-          <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+          <span class="password-field">
+            <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+            <button class="password-toggle" type="button" id="toggleLoginPassword" aria-label="Afficher le mot de passe" aria-pressed="false">
+              Voir
+            </button>
+          </span>
         </label>
 
         <label class="remember-login" for="rememberLogin">
@@ -1347,7 +1352,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260820prospection1" charset="UTF-8"></script>
+    <script src="script.js?v=20260824preview1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

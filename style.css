@@ -891,6 +891,34 @@ button {
   font-weight: 700;
 }
 
+.password-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.password-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.password-toggle {
+  min-width: 86px;
+  min-height: 48px;
+  padding: 10px 12px;
+  color: var(--red);
+  font-weight: 800;
+  background: #fff5f5;
+  border: 1px solid rgba(227, 6, 19, 0.24);
+  border-radius: 10px;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  background: #ffe8e8;
+  outline: 3px solid rgba(227, 6, 19, 0.12);
+}
+
 .login-error.is-success {
   color: var(--green);
 }

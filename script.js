@@ -216,6 +216,7 @@ const appView = document.querySelector("#appView");
 const loginForm = document.querySelector("#loginForm");
 const loginId = document.querySelector("#loginId");
 const loginPassword = document.querySelector("#loginPassword");
+const toggleLoginPassword = document.querySelector("#toggleLoginPassword");
 const rememberLogin = document.querySelector("#rememberLogin");
 const loginError = document.querySelector("#loginError");
 const loginSubmitButton = document.querySelector("#loginSubmitButton");
@@ -3577,6 +3578,12 @@ function showLogin() {
   appView.classList.add("is-hidden");
   loginId.value = "";
   loginPassword.value = "";
+  loginPassword.type = "password";
+  if (toggleLoginPassword) {
+    toggleLoginPassword.textContent = "Voir";
+    toggleLoginPassword.setAttribute("aria-label", "Afficher le mot de passe");
+    toggleLoginPassword.setAttribute("aria-pressed", "false");
+  }
   rememberLogin.checked = false;
   loginError.textContent = "";
   loginError.className = "login-error";
@@ -3828,6 +3835,15 @@ async function submitLogin() {
     loginSubmitButton.disabled = false;
     loginSubmitButton.textContent = "Se connecter";
   }
+}
+
+function togglePasswordVisibility() {
+  const visible = loginPassword.type === "text";
+  loginPassword.type = visible ? "password" : "text";
+  toggleLoginPassword.textContent = visible ? "Voir" : "Masquer";
+  toggleLoginPassword.setAttribute("aria-label", visible ? "Afficher le mot de passe" : "Masquer le mot de passe");
+  toggleLoginPassword.setAttribute("aria-pressed", String(!visible));
+  loginPassword.focus();
 }
 
 async function requestPasswordReset(event) {
@@ -7706,6 +7722,7 @@ forgotPasswordButton.addEventListener("click", openPasswordReset);
 backToLoginButton.addEventListener("click", closePasswordReset);
 passwordResetRequestForm.addEventListener("submit", requestPasswordReset);
 passwordResetConfirmForm.addEventListener("submit", confirmPasswordReset);
+toggleLoginPassword?.addEventListener("click", togglePasswordVisibility);
 loginPassword.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
