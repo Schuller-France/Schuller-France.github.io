@@ -7952,6 +7952,10 @@ body.tablet-mode .app-header {
 body.tablet-mode .app-tabs {
   width: min(340px, 86vw) !important;
   padding: 18px 14px 24px !important;
+  max-height: 100svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #151515 !important;
 }
 
@@ -8081,15 +8085,33 @@ body.tablet-mode .expense-history-heading {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
+    bottom: 0 !important;
     z-index: 90 !important;
     grid-column: auto !important;
     grid-row: auto !important;
     width: min(330px, 88vw) !important;
-    height: 100svh !important;
-    padding: 18px 14px 24px !important;
+    height: auto !important;
+    max-height: 100svh !important;
+    padding: 14px 12px calc(188px + env(safe-area-inset-bottom)) !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     transform: translateX(-105%);
     transition: transform .22s ease;
     box-shadow: 18px 0 44px rgba(15, 23, 42, .24);
+  }
+
+  body:not(.tablet-mode) .app-tabs .sidebar-brand {
+    position: sticky;
+    top: -14px;
+    z-index: 2;
+    margin: -14px -12px 8px;
+    padding: 14px 12px 12px;
+    background: #151515;
+    border-bottom: 1px solid rgba(255,255,255,.08);
   }
 
   body:not(.tablet-mode).tablet-menu-open .app-tabs {
@@ -8097,7 +8119,9 @@ body.tablet-mode .expense-history-heading {
   }
 
   body:not(.tablet-mode) .app-tabs .tab-button {
+    justify-content: flex-start;
     min-height: 52px;
+    width: 100%;
     font-size: 15px;
   }
 
@@ -8135,12 +8159,24 @@ body.tablet-mode .expense-history-heading {
   }
 
   body:not(.tablet-mode) .header-actions {
-    grid-column: 1 / -1;
-    order: 4;
-    display: grid;
+    position: fixed;
+    left: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 96;
+    display: none;
     grid-template-columns: 1fr 1fr;
-    width: 100%;
+    width: min(306px, calc(88vw - 24px));
     gap: 8px;
+    padding: 10px;
+    background: rgba(21, 21, 21, .96);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 18px;
+    box-shadow: 0 18px 42px rgba(0,0,0,.28);
+    backdrop-filter: blur(14px);
+  }
+
+  body:not(.tablet-mode).tablet-menu-open .header-actions {
+    display: grid;
   }
 
   body:not(.tablet-mode) .header-actions .offline-status,
@@ -8149,6 +8185,11 @@ body.tablet-mode .expense-history-heading {
     width: 100%;
     padding-inline: 10px;
     font-size: 13px;
+  }
+
+  body:not(.tablet-mode) .header-actions #offlineStatus,
+  body:not(.tablet-mode) .header-actions #logoutButton {
+    grid-column: 1 / -1;
   }
 
   body:not(.tablet-mode) .app-shell {
@@ -8601,5 +8642,228 @@ body.tablet-mode .expense-history-heading {
   #expensesView .expense-history-actions {
     display: grid;
     grid-template-columns: 1fr auto;
+  }
+}
+
+/* Mobile terrain : tableaux critiques transformes en fiches lisibles. */
+@media (max-width: 860px) {
+  body:not(.tablet-mode) .table-wrap,
+  body:not(.tablet-mode) .quote-table-wrap,
+  body:not(.tablet-mode) .backlog-table-wrap,
+  body:not(.tablet-mode) .prenet-table-wrap,
+  body:not(.tablet-mode) .stats-table-wrap,
+  body:not(.tablet-mode) .dashboard-table-wrap,
+  body:not(.tablet-mode) .history-table-wrap,
+  body:not(.tablet-mode) .client360-table-wrap {
+    overflow: visible !important;
+    padding-inline: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  body:not(.tablet-mode) .order-table,
+  body:not(.tablet-mode) .quote-table,
+  body:not(.tablet-mode) .sample-table,
+  body:not(.tablet-mode) .backlog-table,
+  body:not(.tablet-mode) .prenet-table,
+  body:not(.tablet-mode) .stats-table,
+  body:not(.tablet-mode) .dashboard-table,
+  body:not(.tablet-mode) .client360-article-table,
+  body:not(.tablet-mode) .client360-prenet-table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.tablet-mode) .order-table thead,
+  body:not(.tablet-mode) .order-table colgroup,
+  body:not(.tablet-mode) .quote-table thead,
+  body:not(.tablet-mode) .sample-table thead,
+  body:not(.tablet-mode) .backlog-table thead,
+  body:not(.tablet-mode) .prenet-table thead,
+  body:not(.tablet-mode) .stats-table thead,
+  body:not(.tablet-mode) .dashboard-table thead,
+  body:not(.tablet-mode) .client360-article-table thead,
+  body:not(.tablet-mode) .client360-prenet-table thead {
+    display: none !important;
+  }
+
+  body:not(.tablet-mode) .order-table tbody,
+  body:not(.tablet-mode) .quote-table tbody,
+  body:not(.tablet-mode) .sample-table tbody,
+  body:not(.tablet-mode) .backlog-table tbody,
+  body:not(.tablet-mode) .prenet-table tbody,
+  body:not(.tablet-mode) .stats-table tbody,
+  body:not(.tablet-mode) .dashboard-table tbody,
+  body:not(.tablet-mode) .client360-article-table tbody,
+  body:not(.tablet-mode) .client360-prenet-table tbody {
+    display: grid !important;
+    gap: 12px !important;
+  }
+
+  body:not(.tablet-mode) .order-table tr,
+  body:not(.tablet-mode) .quote-table tr,
+  body:not(.tablet-mode) .sample-table tr,
+  body:not(.tablet-mode) .backlog-table tr,
+  body:not(.tablet-mode) .prenet-table tr,
+  body:not(.tablet-mode) .stats-table tr,
+  body:not(.tablet-mode) .dashboard-table tr,
+  body:not(.tablet-mode) .client360-article-table tr,
+  body:not(.tablet-mode) .client360-prenet-table tr {
+    display: grid !important;
+    gap: 10px !important;
+    padding: 14px !important;
+    background: #fff !important;
+    border: 1px solid #e1e5eb !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .07) !important;
+  }
+
+  body:not(.tablet-mode) .order-table td,
+  body:not(.tablet-mode) .quote-table td,
+  body:not(.tablet-mode) .sample-table td,
+  body:not(.tablet-mode) .backlog-table td,
+  body:not(.tablet-mode) .prenet-table td,
+  body:not(.tablet-mode) .stats-table td,
+  body:not(.tablet-mode) .dashboard-table td,
+  body:not(.tablet-mode) .client360-article-table td,
+  body:not(.tablet-mode) .client360-prenet-table td {
+    display: grid !important;
+    grid-template-columns: minmax(92px, .42fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  body:not(.tablet-mode) .order-table td::before,
+  body:not(.tablet-mode) .quote-table td::before,
+  body:not(.tablet-mode) .sample-table td::before,
+  body:not(.tablet-mode) .backlog-table td::before,
+  body:not(.tablet-mode) .prenet-table td::before,
+  body:not(.tablet-mode) .stats-table td::before,
+  body:not(.tablet-mode) .dashboard-table td::before,
+  body:not(.tablet-mode) .client360-article-table td::before,
+  body:not(.tablet-mode) .client360-prenet-table td::before {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: .04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  body:not(.tablet-mode) .order-table input,
+  body:not(.tablet-mode) .quote-table input,
+  body:not(.tablet-mode) .sample-table input,
+  body:not(.tablet-mode) .sample-table textarea {
+    min-height: 50px !important;
+    width: 100% !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+  }
+
+  body:not(.tablet-mode) .order-table .icon-button,
+  body:not(.tablet-mode) .quote-table .icon-button,
+  body:not(.tablet-mode) .sample-table .icon-button,
+  body:not(.tablet-mode) .backlog-table .icon-button {
+    width: 100% !important;
+    min-height: 46px !important;
+    border-radius: 12px !important;
+  }
+
+  body:not(.tablet-mode) .order-table td:nth-child(1)::before { content: "Reference"; }
+  body:not(.tablet-mode) .order-table td:nth-child(2)::before { content: "Gencod"; }
+  body:not(.tablet-mode) .order-table td:nth-child(3)::before { content: "Designation"; }
+  body:not(.tablet-mode) .order-table td:nth-child(4)::before { content: "UDV"; }
+  body:not(.tablet-mode) .order-table td:nth-child(5)::before { content: "Quantite"; }
+  body:not(.tablet-mode) .order-table td:nth-child(6)::before { content: "Prix"; }
+  body:not(.tablet-mode) .order-table td:nth-child(7)::before { content: "Total"; }
+  body:not(.tablet-mode) .order-table td:nth-child(8)::before { content: ""; display: none; }
+
+  body:not(.tablet-mode) .quote-table td:nth-child(1)::before,
+  body:not(.tablet-mode) .sample-table td:nth-child(1)::before,
+  body:not(.tablet-mode) .prenet-table td:nth-child(1)::before { content: "Reference"; }
+  body:not(.tablet-mode) .quote-table td:nth-child(2)::before,
+  body:not(.tablet-mode) .sample-table td:nth-child(2)::before,
+  body:not(.tablet-mode) .prenet-table td:nth-child(2)::before { content: "Designation"; }
+  body:not(.tablet-mode) .quote-table td:nth-child(3)::before,
+  body:not(.tablet-mode) .sample-table td:nth-child(3)::before,
+  body:not(.tablet-mode) .prenet-table td:nth-child(4)::before { content: "UDV"; }
+  body:not(.tablet-mode) .quote-table td:nth-child(4)::before { content: "Quantite"; }
+  body:not(.tablet-mode) .quote-table td:nth-child(5)::before,
+  body:not(.tablet-mode) .sample-table td:nth-child(4)::before { content: "Commentaire"; }
+  body:not(.tablet-mode) .quote-table td:nth-child(6)::before,
+  body:not(.tablet-mode) .sample-table td:nth-child(5)::before { content: ""; display: none; }
+  body:not(.tablet-mode) .sample-table td:nth-child(3)::before { content: "Echantillons"; }
+  body:not(.tablet-mode) .prenet-table td:nth-child(3)::before { content: "Prix net"; }
+
+  body:not(.tablet-mode) .backlog-table td:nth-child(1)::before { content: "Date"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(2)::before { content: "Type"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(3)::before { content: "Commande"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(4)::before { content: "Client"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(5)::before { content: "Produit"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(6)::before { content: "Quantite"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(7)::before { content: "Commentaire"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(8)::before { content: "Statut"; }
+  body:not(.tablet-mode) .backlog-table td:nth-child(9)::before { content: ""; display: none; }
+
+  body:not(.tablet-mode) .stats-table td:nth-child(1)::before,
+  body:not(.tablet-mode) .dashboard-table td:nth-child(1)::before { content: "Client"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(2)::before,
+  body:not(.tablet-mode) .dashboard-table td:nth-child(2)::before { content: "Reference"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(3)::before,
+  body:not(.tablet-mode) .dashboard-table td:nth-child(3)::before { content: "Designation"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(4)::before { content: "Qte 2026"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(5)::before { content: "Qte N-1"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(6)::before { content: "Ecart qte"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(7)::before { content: "CA 2026"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(8)::before { content: "CA N-1"; }
+  body:not(.tablet-mode) .stats-table td:nth-child(9)::before { content: "Ecart CA"; }
+
+  body:not(.tablet-mode) .client360-article-table td:nth-child(1)::before { content: "Rang"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(2)::before { content: "Article"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(3)::before { content: "CA 2026"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(4)::before { content: "CA N-1"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(5)::before { content: "Ecart"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(6)::before { content: "Qte 2026"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(7)::before { content: "Qte N-1"; }
+  body:not(.tablet-mode) .client360-article-table td:nth-child(8)::before { content: "Ecart qte"; }
+  body:not(.tablet-mode) .client360-prenet-table td:nth-child(1)::before { content: "Reference"; }
+  body:not(.tablet-mode) .client360-prenet-table td:nth-child(2)::before { content: "Quantite"; }
+  body:not(.tablet-mode) .client360-prenet-table td:nth-child(3)::before { content: "Prix net"; }
+
+  body.dark-theme:not(.tablet-mode) .app-tabs .sidebar-brand,
+  body.dark-theme:not(.tablet-mode) .header-actions {
+    background: rgba(15, 23, 42, .97);
+  }
+
+  body.dark-theme:not(.tablet-mode) .order-table tr,
+  body.dark-theme:not(.tablet-mode) .quote-table tr,
+  body.dark-theme:not(.tablet-mode) .sample-table tr,
+  body.dark-theme:not(.tablet-mode) .backlog-table tr,
+  body.dark-theme:not(.tablet-mode) .prenet-table tr,
+  body.dark-theme:not(.tablet-mode) .stats-table tr,
+  body.dark-theme:not(.tablet-mode) .dashboard-table tr,
+  body.dark-theme:not(.tablet-mode) .client360-article-table tr,
+  body.dark-theme:not(.tablet-mode) .client360-prenet-table tr {
+    background: #111827 !important;
+    border-color: rgba(148, 163, 184, .22) !important;
+  }
+}
+
+/* Priorite finale : tiroirs mobile/tablette jamais coupes. */
+@media (max-width: 1180px) {
+  body.tablet-mode .app-tabs {
+    bottom: 0 !important;
+    height: auto !important;
+    max-height: 100svh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
