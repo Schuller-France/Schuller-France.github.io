@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260824catalogue1" />
+    <link rel="stylesheet" href="style.css?v=20260824catalogue2" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1049,26 +1049,6 @@
               <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
               </form>
 
-            <section class="tarif-price-check" aria-labelledby="tarifPriceTitle">
-              <div class="tarif-form-heading">
-                <div><span>Controle rapide</span><strong id="tarifPriceTitle">Verifier un prix 50 + 10</strong></div>
-                <small>Recherche par client et reference devant le client.</small>
-              </div>
-              <div class="tarif-price-fields">
-                <label class="tarif-price-field" for="tarifPriceClientSearch">
-                  Client
-                  <input id="tarifPriceClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
-                  <div class="suggestions" id="tarifPriceClientSuggestions" role="listbox"></div>
-                </label>
-                <label class="tarif-price-field" for="tarifPriceRefSearch">
-                  Reference ou produit
-                  <input id="tarifPriceRefSearch" type="search" autocomplete="off" placeholder="Ex : 45763, adhesif, gencod..." />
-                </label>
-              </div>
-              <div class="tarif-price-result" id="tarifPriceResult">
-                <div class="tarif-price-empty">Choisissez un client si besoin, puis tapez une reference ou une designation.</div>
-              </div>
-            </section>
             </div>
         </section>
       </main>
@@ -1406,7 +1386,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260824catalogue1" charset="UTF-8"></script>
+    <script src="script.js?v=20260824catalogue2" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

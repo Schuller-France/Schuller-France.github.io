@@ -37,7 +37,6 @@ let dashboardStatsLoading = false;
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
-let selectedTarifPriceClient = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
 let backlogItemsCache = Array.isArray(initialBacklogItems) ? initialBacklogItems : [];
@@ -533,10 +532,6 @@ const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
 const selectAccountOpening = document.querySelector("#selectAccountOpening");
 const previewTarif5010 = document.querySelector("#previewTarif5010");
 const previewCatalogue2026 = document.querySelector("#previewCatalogue2026");
-const tarifPriceClientSearch = document.querySelector("#tarifPriceClientSearch");
-const tarifPriceClientSuggestions = document.querySelector("#tarifPriceClientSuggestions");
-const tarifPriceRefSearch = document.querySelector("#tarifPriceRefSearch");
-const tarifPriceResult = document.querySelector("#tarifPriceResult");
 const prospectionTab = document.querySelector("#prospectionTab");
 const prospectionView = document.querySelector("#prospectionView");
 const prospectionProgressValue = document.querySelector("#prospectionProgressValue");
@@ -1363,9 +1358,11 @@ async function openDocumentPreview(documentId) {
 
   try {
     const result = await postService({
-      action: "getPromotionPreview",
+      action: "getDocumentPreview",
+      token: currentSessionToken,
       fileId: documentEntry.driveFileId || documentEntry.fileId || "",
       documentId: documentEntry.id || documentId,
+      tariff: documentEntry.id || documentId,
     });
     if (result.previewUrl) {
       promotionPreviewFrame.removeAttribute("srcdoc");
@@ -1384,96 +1381,6 @@ async function openDocumentPreview(documentId) {
       error.message || "Impossible d'ouvrir ce document. Vérifiez que le fichier Drive est partagé ou configuré."
     );
   }
-}
-
-function getTarifPriceClientMatches(query = "") {
-  const cleanQuery = normalize(query);
-  if (!cleanQuery) return [];
-  return visibleClients
-    .filter((client) => normalize([
-      client.code,
-      client.name,
-      client.billingCity,
-      client.deliveryCity,
-      client.billingZip,
-      client.deliveryZip,
-      client.email,
-      client.sector,
-    ].join(" ")).includes(cleanQuery))
-    .slice(0, 8);
-}
-
-function renderTarifPriceClientSuggestions() {
-  if (!tarifPriceClientSuggestions) return;
-  const matches = getTarifPriceClientMatches(tarifPriceClientSearch?.value || "");
-  if (!matches.length) {
-    tarifPriceClientSuggestions.classList.remove("is-open");
-    tarifPriceClientSuggestions.innerHTML = "";
-    return;
-  }
-  tarifPriceClientSuggestions.innerHTML = matches.map((client, index) => `
-    <button class="suggestion" type="button" data-tarif-price-client-index="${index}">
-      <strong>${escapeHtml(client.name || "Client")}</strong>
-      <span>${escapeHtml([client.code, client.deliveryCity || client.billingCity, client.sector].filter(Boolean).join(" · "))}</span>
-    </button>
-  `).join("");
-  tarifPriceClientSuggestions.classList.add("is-open");
-}
-
-function selectTarifPriceClient(client) {
-  selectedTarifPriceClient = client;
-  if (tarifPriceClientSearch) tarifPriceClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
-  tarifPriceClientSuggestions?.classList.remove("is-open");
-  renderTarifPriceResults();
-}
-
-function getTarifPriceProductMatches(query = "") {
-  const cleanQuery = normalize(query);
-  if (!cleanQuery) return [];
-  return products
-    .filter((product) => normalize([product.ref, product.gencod, product.name, product.family, product.category].join(" ")).includes(cleanQuery))
-    .slice(0, 12);
-}
-
-function getClientProductPrice(client, product) {
-  const prenetEntry = findPrenetEntryForProduct(client, product);
-  const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
-  return {
-    tariffPrice: Number(product?.price) || 0,
-    customerPrice: prenetPrice > 0 ? prenetPrice : Number(product?.price) || 0,
-    prenetEntry,
-  };
-}
-
-function renderTarifPriceResults() {
-  if (!tarifPriceResult) return;
-  const query = (tarifPriceRefSearch?.value || "").trim();
-  if (!query) {
-    tarifPriceResult.innerHTML = '<div class="tarif-price-empty">Tapez une reference, un gencod ou un mot du produit pour verifier le prix.</div>';
-    return;
-  }
-  const matches = getTarifPriceProductMatches(query);
-  if (!matches.length) {
-    tarifPriceResult.innerHTML = '<div class="tarif-price-empty">Aucune reference trouvee. Essayez une reference plus courte ou un mot de la designation.</div>';
-    return;
-  }
-  tarifPriceResult.innerHTML = matches.map((product) => {
-    const price = getClientProductPrice(selectedTarifPriceClient, product);
-    const hasPrenet = Boolean(price.prenetEntry);
-    return `
-      <article class="tarif-price-row">
-        <div>
-          <strong>${escapeHtml(product.ref || "Reference")}</strong>
-          <span>${escapeHtml(product.name || "Designation non renseignee")}</span>
-          <small>${escapeHtml([product.gencod ? `Gencod ${product.gencod}` : "", product.unit ? `UDV ${product.unit}` : ""].filter(Boolean).join(" · "))}</small>
-        </div>
-        <div class="tarif-price-values">
-          <span><small>Tarif 50 + 10</small><strong>${escapeHtml(formatter.format(price.tariffPrice))}</strong></span>
-          <span class="${hasPrenet ? "is-prenet" : ""}"><small>${hasPrenet ? "Prix net client" : "Prix applique"}</small><strong>${escapeHtml(formatter.format(price.customerPrice))}</strong></span>
-        </div>
-      </article>
-    `;
-  }).join("");
 }
 
 function getPromotions() {
@@ -8371,24 +8278,6 @@ selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-202
 selectAccountOpening.addEventListener("click", () => openTarifForm("ouverture-de-compte"));
 previewTarif5010?.addEventListener("click", () => openDocumentPreview("tarif-50-plus-10"));
 previewCatalogue2026?.addEventListener("click", () => openDocumentPreview("catalogue-2026"));
-tarifPriceClientSearch?.addEventListener("input", (event) => {
-  const typed = event.target.value || "";
-  if (selectedTarifPriceClient && normalize(typed) !== normalize(`${selectedTarifPriceClient.name || ""}${selectedTarifPriceClient.code ? ` · ${selectedTarifPriceClient.code}` : ""}`)) {
-    selectedTarifPriceClient = null;
-  }
-  renderTarifPriceClientSuggestions();
-  renderTarifPriceResults();
-});
-tarifPriceClientSearch?.addEventListener("blur", () => {
-  setTimeout(() => tarifPriceClientSuggestions?.classList.remove("is-open"), 120);
-});
-tarifPriceClientSuggestions?.addEventListener("click", (event) => {
-  const index = event.target.closest("[data-tarif-price-client-index]")?.dataset.tarifPriceClientIndex;
-  if (index === undefined) return;
-  const client = getTarifPriceClientMatches(tarifPriceClientSearch?.value || "")[Number(index)];
-  if (client) selectTarifPriceClient(client);
-});
-tarifPriceRefSearch?.addEventListener("input", renderTarifPriceResults);
 prospectionCommercialFilter.addEventListener("change", renderProspectionRecords);
 prospectionStatusFilter?.addEventListener("change", renderProspectionRecords);
 prospectionAddButton.addEventListener("click", addProspectionRecord);

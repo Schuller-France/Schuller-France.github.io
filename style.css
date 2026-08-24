@@ -33,22 +33,6 @@
 .tarif-card-copy h3 { margin: 6px 0 8px; font-size: 25px; }
 .tarif-card-copy p, .tarif-form-heading small { margin: 0; color: #626b78; }
 .tarif-send-form { display: grid; grid-column: 1 / -1; gap: 14px; }
-.tarif-price-check { display: grid; grid-column: 1 / -1; gap: 16px; border: 1px solid #e1e5eb; border-radius: 18px; background: #fff; padding: 24px; box-shadow: 0 10px 28px rgba(28, 34, 45, .06); }
-.tarif-price-fields { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(280px, 1.2fr); gap: 14px; align-items: start; }
-.tarif-price-field { position: relative; display: grid; gap: 8px; color: #313844; font-weight: 800; }
-.tarif-price-field input { width: 100%; border: 1px solid #cfd5dd; border-radius: 12px; padding: 13px 14px; font: inherit; }
-.tarif-price-field input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: #e30613; }
-.tarif-price-field .suggestions { right: 0; left: 0; top: calc(100% + 4px); margin-top: 0; }
-.tarif-price-result { display: grid; gap: 10px; }
-.tarif-price-empty { padding: 18px; border: 1px dashed #d6dbe3; border-radius: 14px; color: #667085; font-weight: 800; background: #f8fafc; }
-.tarif-price-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, auto); gap: 14px; align-items: center; padding: 14px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
-.tarif-price-row strong { display: block; font-size: 19px; }
-.tarif-price-row span { display: block; color: #111827; font-weight: 800; line-height: 1.35; }
-.tarif-price-row small { display: block; margin-top: 4px; color: #667085; font-weight: 750; }
-.tarif-price-values { display: grid; grid-template-columns: repeat(2, minmax(118px, 1fr)); gap: 10px; }
-.tarif-price-values span { padding: 12px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc; text-align: right; }
-.tarif-price-values .is-prenet { border-color: #bbf7d0; background: #f0fdf4; }
-.tarif-price-values small { margin: 0 0 3px; }
 .tarif-form-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid #e5e8ed; }
 .tarif-form-heading div { display: grid; gap: 5px; }
 .tarif-send-form label { font-weight: 700; color: #313844; }
@@ -7868,11 +7852,8 @@ body.dark-theme .prospection-card summary { color: #f8fbff; }
 @media (max-width: 1100px) {
   .prospection-toolbar { grid-template-columns: 1fr 1fr; }
   .prospection-toolbar button { min-height: 52px; }
-  .promotion-toolbar,
-  .tarif-price-fields { grid-template-columns: 1fr; }
+  .promotion-toolbar { grid-template-columns: 1fr; }
   .promotion-toolbar .primary-button { width: 100%; }
-  .tarif-price-row,
-  .tarif-price-values { grid-template-columns: 1fr; }
 }
 
 body.tablet-mode .prospection-hero { align-items: stretch; }
