@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260824mobile3" />
+    <link rel="stylesheet" href="style.css?v=20260824prospection1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1063,6 +1063,16 @@
             <label class="is-hidden" id="prospectionCommercialFilterWrap">Commercial
               <select id="prospectionCommercialFilter"><option value="all">Tous les commerciaux</option></select>
             </label>
+            <label>Suivi
+              <select id="prospectionStatusFilter">
+                <option value="active">À traiter</option>
+                <option value="all">Tous</option>
+                <option value="to_call">À appeler</option>
+                <option value="callback">À relancer</option>
+                <option value="interested">Intéressé</option>
+                <option value="not_interested">Pas intéressé</option>
+              </select>
+            </label>
             <label>Entreprise / prospect
               <input id="prospectionCompany" type="text" placeholder="Nom du prospect" />
             </label>
@@ -1073,6 +1083,7 @@
             <button class="ghost-button is-hidden" type="button" id="prospectionExportButton">Exporter le fichier</button>
           </div>
           <p class="tarif-send-status" id="prospectionStatus" role="status"></p>
+          <div class="prospection-admin-summary is-hidden" id="prospectionAdminSummary"></div>
           <div class="prospection-list" id="prospectionList"></div>
         </section>
       </main>
@@ -1352,7 +1363,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260824mobile3" charset="UTF-8"></script>
+    <script src="script.js?v=20260824prospection1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

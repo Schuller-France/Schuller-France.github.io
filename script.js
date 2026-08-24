@@ -65,6 +65,7 @@ const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
 const expenseDraftStorageKey = "schullerExpenseDrafts";
+const prospectionLocalStorageKey = "schullerProspectionFollowup";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -102,6 +103,78 @@ const knownUserProfiles = [
   { id: "formation", name: "Formation tablette", sectors: ["Secteur 9"], role: "commercial", training: true },
   { id: "admin", name: "Administrateur", sectors: [], role: "admin" },
 ];
+
+const prospectionStatusOptions = {
+  to_call: "À appeler",
+  callback: "À relancer",
+  no_answer: "Pas de réponse",
+  interested: "Intéressé",
+  not_interested: "Pas intéressé",
+  wrong_number: "Numéro faux",
+};
+
+const completedProspectionStatuses = new Set(["interested", "not_interested", "wrong_number"]);
+const initialProspectionRows = [
+  ["Grusson Matériaux", "59100", "ROUBAIX", "0320758834", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
+  ["Durand Matériaux", "62350", "BUSNES", "0321275361", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
+  ["Agymat", "59115", "LEERS", "0366721498", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
+  ["Sotimat", "30260", "QUISSAC", "0466777608", "Secteur 2", "arey", "Alain Rey", ""],
+  ["2G Matériaux", "31130", "BALMA", "0537115040", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["Lanvers Matériaux", "74140", "NERNIER", "0450728225", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["Mister Matériaux", "69002", "LYON", "0535542760", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["GLC Matériaux", "04300", "FORCALQUIER", "0492730321", "Secteur 2", "arey", "Alain Rey", ""],
+  ["Pommier Bricomat", "39260", "MOIRANS-EN-MONTAGNÉE", "0345165212", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["Quincallerie St Jean ETS Pommez", "97170", "PETIT-BOURG", "0590861718", "Secteur 7", "gsylvestre", "Guy Sylvestre", "Hors table force de vente, secteur repris du fichier prospect."],
+  ["ECO - LOGIC Matériaux", "82000", "MONTAUBAN", "0563673816", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["Aditec Normandie", "76300", "SOTTEVILLE LES ROUEN", "0278260384", "Secteur 5A", "ployer", "Pierre Loyer", "Secteur confirmé manuellement : 005A."],
+  ["BH Matériaux", "82110", "LAUZERTE", "0563953908", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["Auitaine Bois coffrage", "33185", "LE HAILLAN", "0556344828", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["BML MAT", "69930", "SAINT LAURENT DE CHAMOUSSET", "0478486857", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["LAFFORGUE", "31100", "TOULOUSE", "0533003330", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["CATMAT", "66200", "ELNE", "0494040404", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["COSTAZ PERES ET FILS", "74380", "NANGY", "0450369926", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["ENDUIT 34", "34440", "COLOMBIERS", "0981147470", "Secteur 2", "arey", "Alain Rey", ""],
+  ["D C A Groupe", "93160", "NOISY LE GRAND", "0143040022", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["ITS 95", "95500", "LE THILLAY", "0186220308", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["LIBOURNE MATERIAUX", "33500", "ARVEYRES", "0557847809", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["NOVAMAT Bois Couverture", "74200", "THONON LES BAINS", "0450263352", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["D A N S MATERIAUX TP", "33700", "MERIGNAC", "0556478618", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["ALPESMAT", "38530", "PONTCHARA", "0458474949", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["TGV MATERIAUX", "93190", "LIVRY - GARGAN", "0181210210", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["OPC CONCEPT 89", "89100", "SENS", "0659115267", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["ISECOMAT", "10190", "NEUVILLE SUR VANNE", "0755643622", "Secteur 8", "secteur 8", "Secteur 8", ""],
+  ["COULOUVRAT", "38110", "MONTAGNIEU", "0437066588", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+  ["REIMS MATERIAUX", "51100", "REIMS", "0310168341", "Secteur 8", "secteur 8", "Secteur 8", ""],
+  ["MULTIMAT ETAIN", "55400", "ETAIN", "0376080123", "Secteur 8", "secteur 8", "Secteur 8", ""],
+  ["CASTRES BOIS ET MATERIAUX", "81100", "CASTRES", "", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
+  ["DUTREIX", "87000", "LIMOGES", "0555306758", "Secteur 9", "flo", "Flo", ""],
+  ["COTTIN", "74910", "SEYSSEL", "0450592048", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["ART COLOR", "67590", "SCHWEIGHOUSE SUR MODER", "0388059867", "Secteur 8", "secteur 8", "Secteur 8", ""],
+  ["BINA MATERIAUX", "57170", "CHÂTEAU SALINS", "0387866910", "Secteur 8", "secteur 8", "Secteur 8", ""],
+  ["SILMATHS", "03630", "DESERTINES", "", "Secteur 6", "rlambert", "Rémi Lambert", "Secteur confirmé manuellement : 6."],
+  ["FEMAT CHAMBERRY CBM", "73000", "CHAMBERY", "0482291435", "Secteur 6", "rlambert", "Rémi Lambert", ""],
+];
+
+const initialProspectionRecords = initialProspectionRows.map(([company, zip, city, phone, sector, userId, userName, reviewNote]) => ({
+  id: `fm2023-${normalize(company).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
+  company,
+  zip,
+  city,
+  phone,
+  sector,
+  userId,
+  userName,
+  reviewNote,
+  email: "",
+  manager: "",
+  source: "France Matériaux 2023",
+  status: "to_call",
+  priority: "normal",
+  nextAction: "Appeler",
+  notes: "",
+  completed: false,
+  seed: true,
+}));
 
 const tutorialStepsConfig = [
   {
@@ -457,11 +530,13 @@ const prospectionProgressBar = document.querySelector("#prospectionProgressBar")
 const prospectionWeekLabel = document.querySelector("#prospectionWeekLabel");
 const prospectionCommercialFilterWrap = document.querySelector("#prospectionCommercialFilterWrap");
 const prospectionCommercialFilter = document.querySelector("#prospectionCommercialFilter");
+const prospectionStatusFilter = document.querySelector("#prospectionStatusFilter");
 const prospectionCompany = document.querySelector("#prospectionCompany");
 const prospectionCity = document.querySelector("#prospectionCity");
 const prospectionAddButton = document.querySelector("#prospectionAddButton");
 const prospectionExportButton = document.querySelector("#prospectionExportButton");
 const prospectionStatus = document.querySelector("#prospectionStatus");
+const prospectionAdminSummary = document.querySelector("#prospectionAdminSummary");
 const prospectionList = document.querySelector("#prospectionList");
 let prospectionRecords = [];
 let prospectionUsers = [];
@@ -6680,41 +6755,154 @@ function prospectionUserName(userId) {
   return prospectionUsers.find((user) => user.id === userId)?.name || userId || "Commercial";
 }
 
+function prospectionStatusLabel(status) {
+  return prospectionStatusOptions[status] || prospectionStatusOptions.to_call;
+}
+
+function isProspectionComplete(record) {
+  return completedProspectionStatuses.has(record.status) || record.completed === true;
+}
+
+function loadProspectionLocalFollowup() {
+  try {
+    return JSON.parse(localStorage.getItem(prospectionLocalStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveProspectionLocalFollowup(record) {
+  const stored = loadProspectionLocalFollowup();
+  stored[record.id] = { ...(stored[record.id] || {}), ...record };
+  localStorage.setItem(prospectionLocalStorageKey, JSON.stringify(stored));
+}
+
+function normalizeProspectionRecord(record) {
+  const status = record.status || (record.completed ? "interested" : "to_call");
+  return {
+    ...record,
+    id: record.id || `prospect-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    company: record.company || record.entreprise || "",
+    city: record.city || record.ville || "",
+    zip: record.zip || record.codePostal || record.postalCode || "",
+    phone: record.phone || record.telephone || "",
+    email: record.email || record.mail || "",
+    manager: record.manager || record.contact || "",
+    sector: record.sector || record.secteur || "",
+    userId: record.userId || record.commercialId || currentUser?.id || "",
+    userName: record.userName || record.commercial || prospectionUserName(record.userId),
+    status,
+    nextAction: record.nextAction || (status === "callback" ? "Relancer" : "Appeler"),
+    callbackDate: record.callbackDate || record.recallDate || "",
+    response: record.response || "",
+    notes: record.notes || "",
+    completed: completedProspectionStatuses.has(status) || record.completed === true,
+    updatedAt: record.updatedAt || "",
+  };
+}
+
+function mergeProspectionRecords(serviceRecords = []) {
+  const merged = new Map();
+  initialProspectionRecords.forEach((record) => merged.set(record.id, normalizeProspectionRecord(record)));
+  serviceRecords.forEach((record) => {
+    const normalized = normalizeProspectionRecord(record);
+    merged.set(normalized.id, { ...(merged.get(normalized.id) || {}), ...normalized, seed: false });
+  });
+  const localFollowup = loadProspectionLocalFollowup();
+  Object.entries(localFollowup).forEach(([id, record]) => {
+    merged.set(id, normalizeProspectionRecord({ ...(merged.get(id) || {}), ...record, id }));
+  });
+  return [...merged.values()];
+}
+
+function buildProspectionUsers(serviceUsers = []) {
+  const users = new Map();
+  adminCommercials.forEach((commercial) => users.set(commercial.id, commercial.name));
+  initialProspectionRecords.forEach((record) => users.set(record.userId, record.userName));
+  serviceUsers.forEach((user) => users.set(user.id, user.name));
+  users.delete("admin");
+  return [...users.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
 function getVisibleProspectionRecords() {
   const scope = currentUser?.role === "admin" ? prospectionCommercialFilter.value : currentUser?.id;
-  return prospectionRecords.filter((record) => scope === "all" || record.userId === scope);
+  const statusScope = prospectionStatusFilter?.value || "active";
+  return prospectionRecords.filter((record) => {
+    const sameUser = scope === "all" || record.userId === scope;
+    const sameStatus = statusScope === "all"
+      || (statusScope === "active" ? !isProspectionComplete(record) : record.status === statusScope);
+    return sameUser && sameStatus;
+  });
 }
 
 function updateProspectionProgress() {
-  const visible = getVisibleProspectionRecords();
-  const completed = visible.filter((record) => record.weekKey === prospectionWeekKey && record.completed).length;
+  const scope = currentUser?.role === "admin" ? prospectionCommercialFilter.value : currentUser?.id;
+  const scopedRecords = prospectionRecords.filter((record) => scope === "all" || record.userId === scope);
+  const completed = scopedRecords.filter(isProspectionComplete).length;
   const userCount = currentUser?.role === "admin" && prospectionCommercialFilter.value === "all"
     ? Math.max(1, prospectionUsers.length)
     : 1;
-  const goal = 5 * userCount;
+  const goal = currentUser?.role === "admin" ? Math.max(1, scopedRecords.length) : Math.max(5, scopedRecords.length);
   prospectionProgressValue.textContent = `${completed} / ${goal}`;
   prospectionProgressBar.style.width = `${Math.min(100, Math.round((completed / goal) * 100))}%`;
-  prospectionWeekLabel.textContent = prospectionWeekKey ? `Semaine ${prospectionWeekKey.split("-W")[1]}` : "Semaine en cours";
+  prospectionWeekLabel.textContent = currentUser?.role === "admin"
+    ? `${userCount} commercial${userCount > 1 ? "aux" : ""}`
+    : "Prospects du secteur";
+}
+
+function renderProspectionAdminSummary() {
+  if (!prospectionAdminSummary) return;
+  const admin = currentUser?.role === "admin";
+  prospectionAdminSummary.classList.toggle("is-hidden", !admin);
+  if (!admin) return;
+  const cards = prospectionUsers.map((user) => {
+    const records = prospectionRecords.filter((record) => record.userId === user.id);
+    const done = records.filter(isProspectionComplete).length;
+    const callbacks = records.filter((record) => record.status === "callback").length;
+    return `<article><strong>${escapeHtml(user.name)}</strong><span>${done}/${records.length} traités</span><small>${callbacks} relance${callbacks > 1 ? "s" : ""}</small></article>`;
+  }).join("");
+  const reviewCount = prospectionRecords.filter((record) => record.reviewNote).length;
+  prospectionAdminSummary.innerHTML = `${cards}<article class="is-review"><strong>À contrôler</strong><span>${reviewCount}</span><small>affectations particulières</small></article>`;
 }
 
 function renderProspectionRecords() {
   updateProspectionProgress();
+  renderProspectionAdminSummary();
   const records = getVisibleProspectionRecords().slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   if (!records.length) {
-    prospectionList.innerHTML = `<div class="empty-state prospection-empty"><strong>Aucun prospect enregistré</strong><span>Ajoutez le premier prospect de la semaine avec son entreprise et sa ville.</span></div>`;
+    prospectionList.innerHTML = `<div class="empty-state prospection-empty"><strong>Aucun prospect à traiter</strong><span>Changez le filtre de suivi pour revoir les prospects déjà traités.</span></div>`;
     return;
   }
   prospectionList.innerHTML = records.map((record) => `
-    <details class="prospection-card ${record.completed ? "is-complete" : ""}" data-prospection-card="${escapeHtml(record.id)}">
+    <details class="prospection-card ${isProspectionComplete(record) ? "is-complete" : ""}" data-prospection-card="${escapeHtml(record.id)}">
       <summary>
-        <span><strong>${escapeHtml(record.company)}</strong><small>${escapeHtml(record.city || "Ville non renseignée")}${currentUser?.role === "admin" ? ` · ${escapeHtml(prospectionUserName(record.userId))}` : ""}</small></span>
-        <span class="status-pill">${record.completed ? "Validé" : "À compléter"}</span>
+        <span><strong>${escapeHtml(record.company)}</strong><small>${escapeHtml([record.zip, record.city].filter(Boolean).join(" "))} · ${escapeHtml(record.sector || "")}${currentUser?.role === "admin" ? ` · ${escapeHtml(record.userName || prospectionUserName(record.userId))}` : ""}</small></span>
+        <span class="status-pill">${escapeHtml(prospectionStatusLabel(record.status))}</span>
       </summary>
+      <div class="prospection-contact-row">
+        ${record.phone ? `<a class="primary-button" href="tel:${escapeHtml(record.phone.replace(/\s+/g, ""))}">Appeler</a>` : `<span class="prospection-muted">Téléphone manquant</span>`}
+        ${record.email ? `<a class="ghost-button" href="mailto:${escapeHtml(record.email)}">E-mail</a>` : ""}
+        <a class="ghost-button" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([record.company, record.zip, record.city].filter(Boolean).join(" "))}">Itinéraire</a>
+      </div>
+      ${record.reviewNote ? `<p class="prospection-review-note">${escapeHtml(record.reviewNote)}</p>` : ""}
       <div class="prospection-fields">
         <label>Nom du dirigeant<input data-prospect-field="manager" value="${escapeHtml(record.manager || "")}" placeholder="Prénom et nom" /></label>
         <label>Téléphone<input data-prospect-field="phone" value="${escapeHtml(record.phone || "")}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
         <label>Adresse e-mail<input data-prospect-field="email" value="${escapeHtml(record.email || "")}" inputmode="email" placeholder="contact@entreprise.fr" /></label>
-        <label class="prospection-notes">Notes<textarea data-prospect-field="notes" rows="3" placeholder="Échange, besoin, prochaine action…">${escapeHtml(record.notes || "")}</textarea></label>
+        <label>Réponse
+          <select data-prospect-field="status">
+            ${Object.entries(prospectionStatusOptions).map(([value, label]) => `<option value="${value}" ${record.status === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Date de relance<input data-prospect-field="callbackDate" type="date" value="${escapeHtml(record.callbackDate || "")}" /></label>
+        <label>Prochaine action<input data-prospect-field="nextAction" value="${escapeHtml(record.nextAction || "")}" placeholder="Ex. rappeler mardi, envoyer tarifs..." /></label>
+        <label class="prospection-notes">Compte-rendu<textarea data-prospect-field="notes" rows="3" placeholder="Réponse du prospect, besoin, prochaine action...">${escapeHtml(record.notes || "")}</textarea></label>
+        <div class="prospection-quick-actions">
+          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="no_answer">Pas de réponse</button>
+          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="callback">À relancer</button>
+          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="not_interested">Pas intéressé</button>
+          <button class="primary-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="interested">Intéressé</button>
+        </div>
         <button class="primary-button" type="button" data-save-prospect="${escapeHtml(record.id)}">Enregistrer</button>
       </div>
     </details>`).join("");
@@ -6725,8 +6913,8 @@ async function loadProspectionData() {
   prospectionStatus.textContent = "Chargement de la prospection…";
   try {
     const result = await postService({ action: "getProspectionData" });
-    prospectionRecords = Array.isArray(result.records) ? result.records : [];
-    prospectionUsers = Array.isArray(result.users) ? result.users : [];
+    prospectionRecords = mergeProspectionRecords(Array.isArray(result.records) ? result.records : []);
+    prospectionUsers = buildProspectionUsers(Array.isArray(result.users) ? result.users : []);
     prospectionWeekKey = result.weekKey || "";
     const admin = currentUser.role === "admin";
     prospectionCommercialFilterWrap.classList.toggle("is-hidden", !admin);
@@ -6736,22 +6924,33 @@ async function loadProspectionData() {
       prospectionCommercialFilter.innerHTML = `<option value="all">Tous les commerciaux</option>${prospectionUsers.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}`;
       prospectionCommercialFilter.value = prospectionUsers.some((user) => user.id === selected) ? selected : "all";
     }
-    prospectionStatus.textContent = "Données à jour.";
+    prospectionStatus.textContent = `${prospectionRecords.length} prospects prêts à traiter.`;
     renderProspectionRecords();
   } catch (error) {
-    prospectionStatus.textContent = error.message;
-    prospectionList.innerHTML = `<div class="empty-state"><strong>Prospection indisponible</strong><span>${escapeHtml(error.message)}</span></div>`;
+    prospectionRecords = mergeProspectionRecords([]);
+    prospectionUsers = buildProspectionUsers([]);
+    prospectionStatus.textContent = "Mode local : la liste reste utilisable, la synchro Drive est indisponible.";
+    renderProspectionRecords();
   }
 }
 
 async function saveProspectionRecord(record) {
   prospectionStatus.textContent = "Enregistrement…";
+  const completeRecord = normalizeProspectionRecord({
+    ...(prospectionRecords.find((item) => item.id === record.id) || {}),
+    ...record,
+    updatedAt: new Date().toISOString(),
+  });
+  completeRecord.completed = isProspectionComplete(completeRecord);
+  saveProspectionLocalFollowup(completeRecord);
+  prospectionRecords = prospectionRecords.map((item) => item.id === completeRecord.id ? completeRecord : item);
+  renderProspectionRecords();
   try {
-    await postService({ action: "saveProspection", ...record });
+    await postService({ action: "saveProspection", ...completeRecord });
     prospectionStatus.textContent = "Prospect enregistré.";
     await loadProspectionData();
   } catch (error) {
-    prospectionStatus.textContent = error.message;
+    prospectionStatus.textContent = "Enregistré sur cet appareil. La synchro Drive sera à vérifier.";
   }
 }
 
@@ -6766,7 +6965,8 @@ function addProspectionRecord() {
   const userId = currentUser.role === "admin" && prospectionCommercialFilter.value !== "all"
     ? prospectionCommercialFilter.value
     : currentUser.id;
-  saveProspectionRecord({ company, city, userId });
+  const user = prospectionUsers.find((item) => item.id === userId);
+  saveProspectionRecord({ company, city, userId, userName: user?.name || prospectionUserName(userId), status: "to_call" });
   prospectionCompany.value = "";
   prospectionCity.value = "";
 }
@@ -6776,13 +6976,22 @@ function saveProspectionCard(button) {
   const source = prospectionRecords.find((record) => record.id === card?.dataset.prospectionCard);
   if (!source) return;
   const value = (field) => card.querySelector(`[data-prospect-field="${field}"]`)?.value.trim() || "";
-  saveProspectionRecord({ id: source.id, userId: source.userId, company: source.company, city: source.city, manager: value("manager"), phone: value("phone"), email: value("email"), notes: value("notes") });
+  saveProspectionRecord({ id: source.id, userId: source.userId, userName: source.userName, company: source.company, city: source.city, zip: source.zip, sector: source.sector, manager: value("manager"), phone: value("phone"), email: value("email"), status: value("status"), callbackDate: value("callbackDate"), nextAction: value("nextAction"), notes: value("notes") });
+}
+
+function quickUpdateProspection(button) {
+  const card = button.closest("[data-prospection-card]");
+  const source = prospectionRecords.find((record) => record.id === card?.dataset.prospectionCard);
+  if (!source) return;
+  const status = button.dataset.status || "to_call";
+  const note = card.querySelector(`[data-prospect-field="notes"]`)?.value.trim() || source.notes || "";
+  saveProspectionRecord({ ...source, status, notes: note, nextAction: status === "callback" ? "Relancer" : prospectionStatusLabel(status) });
 }
 
 function exportProspectionRecords() {
-  const rows = [["Commercial", "Entreprise", "Ville", "Dirigeant", "Téléphone", "E-mail", "Notes", "Statut", "Semaine"]];
+  const rows = [["Commercial", "Secteur", "Entreprise", "Code postal", "Ville", "Dirigeant", "Téléphone", "E-mail", "Réponse", "Date relance", "Prochaine action", "Notes", "À vérifier"]];
   getVisibleProspectionRecords().forEach((record) => rows.push([
-    prospectionUserName(record.userId), record.company, record.city || "", record.manager || "", record.phone || "", record.email || "", record.notes || "", record.completed ? "Validé" : "À compléter", record.weekKey || "",
+    record.userName || prospectionUserName(record.userId), record.sector || "", record.company, record.zip || "", record.city || "", record.manager || "", record.phone || "", record.email || "", prospectionStatusLabel(record.status), record.callbackDate || "", record.nextAction || "", record.notes || "", record.reviewNote || "",
   ]));
   downloadCsv(`prospection-${prospectionWeekKey || "export"}.csv`, rows);
 }
@@ -7691,11 +7900,14 @@ selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 selectAccountOpening.addEventListener("click", () => openTarifForm("ouverture-de-compte"));
 prospectionCommercialFilter.addEventListener("change", renderProspectionRecords);
+prospectionStatusFilter?.addEventListener("change", renderProspectionRecords);
 prospectionAddButton.addEventListener("click", addProspectionRecord);
 prospectionExportButton.addEventListener("click", exportProspectionRecords);
 prospectionList.addEventListener("click", (event) => {
   const saveButton = event.target.closest("[data-save-prospect]");
   if (saveButton) saveProspectionCard(saveButton);
+  const quickButton = event.target.closest("[data-prospect-quick]");
+  if (quickButton) quickUpdateProspection(quickButton);
 });
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());

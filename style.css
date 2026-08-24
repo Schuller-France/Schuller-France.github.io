@@ -7744,6 +7744,12 @@ body.dark-theme .promotion-preview-fallback strong {
 .prospection-toolbar input,
 .prospection-toolbar select { min-height: 46px; }
 .prospection-list { display: grid; gap: 12px; }
+.prospection-admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 0 0 18px; }
+.prospection-admin-summary article { display: grid; gap: 4px; padding: 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; }
+.prospection-admin-summary article.is-review { border-color: #f2c9cd; background: #fff7f7; }
+.prospection-admin-summary strong { font-size: 15px; }
+.prospection-admin-summary span { color: #111827; font-size: 21px; font-weight: 950; }
+.prospection-admin-summary small { color: #667085; font-weight: 750; }
 .prospection-card { border: 1px solid #dfe3e8; border-radius: 12px; background: #fff; overflow: hidden; }
 .prospection-card.is-complete { border-color: #8bd3a8; box-shadow: inset 4px 0 #169447; }
 .prospection-card summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; cursor: pointer; list-style: none; }
@@ -7752,15 +7758,23 @@ body.dark-theme .promotion-preview-fallback strong {
 .prospection-card summary small { color: #667085; font-weight: 500; }
 .prospection-card summary em { padding: 6px 10px; border-radius: 999px; background: #fff0f1; color: #b8000d; font-style: normal; font-weight: 800; }
 .prospection-card.is-complete summary em { background: #e9f8ef; color: #087a37; }
+.prospection-contact-row { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 18px 16px; }
+.prospection-contact-row .primary-button,
+.prospection-contact-row .ghost-button { min-height: 42px; text-decoration: none; }
+.prospection-muted { display: inline-flex; align-items: center; min-height: 42px; padding: 0 12px; color: #667085; background: #f3f4f6; border-radius: 10px; font-weight: 850; }
+.prospection-review-note { margin: 0 18px 14px; padding: 10px 12px; color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; font-weight: 800; }
 .prospection-fields { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 12px; padding: 0 18px 18px; border-top: 1px solid #edf0f2; }
 .prospection-fields label { display: grid; gap: 6px; padding-top: 16px; font-weight: 700; }
 .prospection-fields input,
-.prospection-fields textarea { width: 100%; }
+.prospection-fields textarea,
+.prospection-fields select { width: 100%; }
 .prospection-notes { grid-column: 1 / -1; }
+.prospection-quick-actions { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; }
 .prospection-fields .primary-button { grid-column: 1 / -1; justify-self: end; }
 
 body.dark-theme .prospection-goal,
-body.dark-theme .prospection-card { background: #101826; border-color: rgba(158,197,255,.24); color: #f8fbff; }
+body.dark-theme .prospection-card,
+body.dark-theme .prospection-admin-summary article { background: #101826; border-color: rgba(158,197,255,.24); color: #f8fbff; }
 body.dark-theme .prospection-card summary { color: #f8fbff; }
 
 @media (max-width: 1100px) {
@@ -7777,14 +7791,18 @@ body.tablet-mode .prospection-card summary { min-height: 72px; font-size: 17px; 
 body.tablet-mode .prospection-fields { grid-template-columns: 1fr 1fr; }
 body.tablet-mode .prospection-fields input,
 body.tablet-mode .prospection-fields textarea,
+body.tablet-mode .prospection-fields select,
 body.tablet-mode .prospection-fields button { min-height: 58px; font-size: 17px; }
 
 @media (max-width: 760px) {
   .prospection-hero { flex-direction: column; }
   .prospection-toolbar,
   .prospection-fields,
+  .prospection-quick-actions,
   body.tablet-mode .prospection-toolbar,
   body.tablet-mode .prospection-fields { grid-template-columns: 1fr; }
+  .prospection-card summary { align-items: stretch; flex-direction: column; }
+  .prospection-contact-row { display: grid; grid-template-columns: 1fr; }
   .prospection-notes,
   .prospection-fields .primary-button { grid-column: 1; width: 100%; }
 }
