@@ -37,6 +37,7 @@ let dashboardStatsLoading = false;
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
+let selectedTarifPriceClient = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
 let backlogItemsCache = Array.isArray(initialBacklogItems) ? initialBacklogItems : [];
@@ -291,6 +292,8 @@ const summaryTotal = document.querySelector("#summaryTotal");
 const orderNote = document.querySelector("#orderNote");
 const loginView = document.querySelector("#loginView");
 const appView = document.querySelector("#appView");
+const appHeader = document.querySelector(".app-header");
+const headerActions = document.querySelector(".header-actions");
 const loginForm = document.querySelector("#loginForm");
 const loginId = document.querySelector("#loginId");
 const loginPassword = document.querySelector("#loginPassword");
@@ -528,6 +531,12 @@ const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
 const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
 const selectAccountOpening = document.querySelector("#selectAccountOpening");
+const previewTarif5010 = document.querySelector("#previewTarif5010");
+const previewCatalogue2026 = document.querySelector("#previewCatalogue2026");
+const tarifPriceClientSearch = document.querySelector("#tarifPriceClientSearch");
+const tarifPriceClientSuggestions = document.querySelector("#tarifPriceClientSuggestions");
+const tarifPriceRefSearch = document.querySelector("#tarifPriceRefSearch");
+const tarifPriceResult = document.querySelector("#tarifPriceResult");
 const prospectionTab = document.querySelector("#prospectionTab");
 const prospectionView = document.querySelector("#prospectionView");
 const prospectionProgressValue = document.querySelector("#prospectionProgressValue");
@@ -550,6 +559,7 @@ let prospectionUsers = [];
 let prospectionWeekKey = "";
 const promotionGrid = document.querySelector("#promotionGrid");
 const promotionClientSearch = document.querySelector("#promotionClientSearch");
+const promotionClientSuggestions = document.querySelector("#promotionClientSuggestions");
 const promotionHistory = document.querySelector("#promotionHistory");
 const promotionRecipient = document.querySelector("#promotionRecipient");
 const promotionSendStatus = document.querySelector("#promotionSendStatus");
@@ -817,6 +827,7 @@ function setDisplayMode(mode) {
   document.body.classList.remove("tablet-menu-open");
   localStorage.setItem(displayModeStorageKey, tablet ? "tablet" : "pc");
   displayModeToggle.textContent = tablet ? "Mode PC" : "Mode tablette";
+  placeHeaderActionsForNavigation();
   if (tabletMenuToggle) tabletMenuToggle.setAttribute("aria-expanded", "false");
 }
 
@@ -828,7 +839,15 @@ function usesCompactNavigation() {
   return document.body.classList.contains("tablet-mode") || window.matchMedia("(max-width: 860px)").matches;
 }
 
+function placeHeaderActionsForNavigation() {
+  if (!headerActions || !appHeader || !appTabs) return;
+  const compact = usesCompactNavigation();
+  const target = compact ? appTabs : appHeader;
+  if (headerActions.parentElement !== target) target.appendChild(headerActions);
+}
+
 function setTabletMenuOpen(open) {
+  placeHeaderActionsForNavigation();
   const shouldOpen = Boolean(open) && usesCompactNavigation();
   document.body.classList.toggle("tablet-menu-open", shouldOpen);
   if (tabletMenuToggle) {
@@ -1313,6 +1332,150 @@ async function sendTarif(event) {
   }
 }
 
+function getTariffDocument(documentId) {
+  const tariff = (tariffConfig.tariffs || []).find((item) => item.id === documentId);
+  if (tariff) return tariff;
+  const documentEntry = tariffConfig.documents?.[documentId];
+  if (!documentEntry) return null;
+  return {
+    id: documentId,
+    name: documentEntry.name || documentEntry.title || documentId,
+    driveFileId: documentEntry.driveFileId || documentEntry.fileId || "",
+    fileId: documentEntry.fileId || documentEntry.driveFileId || "",
+    previewUrl: documentEntry.previewUrl || "",
+  };
+}
+
+async function openDocumentPreview(documentId) {
+  const documentEntry = getTariffDocument(documentId);
+  if (!documentEntry || !promotionModal || !promotionPreviewFrame) return;
+  clearPromotionPreviewObjectUrl();
+  promotionModalTitle.textContent = documentEntry.name || "Document";
+  promotionModal.classList.remove("is-hidden");
+  setPromotionPreviewMessage("Chargement de l'aperçu", "Préparation du document depuis Google Drive...");
+
+  if (documentEntry.previewUrl) {
+    promotionPreviewFrame.removeAttribute("srcdoc");
+    promotionPreviewFrame.src = documentEntry.previewUrl;
+    recordActivity("Document consulté", documentEntry.name || documentId);
+    return;
+  }
+
+  try {
+    const result = await postService({
+      action: "getPromotionPreview",
+      fileId: documentEntry.driveFileId || documentEntry.fileId || "",
+      documentId: documentEntry.id || documentId,
+    });
+    if (result.previewUrl) {
+      promotionPreviewFrame.removeAttribute("srcdoc");
+      promotionPreviewFrame.src = result.previewUrl;
+      recordActivity("Document consulté", documentEntry.name || documentId);
+      return;
+    }
+    const blob = base64ToBlob(result.base64, result.mimeType || "application/pdf");
+    promotionPreviewObjectUrl = URL.createObjectURL(blob);
+    promotionPreviewFrame.removeAttribute("srcdoc");
+    promotionPreviewFrame.src = promotionPreviewObjectUrl;
+    recordActivity("Document consulté", documentEntry.name || documentId);
+  } catch (error) {
+    setPromotionPreviewMessage(
+      "Aperçu indisponible",
+      error.message || "Impossible d'ouvrir ce document. Vérifiez que le fichier Drive est partagé ou configuré."
+    );
+  }
+}
+
+function getTarifPriceClientMatches(query = "") {
+  const cleanQuery = normalize(query);
+  if (!cleanQuery) return [];
+  return visibleClients
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingCity,
+      client.deliveryCity,
+      client.billingZip,
+      client.deliveryZip,
+      client.email,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 8);
+}
+
+function renderTarifPriceClientSuggestions() {
+  if (!tarifPriceClientSuggestions) return;
+  const matches = getTarifPriceClientMatches(tarifPriceClientSearch?.value || "");
+  if (!matches.length) {
+    tarifPriceClientSuggestions.classList.remove("is-open");
+    tarifPriceClientSuggestions.innerHTML = "";
+    return;
+  }
+  tarifPriceClientSuggestions.innerHTML = matches.map((client, index) => `
+    <button class="suggestion" type="button" data-tarif-price-client-index="${index}">
+      <strong>${escapeHtml(client.name || "Client")}</strong>
+      <span>${escapeHtml([client.code, client.deliveryCity || client.billingCity, client.sector].filter(Boolean).join(" · "))}</span>
+    </button>
+  `).join("");
+  tarifPriceClientSuggestions.classList.add("is-open");
+}
+
+function selectTarifPriceClient(client) {
+  selectedTarifPriceClient = client;
+  if (tarifPriceClientSearch) tarifPriceClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
+  tarifPriceClientSuggestions?.classList.remove("is-open");
+  renderTarifPriceResults();
+}
+
+function getTarifPriceProductMatches(query = "") {
+  const cleanQuery = normalize(query);
+  if (!cleanQuery) return [];
+  return products
+    .filter((product) => normalize([product.ref, product.gencod, product.name, product.family, product.category].join(" ")).includes(cleanQuery))
+    .slice(0, 12);
+}
+
+function getClientProductPrice(client, product) {
+  const prenetEntry = findPrenetEntryForProduct(client, product);
+  const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
+  return {
+    tariffPrice: Number(product?.price) || 0,
+    customerPrice: prenetPrice > 0 ? prenetPrice : Number(product?.price) || 0,
+    prenetEntry,
+  };
+}
+
+function renderTarifPriceResults() {
+  if (!tarifPriceResult) return;
+  const query = (tarifPriceRefSearch?.value || "").trim();
+  if (!query) {
+    tarifPriceResult.innerHTML = '<div class="tarif-price-empty">Tapez une reference, un gencod ou un mot du produit pour verifier le prix.</div>';
+    return;
+  }
+  const matches = getTarifPriceProductMatches(query);
+  if (!matches.length) {
+    tarifPriceResult.innerHTML = '<div class="tarif-price-empty">Aucune reference trouvee. Essayez une reference plus courte ou un mot de la designation.</div>';
+    return;
+  }
+  tarifPriceResult.innerHTML = matches.map((product) => {
+    const price = getClientProductPrice(selectedTarifPriceClient, product);
+    const hasPrenet = Boolean(price.prenetEntry);
+    return `
+      <article class="tarif-price-row">
+        <div>
+          <strong>${escapeHtml(product.ref || "Reference")}</strong>
+          <span>${escapeHtml(product.name || "Designation non renseignee")}</span>
+          <small>${escapeHtml([product.gencod ? `Gencod ${product.gencod}` : "", product.unit ? `UDV ${product.unit}` : ""].filter(Boolean).join(" · "))}</small>
+        </div>
+        <div class="tarif-price-values">
+          <span><small>Tarif 50 + 10</small><strong>${escapeHtml(formatter.format(price.tariffPrice))}</strong></span>
+          <span class="${hasPrenet ? "is-prenet" : ""}"><small>${hasPrenet ? "Prix net client" : "Prix applique"}</small><strong>${escapeHtml(formatter.format(price.customerPrice))}</strong></span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function getPromotions() {
   return Array.isArray(tariffConfig.promotions) ? tariffConfig.promotions : [];
 }
@@ -1369,18 +1532,57 @@ function selectPromotionClient(client) {
   promotionClientSearch.value = `${client.name} · ${client.code}`;
   if (client.email) promotionRecipient.value = client.email;
   if (!client.email && promotionRecipient.value) promotionRecipient.value = "";
+  promotionClientSuggestions?.classList.remove("is-open");
+  promotionSendStatus.textContent = client.email ? "" : "Client sélectionné : ajoutez l'adresse e-mail avant l'envoi.";
+  promotionSendStatus.className = client.email ? "tarif-send-status" : "tarif-send-status is-warning";
   renderPromotionHistory();
 }
 
-function handlePromotionClientSearch(value) {
+function getPromotionClientMatches(value = "") {
+  const cleanQuery = normalize(value.trim());
+  if (!cleanQuery) return [];
+  return visibleClients
+    .filter((item) => normalize([
+      item.code,
+      item.name,
+      item.billingCity,
+      item.deliveryCity,
+      item.billingZip,
+      item.deliveryZip,
+      item.email,
+      item.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 8);
+}
+
+function renderPromotionClientSuggestions(value = "") {
+  if (!promotionClientSuggestions) return;
+  const matches = getPromotionClientMatches(value);
+  if (!matches.length) {
+    promotionClientSuggestions.classList.remove("is-open");
+    promotionClientSuggestions.innerHTML = "";
+    return;
+  }
+  promotionClientSuggestions.innerHTML = matches.map((client, index) => `
+    <button class="suggestion" type="button" data-promotion-client-index="${index}">
+      <strong>${escapeHtml(client.name || "Client")}</strong>
+      <span>${escapeHtml([client.code, client.deliveryCity || client.billingCity, client.email || "email a saisir"].filter(Boolean).join(" · "))}</span>
+    </button>
+  `).join("");
+  promotionClientSuggestions.classList.add("is-open");
+}
+
+function handlePromotionClientSearch(value, autoSelect = false) {
   const cleanQuery = normalize(value.trim());
   if (!cleanQuery) {
     selectedPromotionClient = null;
+    promotionClientSuggestions?.classList.remove("is-open");
     renderPromotionHistory();
     return;
   }
-  const client = visibleClients.find((item) => normalize([item.code, item.name, item.billingCity, item.deliveryCity, item.email].join(" ")).includes(cleanQuery));
-  if (client) selectPromotionClient(client);
+  const matches = getPromotionClientMatches(value);
+  if (autoSelect && matches.length) selectPromotionClient(matches[0]);
+  else renderPromotionClientSuggestions(value);
 }
 
 function driveThumbnailUrl(fileId) {
@@ -8167,6 +8369,26 @@ selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 selectAccountOpening.addEventListener("click", () => openTarifForm("ouverture-de-compte"));
+previewTarif5010?.addEventListener("click", () => openDocumentPreview("tarif-50-plus-10"));
+previewCatalogue2026?.addEventListener("click", () => openDocumentPreview("catalogue-2026"));
+tarifPriceClientSearch?.addEventListener("input", (event) => {
+  const typed = event.target.value || "";
+  if (selectedTarifPriceClient && normalize(typed) !== normalize(`${selectedTarifPriceClient.name || ""}${selectedTarifPriceClient.code ? ` · ${selectedTarifPriceClient.code}` : ""}`)) {
+    selectedTarifPriceClient = null;
+  }
+  renderTarifPriceClientSuggestions();
+  renderTarifPriceResults();
+});
+tarifPriceClientSearch?.addEventListener("blur", () => {
+  setTimeout(() => tarifPriceClientSuggestions?.classList.remove("is-open"), 120);
+});
+tarifPriceClientSuggestions?.addEventListener("click", (event) => {
+  const index = event.target.closest("[data-tarif-price-client-index]")?.dataset.tarifPriceClientIndex;
+  if (index === undefined) return;
+  const client = getTarifPriceClientMatches(tarifPriceClientSearch?.value || "")[Number(index)];
+  if (client) selectTarifPriceClient(client);
+});
+tarifPriceRefSearch?.addEventListener("input", renderTarifPriceResults);
 prospectionCommercialFilter.addEventListener("change", renderProspectionRecords);
 prospectionStatusFilter?.addEventListener("change", renderProspectionRecords);
 prospectionAddButton.addEventListener("click", addProspectionRecord);
@@ -8180,8 +8402,18 @@ prospectionList.addEventListener("click", (event) => {
 });
 tarifSendForm.addEventListener("submit", sendTarif);
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
-promotionClientSearch?.addEventListener("change", (event) => handlePromotionClientSearch(event.target.value));
-promotionClientSearch?.addEventListener("blur", (event) => handlePromotionClientSearch(event.target.value));
+promotionClientSearch?.addEventListener("input", (event) => handlePromotionClientSearch(event.target.value));
+promotionClientSearch?.addEventListener("change", (event) => handlePromotionClientSearch(event.target.value, true));
+promotionClientSearch?.addEventListener("blur", (event) => {
+  handlePromotionClientSearch(event.target.value, true);
+  setTimeout(() => promotionClientSuggestions?.classList.remove("is-open"), 120);
+});
+promotionClientSuggestions?.addEventListener("click", (event) => {
+  const index = event.target.closest("[data-promotion-client-index]")?.dataset.promotionClientIndex;
+  if (index === undefined) return;
+  const client = getPromotionClientMatches(promotionClientSearch?.value || "")[Number(index)];
+  if (client) selectPromotionClient(client);
+});
 refreshPromotionsButtons.forEach((button) => {
   button.addEventListener("click", () => refreshPromotionsFromDrive(true));
 });
@@ -8196,6 +8428,10 @@ displayModeToggle.addEventListener("click", toggleDisplayMode);
 tabletMenuToggle?.addEventListener("click", toggleTabletMenu);
 tabletMenuBackdrop?.addEventListener("click", () => setTabletMenuOpen(false));
 themeToggle?.addEventListener("click", toggleThemeMode);
+window.addEventListener("resize", () => {
+  placeHeaderActionsForNavigation();
+  if (!usesCompactNavigation()) setTabletMenuOpen(false);
+});
 globalSearchInput?.addEventListener("input", renderGlobalSearchResults);
 globalSearchResults?.addEventListener("click", (event) => {
   const resultButton = event.target.closest("[data-global-result]");

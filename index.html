@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260824workflow1" />
+    <link rel="stylesheet" href="style.css?v=20260824catalogue1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -126,6 +126,7 @@
         </div>
       </header>
 
+      <div class="app-menu-panel">
       <nav class="app-tabs" aria-label="Navigation application">
         <div class="sidebar-brand" aria-hidden="true">
           <span class="sidebar-logo"><img src="assets/schuller-logo.png" alt="" /></span>
@@ -150,7 +151,8 @@
         <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
-      </nav>
+        </nav>
+      </div>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
 
       <main class="app-shell tutorial-shell is-hidden" id="tutorialView">
@@ -996,7 +998,10 @@
                 <h3>Tarif 50 + 10</h3>
                 <p>Tarif NET applicable à partir du 1er juillet 2026.</p>
               </div>
-              <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
+              <div class="tarif-card-actions">
+                <button class="ghost-button" type="button" id="previewTarif5010">Apercu plein ecran</button>
+                <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
+              </div>
             </article>
 
             <article class="tarif-card">
@@ -1016,7 +1021,10 @@
                 <h3>Catalogue 2026</h3>
                 <p>Catalogue Schuller 2026 au format PDF.</p>
               </div>
-              <button class="primary-button" type="button" id="selectCatalogue2026">Envoyer ce catalogue</button>
+              <div class="tarif-card-actions">
+                <button class="ghost-button" type="button" id="previewCatalogue2026">Feuilleter</button>
+                <button class="primary-button" type="button" id="selectCatalogue2026">Envoyer ce catalogue</button>
+              </div>
             </article>
 
             <article class="tarif-card">
@@ -1039,8 +1047,29 @@
               <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
               <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
               <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
-            </form>
-          </div>
+              </form>
+
+            <section class="tarif-price-check" aria-labelledby="tarifPriceTitle">
+              <div class="tarif-form-heading">
+                <div><span>Controle rapide</span><strong id="tarifPriceTitle">Verifier un prix 50 + 10</strong></div>
+                <small>Recherche par client et reference devant le client.</small>
+              </div>
+              <div class="tarif-price-fields">
+                <label class="tarif-price-field" for="tarifPriceClientSearch">
+                  Client
+                  <input id="tarifPriceClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                  <div class="suggestions" id="tarifPriceClientSuggestions" role="listbox"></div>
+                </label>
+                <label class="tarif-price-field" for="tarifPriceRefSearch">
+                  Reference ou produit
+                  <input id="tarifPriceRefSearch" type="search" autocomplete="off" placeholder="Ex : 45763, adhesif, gencod..." />
+                </label>
+              </div>
+              <div class="tarif-price-result" id="tarifPriceResult">
+                <div class="tarif-price-empty">Choisissez un client si besoin, puis tapez une reference ou une designation.</div>
+              </div>
+            </section>
+            </div>
         </section>
       </main>
 
@@ -1108,10 +1137,15 @@
           </div>
 
           <div class="promotion-toolbar">
-            <label for="promotionClientSearch">Client</label>
-            <input id="promotionClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
-            <label for="promotionRecipient">Adresse e-mail du client</label>
-            <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            <label class="promotion-field" for="promotionClientSearch">
+              Client
+              <input id="promotionClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+              <div class="suggestions" id="promotionClientSuggestions" role="listbox"></div>
+            </label>
+            <label class="promotion-field" for="promotionRecipient">
+              Adresse e-mail du client
+              <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            </label>
             <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
             <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
           </div>
@@ -1372,7 +1406,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260824workflow1" charset="UTF-8"></script>
+    <script src="script.js?v=20260824catalogue1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

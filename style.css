@@ -24,12 +24,31 @@
 .tarif-grid { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(320px, 1.1fr); gap: 22px; margin-top: 24px; align-items: start; }
 .tarif-card, .tarif-send-form { border: 1px solid #e1e5eb; border-radius: 18px; background: #fff; padding: 24px; box-shadow: 0 10px 28px rgba(28, 34, 45, .06); }
 .tarif-card { display: grid; gap: 20px; }
+.tarif-card-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.tarif-card-actions .ghost-button,
+.tarif-card-actions .primary-button { width: 100%; min-height: 46px; }
 .tarif-icon { width: 62px; height: 62px; display: grid; place-items: center; border-radius: 18px; background: linear-gradient(135deg, #e30613, #a8000a); color: #fff; font-size: 28px; font-weight: 800; }
 .tarif-icon-pdf { font-size: 15px; letter-spacing: .06em; }
 .tarif-card-copy span, .tarif-form-heading span { color: #6d7480; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .tarif-card-copy h3 { margin: 6px 0 8px; font-size: 25px; }
 .tarif-card-copy p, .tarif-form-heading small { margin: 0; color: #626b78; }
 .tarif-send-form { display: grid; grid-column: 1 / -1; gap: 14px; }
+.tarif-price-check { display: grid; grid-column: 1 / -1; gap: 16px; border: 1px solid #e1e5eb; border-radius: 18px; background: #fff; padding: 24px; box-shadow: 0 10px 28px rgba(28, 34, 45, .06); }
+.tarif-price-fields { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(280px, 1.2fr); gap: 14px; align-items: start; }
+.tarif-price-field { position: relative; display: grid; gap: 8px; color: #313844; font-weight: 800; }
+.tarif-price-field input { width: 100%; border: 1px solid #cfd5dd; border-radius: 12px; padding: 13px 14px; font: inherit; }
+.tarif-price-field input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: #e30613; }
+.tarif-price-field .suggestions { right: 0; left: 0; top: calc(100% + 4px); margin-top: 0; }
+.tarif-price-result { display: grid; gap: 10px; }
+.tarif-price-empty { padding: 18px; border: 1px dashed #d6dbe3; border-radius: 14px; color: #667085; font-weight: 800; background: #f8fafc; }
+.tarif-price-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, auto); gap: 14px; align-items: center; padding: 14px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
+.tarif-price-row strong { display: block; font-size: 19px; }
+.tarif-price-row span { display: block; color: #111827; font-weight: 800; line-height: 1.35; }
+.tarif-price-row small { display: block; margin-top: 4px; color: #667085; font-weight: 750; }
+.tarif-price-values { display: grid; grid-template-columns: repeat(2, minmax(118px, 1fr)); gap: 10px; }
+.tarif-price-values span { padding: 12px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc; text-align: right; }
+.tarif-price-values .is-prenet { border-color: #bbf7d0; background: #f0fdf4; }
+.tarif-price-values small { margin: 0 0 3px; }
 .tarif-form-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid #e5e8ed; }
 .tarif-form-heading div { display: grid; gap: 5px; }
 .tarif-send-form label { font-weight: 700; color: #313844; }
@@ -445,7 +464,7 @@
 }
 .stats-table {
   width: 100%;
-  min-width: 1260px;
+  min-width: 1380px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -469,10 +488,25 @@
 }
 .stats-table tr:last-child td { border-bottom: 0; }
 .stats-table tbody tr:hover { background: #fff8f8; }
+.stats-table th:nth-child(1), .stats-table td:nth-child(1) { width: 18%; }
+.stats-table th:nth-child(2), .stats-table td:nth-child(2) { width: 9%; }
+.stats-table th:nth-child(3), .stats-table td:nth-child(3) { width: 25%; }
+.stats-table th:nth-child(4), .stats-table td:nth-child(4) { width: 9%; }
+.stats-table th:nth-child(5), .stats-table td:nth-child(5) { width: 9%; }
+.stats-table th:nth-child(6), .stats-table td:nth-child(6) { width: 9%; }
+.stats-table th:nth-child(7), .stats-table td:nth-child(7) { width: 9%; }
+.stats-table th:nth-child(8), .stats-table td:nth-child(8) { width: 9%; }
+.stats-table th:nth-child(9), .stats-table td:nth-child(9) { width: 10%; }
+.stats-table td:nth-child(3) {
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.35;
+}
 .stats-table th:nth-child(n+4),
 .stats-table td:nth-child(n+4) {
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .stats-table td strong {
   display: block;
@@ -1273,6 +1307,10 @@ body.theme-dark .stats-table td strong {
   width: min(1840px, 100%);
   margin: 0 auto;
   padding: 12px clamp(10px, 1.2vw, 22px) 0;
+}
+
+.app-menu-panel {
+  display: contents;
 }
 
 .tab-button {
@@ -3694,12 +3732,33 @@ h2 {
 }
 .promotion-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, .7fr) minmax(220px, .8fr) minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, .9fr) minmax(260px, auto);
   gap: 14px;
   align-items: end;
   padding: 22px;
   border-bottom: 1px solid var(--line);
   background: #fafbfc;
+}
+.promotion-field {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  color: #111827;
+  font-weight: 850;
+}
+.promotion-field input {
+  width: 100%;
+}
+.promotion-field .suggestions {
+  right: 0;
+  left: 0;
+  top: calc(100% + 4px);
+  margin-top: 0;
+}
+.promotion-toolbar .primary-button {
+  min-height: 48px;
+  align-self: end;
+  white-space: normal;
 }
 .refresh-promotions-button { white-space: nowrap; }
 .promotion-refresh-inline {
@@ -7809,7 +7868,11 @@ body.dark-theme .prospection-card summary { color: #f8fbff; }
 @media (max-width: 1100px) {
   .prospection-toolbar { grid-template-columns: 1fr 1fr; }
   .prospection-toolbar button { min-height: 52px; }
-  .promotion-toolbar { grid-template-columns: 1fr 1fr; }
+  .promotion-toolbar,
+  .tarif-price-fields { grid-template-columns: 1fr; }
+  .promotion-toolbar .primary-button { width: 100%; }
+  .tarif-price-row,
+  .tarif-price-values { grid-template-columns: 1fr; }
 }
 
 body.tablet-mode .prospection-hero { align-items: stretch; }
@@ -8914,5 +8977,64 @@ body.tablet-mode .expense-history-heading {
     overflow-y: auto !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: 286px !important;
+  }
+
+  body.tablet-mode .header-actions {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    z-index: 96 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: min(310px, 84vw) !important;
+    max-height: min(286px, 48svh) !important;
+    gap: 8px !important;
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom)) !important;
+    overflow-y: auto !important;
+    background: #111318 !important;
+    border-top: 1px solid rgba(255, 255, 255, .10) !important;
+    box-shadow: 18px 0 44px rgba(15, 23, 42, .22) !important;
+    transform: translateX(-105%) !important;
+    transition: transform .22s ease !important;
+  }
+
+  body.tablet-mode.tablet-menu-open .header-actions {
+    transform: translateX(0) !important;
+  }
+
+  body.tablet-mode .header-actions .ghost-button,
+  body.tablet-mode .header-actions .offline-status,
+  body.tablet-mode .header-actions .sync-status {
+    width: 100% !important;
+    min-height: 48px !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+  }
+
+  body.tablet-mode .header-actions .ghost-button {
+    color: #f8fafc !important;
+    background: rgba(255, 255, 255, .08) !important;
+    border-color: rgba(255, 255, 255, .16) !important;
+  }
+
+  body.tablet-mode .app-tabs > .header-actions {
+    position: sticky !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 1 !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin-top: auto !important;
+    padding: 12px 0 0 !important;
+    background: #111318 !important;
+    border-top: 1px solid rgba(255, 255, 255, .10) !important;
+    box-shadow: none !important;
+    transform: none !important;
   }
 }
