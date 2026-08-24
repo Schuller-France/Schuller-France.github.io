@@ -7935,3 +7935,418 @@ body.tablet-mode #prospectionView .prospection-panel { padding: 22px !important;
   #promotionGrid.promotion-grid,
   body.tablet-mode #promotionGrid.promotion-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Responsive terrain 2026-08-24 : téléphone automatique + mode tablette plus pro. */
+body.tablet-mode {
+  --tablet-page: min(1600px, calc(100vw - 40px));
+}
+
+body.tablet-mode .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  border-bottom-color: rgba(15, 23, 42, .08);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .07);
+}
+
+body.tablet-mode .app-tabs {
+  width: min(340px, 86vw) !important;
+  padding: 18px 14px 24px !important;
+  background: #151515 !important;
+}
+
+body.tablet-mode .app-tabs .tab-button {
+  min-height: 54px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+body.tablet-mode .app-tabs .tab-button.is-active {
+  box-shadow: 0 10px 22px rgba(227, 6, 19, .24);
+}
+
+body.tablet-mode .panel-heading {
+  gap: 14px;
+}
+
+body.tablet-mode .panel-heading > div {
+  min-width: 0;
+}
+
+body.tablet-mode .panel-heading h2,
+body.tablet-mode .panel-heading h3,
+body.tablet-mode .dashboard-hero h2 {
+  overflow-wrap: anywhere;
+}
+
+body.tablet-mode .promotion-toolbar,
+body.tablet-mode .prospection-toolbar,
+body.tablet-mode .tour-toolbar,
+body.tablet-mode .tour-savebar,
+body.tablet-mode .backlog-toolbar,
+body.tablet-mode .notes-report-toolbar,
+body.tablet-mode .admin-prenet-topbar,
+body.tablet-mode .admin-prenet-filters,
+body.tablet-mode .admin-prenet-actions {
+  gap: 14px !important;
+}
+
+body.tablet-mode .promotion-card-actions,
+body.tablet-mode .quote-actions,
+body.tablet-mode .sample-actions,
+body.tablet-mode .order-actions,
+body.tablet-mode .tour-actions,
+body.tablet-mode .notes-form-actions {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+
+body.tablet-mode .promotion-preview-thumb {
+  min-height: 300px;
+}
+
+body.tablet-mode .global-search-results {
+  max-height: min(620px, calc(100vh - 96px));
+}
+
+body.tablet-mode .global-search-results button,
+body.tablet-mode .suggestions button,
+body.tablet-mode [role="listbox"] button {
+  min-height: 56px;
+}
+
+body.tablet-mode .stats-filter-grid,
+body.tablet-mode .client360-search-card,
+body.tablet-mode .client360-identity,
+body.tablet-mode .client360-grid,
+body.tablet-mode .client360-article-hero,
+body.tablet-mode .admin-prenet-topbar,
+body.tablet-mode .admin-prenet-filters,
+body.tablet-mode .admin-prenet-actions,
+body.tablet-mode .prospection-fields,
+body.tablet-mode .quote-history-heading,
+body.tablet-mode .expense-history-heading {
+  grid-template-columns: 1fr !important;
+}
+
+@media (max-width: 860px) {
+  body:not(.tablet-mode) .app-view:not(.is-hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto 1fr !important;
+    min-height: 100svh;
+  }
+
+  body:not(.tablet-mode) .tablet-menu-toggle {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    place-items: center;
+    gap: 4px;
+    background: #171717;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .14);
+  }
+
+  body:not(.tablet-mode) .tablet-menu-toggle span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: #fff;
+    border-radius: 999px;
+  }
+
+  body:not(.tablet-mode) .tablet-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: block;
+    background: rgba(15, 23, 42, .38);
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease;
+  }
+
+  body:not(.tablet-mode).tablet-menu-open .tablet-menu-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body:not(.tablet-mode) .app-tabs {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 90 !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: min(330px, 88vw) !important;
+    height: 100svh !important;
+    padding: 18px 14px 24px !important;
+    transform: translateX(-105%);
+    transition: transform .22s ease;
+    box-shadow: 18px 0 44px rgba(15, 23, 42, .24);
+  }
+
+  body:not(.tablet-mode).tablet-menu-open .app-tabs {
+    transform: translateX(0);
+  }
+
+  body:not(.tablet-mode) .app-tabs .tab-button {
+    min-height: 52px;
+    font-size: 15px;
+  }
+
+  body:not(.tablet-mode) .app-header {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px !important;
+  }
+
+  body:not(.tablet-mode) .brand-lockup {
+    min-width: 0;
+  }
+
+  body:not(.tablet-mode) .brand-lockup .eyebrow {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  body:not(.tablet-mode) .global-search {
+    grid-column: 1 / -1;
+    order: 3;
+    max-width: none !important;
+    width: 100%;
+  }
+
+  body:not(.tablet-mode) .global-search input {
+    min-height: 48px;
+    border-radius: 14px;
+  }
+
+  body:not(.tablet-mode) .header-actions {
+    grid-column: 1 / -1;
+    order: 4;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+
+  body:not(.tablet-mode) .header-actions .offline-status,
+  body:not(.tablet-mode) .header-actions .ghost-button {
+    min-height: 44px;
+    width: 100%;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+
+  body:not(.tablet-mode) .app-shell {
+    grid-column: 1 !important;
+    width: 100%;
+    max-width: none;
+    padding: 14px 10px 32px !important;
+  }
+
+  .login-view {
+    min-height: 100svh;
+    padding: 18px 12px;
+    place-items: start center;
+  }
+
+  .login-logo {
+    position: static;
+    width: min(210px, 62vw);
+    margin: 4px auto 14px;
+  }
+
+  .login-card {
+    width: min(100%, 440px);
+    padding: 24px 20px;
+    gap: 14px;
+    border-radius: 14px;
+  }
+
+  .login-card h1 {
+    font-size: 28px;
+  }
+
+  .password-field {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .password-toggle {
+    width: 100%;
+  }
+
+  .panel,
+  .metric-card,
+  .selected-client,
+  .promotion-card,
+  .tarif-card,
+  .document-card,
+  .client360-card {
+    border-radius: 14px !important;
+  }
+
+  .panel-heading,
+  .dashboard-hero,
+  .app-header,
+  .promotion-header-actions,
+  .tarif-form-heading,
+  .quote-history-item,
+  .expense-history-item {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .dashboard-hero,
+  .client-panel,
+  .order-panel,
+  .summary-panel,
+  .history-panel,
+  .quote-panel,
+  .sample-panel,
+  .notes-panel,
+  .tour-panel,
+  .backlog-panel,
+  .prenet-panel,
+  .tarif-panel,
+  .promotion-panel,
+  .expenses-panel,
+  .stats-panel,
+  .client360-panel,
+  .admin-hero,
+  .admin-log-panel,
+  .admin-expense-panel {
+    padding: 16px !important;
+  }
+
+  .dashboard-grid,
+  .dashboard-main-grid,
+  .dashboard-ranking-grid,
+  .summary-list,
+  .quote-layout,
+  .quote-client-wide,
+  .sample-layout,
+  .notes-layout,
+  .tour-layout,
+  .tarif-grid,
+  .promotion-grid,
+  .stats-filter-grid,
+  .stats-kpi-grid,
+  .client360-search-card,
+  .client360-identity,
+  .client360-kpis,
+  .client360-grid,
+  .client360-article-hero,
+  .client360-article-mini-kpis,
+  .expenses-rules,
+  .expenses-meta,
+  .expenses-actions,
+  .expenses-summary,
+  .prospection-toolbar,
+  .prospection-fields,
+  .admin-dashboard-grid,
+  .admin-prenet-topbar,
+  .admin-prenet-filters,
+  .admin-prenet-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  #promotionGrid.promotion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  #promotionGrid .promotion-preview-thumb,
+  body.tablet-mode #promotionGrid .promotion-preview-thumb {
+    height: auto;
+    min-height: 260px;
+    aspect-ratio: 4 / 3;
+  }
+
+  #promotionGrid .promotion-card-actions,
+  .promotion-toolbar,
+  .order-actions,
+  .quote-actions,
+  .sample-actions,
+  .tour-actions,
+  .notes-form-actions,
+  .notes-report-toolbar,
+  .tarif-send-form {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  button:not(.tab-button):not(.tablet-menu-toggle):not(.icon-button),
+  .primary-button,
+  .ghost-button,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    min-height: 48px;
+    max-width: 100%;
+  }
+
+  .table-wrap,
+  .dashboard-table-wrap,
+  .stats-table-wrap,
+  .admin-log-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .promotion-modal {
+    padding: 8px;
+  }
+
+  .promotion-modal-header {
+    min-height: 56px;
+    padding: 10px 12px;
+  }
+
+  .promotion-modal iframe {
+    height: calc(100svh - 76px);
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1180px) {
+  body:not(.tablet-mode) .app-view:not(.is-hidden) {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  body:not(.tablet-mode) .app-tabs {
+    width: 232px;
+    padding: 22px 12px;
+  }
+
+  body:not(.tablet-mode) .app-tabs .tab-button {
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  body:not(.tablet-mode) .app-header {
+    padding-inline: 20px;
+  }
+
+  body:not(.tablet-mode) .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  body:not(.tablet-mode) .app-shell {
+    padding-inline: 20px;
+  }
+}

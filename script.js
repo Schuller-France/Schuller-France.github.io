@@ -725,8 +725,12 @@ function toggleDisplayMode() {
   setDisplayMode(document.body.classList.contains("tablet-mode") ? "pc" : "tablet");
 }
 
+function usesCompactNavigation() {
+  return document.body.classList.contains("tablet-mode") || window.matchMedia("(max-width: 860px)").matches;
+}
+
 function setTabletMenuOpen(open) {
-  const shouldOpen = Boolean(open) && document.body.classList.contains("tablet-mode");
+  const shouldOpen = Boolean(open) && usesCompactNavigation();
   document.body.classList.toggle("tablet-menu-open", shouldOpen);
   if (tabletMenuToggle) {
     tabletMenuToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
