@@ -44,7 +44,11 @@ let selectedTourCodes = new Set();
 let tourMapInstance = null;
 let tourMarkersLayer = null;
 let tourRouteLayer = null;
+let tourUserLocationLayer = null;
 let tourMarkerByCode = new Map();
+let tourUserLocation = null;
+let tourLocationWatchId = null;
+let tourFollowUserLocation = false;
 let driveAutoRefreshTimer = null;
 let selectedPromotionClient = null;
 let loginProgressTimer = null;
@@ -514,6 +518,8 @@ const tourSelectionCount = document.querySelector("#tourSelectionCount");
 const tourResultCount = document.querySelector("#tourResultCount");
 const tourMapTitle = document.querySelector("#tourMapTitle");
 const tourRouteSummary = document.querySelector("#tourRouteSummary");
+const locateTourUser = document.querySelector("#locateTourUser");
+const tourLocationStatus = document.querySelector("#tourLocationStatus");
 const openGoogleMapsRoute = document.querySelector("#openGoogleMapsRoute");
 const openWazeRoute = document.querySelector("#openWazeRoute");
 const clearTourSelection = document.querySelector("#clearTourSelection");
@@ -7113,8 +7119,7 @@ function getTourClients() {
 function getFilteredTourClients() {
   const query = normalize(tourSearch?.value || "");
   const clients = getTourClients();
-  if (!query) return clients;
-  return clients.filter((client) => normalize([
+  const filteredClients = query ? clients.filter((client) => normalize([
     client.code,
     client.name,
     client.billingCity,
@@ -7123,7 +7128,17 @@ function getFilteredTourClients() {
     client.deliveryZip,
     client.deliveryAddress,
     client.sector,
-  ].join(" ")).includes(query));
+  ].join(" ")).includes(query)) : clients;
+
+  if (!tourUserLocation) return filteredClients;
+  return [...filteredClients].sort((a, b) => {
+    const distanceA = getTourClientDistanceKm(a);
+    const distanceB = getTourClientDistanceKm(b);
+    if (distanceA === null && distanceB === null) return 0;
+    if (distanceA === null) return 1;
+    if (distanceB === null) return -1;
+    return distanceA - distanceB;
+  });
 }
 
 function getSelectedTourClients() {
@@ -7190,6 +7205,112 @@ function distanceKmBetweenPoints(a, b) {
   return 2 * earthRadius * Math.asin(Math.sqrt(h));
 }
 
+function getTourClientDistanceKm(client) {
+  if (!tourUserLocation) return null;
+  const coordinates = getClientCoordinates(client);
+  if (!coordinates) return null;
+  return distanceKmBetweenPoints(tourUserLocation, coordinates);
+}
+
+function formatDistanceKm(distance) {
+  if (distance === null || distance === undefined || !Number.isFinite(distance)) return "";
+  if (distance < 1) return `${Math.round(distance * 1000)} m`;
+  if (distance < 10) return `${distance.toFixed(1).replace(".", ",")} km`;
+  return `${Math.round(distance)} km`;
+}
+
+function updateTourLocationStatus(message = "") {
+  if (tourLocationStatus) {
+    if (message) tourLocationStatus.textContent = message;
+    else if (tourUserLocation) {
+      const accuracy = tourUserLocation.accuracy ? ` · précision ${formatDistanceKm(tourUserLocation.accuracy / 1000)}` : "";
+      tourLocationStatus.textContent = `Position active${accuracy}`;
+    } else {
+      tourLocationStatus.textContent = "Carte interactive";
+    }
+  }
+  if (locateTourUser) {
+    locateTourUser.textContent = tourLocationWatchId === null ? "Me localiser" : "Arrêter localisation";
+    locateTourUser.classList.toggle("is-active", tourLocationWatchId !== null);
+  }
+}
+
+function renderTourUserLocation() {
+  if (!tourMapInstance || !tourUserLocationLayer) return;
+  tourUserLocationLayer.clearLayers();
+  if (!tourUserLocation) return;
+  const latLng = [tourUserLocation.lat, tourUserLocation.lng];
+  const accuracy = Number(tourUserLocation.accuracy) || 0;
+  if (accuracy > 0) {
+    L.circle(latLng, {
+      radius: accuracy,
+      color: "#2563eb",
+      weight: 1,
+      fillColor: "#60a5fa",
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(tourUserLocationLayer);
+  }
+  L.circleMarker(latLng, {
+    radius: 9,
+    color: "#ffffff",
+    weight: 3,
+    fillColor: "#2563eb",
+    fillOpacity: 1,
+  })
+    .bindPopup(`<strong>Vous êtes ici</strong><br><small>${escapeHtml(tourLocationStatus?.textContent || "Position active")}</small>`)
+    .addTo(tourUserLocationLayer);
+}
+
+function stopTourLocationTracking(message = "") {
+  if (tourLocationWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(tourLocationWatchId);
+  }
+  tourLocationWatchId = null;
+  tourFollowUserLocation = false;
+  updateTourLocationStatus(message || (tourUserLocation ? "Position conservée" : "Carte interactive"));
+}
+
+function startTourLocationTracking() {
+  if (!navigator.geolocation) {
+    updateTourLocationStatus("Localisation indisponible sur cet appareil");
+    return;
+  }
+  if (!initTourMap()) return;
+  if (tourLocationWatchId !== null) {
+    stopTourLocationTracking("Localisation arrêtée");
+    renderTourPlanner();
+    return;
+  }
+  tourFollowUserLocation = true;
+  updateTourLocationStatus("Autorisation localisation...");
+  tourLocationWatchId = navigator.geolocation.watchPosition((position) => {
+    tourUserLocation = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      accuracy: position.coords.accuracy || 0,
+      updatedAt: Date.now(),
+    };
+    updateTourLocationStatus();
+    renderTourPlanner();
+    if (tourFollowUserLocation && tourMapInstance) {
+      tourMapInstance.setView([tourUserLocation.lat, tourUserLocation.lng], Math.max(tourMapInstance.getZoom(), 12));
+    }
+  }, (error) => {
+    const messages = {
+      1: "Localisation refusée",
+      2: "Position introuvable",
+      3: "Localisation trop longue",
+    };
+    stopTourLocationTracking(messages[error.code] || "Localisation impossible");
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 15000,
+    timeout: 12000,
+  });
+  updateTourLocationStatus("Recherche position...");
+}
+
 function getSelectedTourStats(codes = Array.from(selectedTourCodes)) {
   const clients = codes
     .map((code) => visibleClients.find((client) => client.code === code))
@@ -7234,6 +7355,7 @@ function initTourMap() {
   }).addTo(tourMapInstance);
   tourMarkersLayer = L.layerGroup().addTo(tourMapInstance);
   tourRouteLayer = L.layerGroup().addTo(tourMapInstance);
+  tourUserLocationLayer = L.layerGroup().addTo(tourMapInstance);
   setTimeout(() => tourMapInstance.invalidateSize(), 150);
   return true;
 }
@@ -7286,6 +7408,7 @@ function renderInteractiveTourMap(clients) {
   } else if (fitPoints.length > 1) {
     tourMapInstance.fitBounds(fitPoints, { padding: [26, 26], maxZoom: selectedCoordinates.length ? 12 : 8 });
   }
+  renderTourUserLocation();
   updateTourRouteSummary();
 }
 
@@ -7458,7 +7581,7 @@ function renderTourPlanner() {
     tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
   }
   tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
-  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} · ${mappedCount} sur la carte`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} · ${mappedCount} sur la carte${tourUserLocation ? " · proches d'abord" : ""}`;
   openGoogleMapsRoute.disabled = selectedCount === 0;
   openWazeRoute.disabled = selectedCount === 0;
   clearTourSelection.disabled = selectedCount === 0;
@@ -7478,13 +7601,15 @@ function renderTourPlanner() {
         const selected = selectedTourCodes.has(client.code);
         const address = getClientRouteAddress(client);
         const hasGps = Boolean(getClientCoordinates(client));
+        const distance = getTourClientDistanceKm(client);
+        const distanceText = distance !== null ? ` · ${formatDistanceKm(distance)}` : "";
         return `
           <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}" data-tour-toggle="${escapeHtml(client.code)}">
             <label>
               <input type="checkbox" ${selected ? "checked" : ""} data-tour-toggle="${escapeHtml(client.code)}" />
               <span>
                 <strong>${escapeHtml(client.name)}</strong>
-                <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
+                <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}${escapeHtml(distanceText)}</small>
               </span>
             </label>
             <em>${escapeHtml(address || "Adresse incomplète")}${hasGps ? "" : " · GPS à corriger"}</em>
@@ -8742,6 +8867,7 @@ tourSelectedList.addEventListener("click", (event) => {
   if (code) toggleTourClient(code);
 });
 clearTourSelection.addEventListener("click", clearTour);
+locateTourUser?.addEventListener("click", startTourLocationTracking);
 openGoogleMapsRoute.addEventListener("click", openGoogleRoute);
 openWazeRoute.addEventListener("click", openWazeNextClient);
 saveTourButton.addEventListener("click", saveCurrentTour);

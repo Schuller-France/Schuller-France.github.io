@@ -3633,6 +3633,25 @@ h2 {
   font-weight: 800;
 }
 
+.tour-location-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.tour-location-actions .ghost-button.is-active {
+  color: #075985;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+}
+
+.tour-location-actions small {
+  flex: 1 1 100%;
+  text-align: right;
+}
+
 .france-map {
   position: relative;
   min-height: 620px;
@@ -4715,6 +4734,18 @@ h2 {
 
 .tablet-mode .tour-results-heading {
   order: 1;
+}
+
+.tablet-mode .tour-location-actions {
+  justify-content: stretch;
+}
+
+.tablet-mode .tour-location-actions .ghost-button {
+  width: 100%;
+}
+
+.tablet-mode .tour-location-actions small {
+  text-align: left;
 }
 
 .tablet-mode .tour-client-list {

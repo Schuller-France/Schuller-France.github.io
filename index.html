@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260825prenetmail1" />
+    <link rel="stylesheet" href="style.css?v=20260825tourlocation1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -925,7 +925,10 @@
                   <p class="step">Carte</p>
                   <h3 id="tourMapTitle">Clients du secteur</h3>
                 </div>
-                <small>Carte interactive</small>
+                <div class="tour-location-actions">
+                  <button class="ghost-button compact" type="button" id="locateTourUser">Me localiser</button>
+                  <small id="tourLocationStatus">Carte interactive</small>
+                </div>
               </div>
               <div class="france-map" id="tourMap" aria-label="Carte interactive des clients"></div>
               <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée. Les coordonnées exactes seront utilisées dès qu'elles seront présentes dans le fichier clients.</p>
@@ -1438,7 +1441,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260825prenetmail1" charset="UTF-8"></script>
+    <script src="script.js?v=20260825tourlocation1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
