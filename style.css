@@ -3882,6 +3882,32 @@ h2 {
 .promotion-history article,
 .promotion-history-empty { padding: 12px 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; }
 .promotion-history article { display: grid; gap: 4px; }
+.promotion-history-item {
+  position: relative;
+  padding-right: 48px !important;
+}
+.promotion-history-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: #b42318;
+  background: #fff5f5;
+  border: 1px solid #f1b8bd;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+}
+.promotion-history-delete:hover {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
 .promotion-history strong { font-size: 15px; }
 .promotion-history span { color: #374151; font-weight: 800; }
 .promotion-history small,

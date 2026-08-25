@@ -1689,6 +1689,12 @@ function addPromotionHistoryItem(recipient, ids) {
   renderPromotionHistory();
 }
 
+function deletePromotionHistoryItem(id) {
+  if (!id) return;
+  savePromotionHistory(getPromotionHistory().filter((item) => item.id !== id));
+  renderPromotionHistory();
+}
+
 function renderPromotionHistory() {
   if (!promotionHistory) return;
   const history = getPromotionHistory()
@@ -1699,7 +1705,8 @@ function renderPromotionHistory() {
     return;
   }
   promotionHistory.innerHTML = history.map((item) => `
-    <article>
+    <article class="promotion-history-item">
+      <button class="promotion-history-delete" type="button" data-delete-promotion-history="${escapeHtml(item.id)}" aria-label="Retirer cet historique">&times;</button>
       <strong>${escapeHtml(item.clientName || item.recipient)}</strong>
       <span>${escapeHtml(item.promotions.join(", "))}</span>
       <small>${escapeHtml(new Date(item.date).toLocaleDateString("fr-FR"))} · ${escapeHtml(item.recipient || "")}</small>
@@ -9257,6 +9264,10 @@ promotionClientSuggestions?.addEventListener("click", (event) => {
   if (index === undefined) return;
   const client = getPromotionClientMatches(promotionClientSearch?.value || "")[Number(index)];
   if (client) selectPromotionClient(client);
+});
+promotionHistory?.addEventListener("click", (event) => {
+  const id = event.target.closest("[data-delete-promotion-history]")?.dataset.deletePromotionHistory;
+  if (id) deletePromotionHistoryItem(id);
 });
 refreshPromotionsButtons.forEach((button) => {
   button.addEventListener("click", () => refreshPromotionsFromDrive(true));
