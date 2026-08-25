@@ -3298,6 +3298,54 @@ h2 {
   padding: 26px 30px 34px;
 }
 
+.prenet-send-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(160px, .8fr);
+  gap: 12px;
+  align-items: end;
+  padding: 18px 30px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.prenet-send-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.prenet-send-form input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
+  background: var(--white);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.prenet-send-form input:focus {
+  border-color: var(--red);
+  outline: 3px solid rgba(227, 6, 19, 0.1);
+}
+
+.prenet-send-form .primary-button {
+  min-height: 48px;
+}
+
+.prenet-send-form .tarif-send-status {
+  align-self: center;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .prenet-send-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .prenet-empty {
   display: grid;
   gap: 7px;
@@ -4917,6 +4965,7 @@ h2 {
   }
 
   .prenet-result,
+  .prenet-send-form,
   .prenet-search-block,
   .notes-search,
   .notes-editor,

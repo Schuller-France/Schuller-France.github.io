@@ -535,6 +535,10 @@ const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
 const prenetSector = document.querySelector("#prenetSector");
+const prenetSendForm = document.querySelector("#prenetSendForm");
+const prenetRecipient = document.querySelector("#prenetRecipient");
+const prenetSendStatus = document.querySelector("#prenetSendStatus");
+const sendPrenetPrices = document.querySelector("#sendPrenetPrices");
 const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
 const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
@@ -1905,6 +1909,7 @@ function renderPrenetEmpty() {
   prenetClientSuggestions.innerHTML = "";
   prenetClientSuggestions.classList.remove("is-open");
   prenetSector.textContent = currentUser?.sectors?.join(" + ") || currentUser?.sector || "Secteur";
+  resetPrenetSendForm();
   prenetResult.innerHTML = `
     <div class="prenet-empty">
       <strong>Sélectionnez un client</strong>
@@ -1983,6 +1988,10 @@ function filterPrenetEntries(entries, query) {
   ].join(" ")).includes(cleanQuery));
 }
 
+function getPrenetEntryQuantity(entry) {
+  return parseAmount(entry?.quantity ?? entry?.qty ?? entry?.quantite ?? entry?.minQuantity ?? entry?.minimumQuantity);
+}
+
 function findPrenetClientForOrder(client) {
   if (!client) return null;
   const clientCode = normalize(client.code || client.clientCode || "");
@@ -2006,25 +2015,143 @@ function findPrenetClientForOrder(client) {
   return null;
 }
 
-function findPrenetEntryForProduct(client, product) {
+function findPrenetEntryForProduct(client, product, orderedQuantity = 0) {
   if (!client || !product) return null;
   const prenetClient = findPrenetClientForOrder(client);
   const entries = getPrenetNewEntries(prenetClient);
   if (!entries.length) return null;
   const productRef = normalize(product.ref || "");
   const productGencod = normalize(product.gencod || "");
-  return entries.find((entry) => {
+  const matchingEntries = entries.filter((entry) => {
     const entryRef = normalize(entry.ref || entry.reference || "");
     const entryGencod = normalize(entry.gencod || entry.genCode || "");
     return (productRef && entryRef === productRef) || (productGencod && entryGencod === productGencod);
-  }) || null;
+  });
+  if (!matchingEntries.length) return null;
+
+  const quantity = Math.max(Number(orderedQuantity) || 0, 0);
+  if (!quantity) {
+    return matchingEntries
+      .sort((a, b) => getPrenetEntryQuantity(a) - getPrenetEntryQuantity(b))[0] || null;
+  }
+
+  return matchingEntries
+    .filter((entry) => {
+      const minQuantity = getPrenetEntryQuantity(entry);
+      return minQuantity > 0 && quantity >= minQuantity;
+    })
+    .sort((a, b) => getPrenetEntryQuantity(b) - getPrenetEntryQuantity(a))[0] || null;
 }
 
-function getOrderUnitPrice(product) {
+function getOrderUnitPrice(product, quantity = 0) {
   if (!product) return 0;
-  const prenetEntry = findPrenetEntryForProduct(selectedClient, product);
+  const prenetEntry = findPrenetEntryForProduct(selectedClient, product, quantity);
   const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
   return prenetPrice > 0 ? prenetPrice : Number(product.price) || 0;
+}
+
+function getPrenetClientEmail(client) {
+  if (!client) return "";
+  if (client.email || client.mail) return client.email || client.mail;
+  const clientCode = normalize(client.code || client.clientCode || "");
+  const clientName = normalize(client.name || client.clientName || "");
+  const match = allClients.find((item) => {
+    if (clientCode && normalize(item.code || item.clientCode || "") === clientCode) return true;
+    return clientName && normalize(item.name || item.clientName || "") === clientName;
+  });
+  return match?.email || "";
+}
+
+function resetPrenetSendForm() {
+  if (!prenetSendForm) return;
+  prenetSendForm.classList.add("is-hidden");
+  if (prenetRecipient) prenetRecipient.value = "";
+  if (prenetSendStatus) {
+    prenetSendStatus.textContent = "";
+    prenetSendStatus.className = "tarif-send-status";
+  }
+  if (sendPrenetPrices) sendPrenetPrices.disabled = false;
+}
+
+function showPrenetSendForm(client) {
+  if (!prenetSendForm) return;
+  const email = getPrenetClientEmail(client);
+  prenetSendForm.classList.remove("is-hidden");
+  if (prenetRecipient) prenetRecipient.value = email;
+  if (prenetSendStatus) {
+    prenetSendStatus.textContent = email ? "" : "Ajoutez l'adresse e-mail du client avant l'envoi.";
+    prenetSendStatus.className = email ? "tarif-send-status" : "tarif-send-status is-warning";
+  }
+}
+
+function getCommercialPrenetRows(client) {
+  if (!client) return [];
+  const commercial = getAdminCommercialForPrenetClient(client) || currentUser || {};
+  return getPrenetNewEntries(client).map((entry) => ({
+    commercial: commercial.name || currentUser?.name || "",
+    sector: normalizeStatsSector(client.sector || "") || client.sector || currentUser?.sector || "-",
+    clientName: client.name || "Client",
+    clientCode: client.code || "",
+    clientAddress: formatAdminPrenetClientAddress(client),
+    ref: entry.ref || "",
+    designation: entry.designation || "",
+    quantity: entry.quantity,
+    price: parseAmount(entry.price),
+  })).sort((a, b) => a.ref.localeCompare(b.ref, "fr", { numeric: true }));
+}
+
+async function sendCommercialPrenetPrices(event) {
+  event?.preventDefault();
+  const recipient = String(prenetRecipient?.value || "").trim().toLowerCase();
+  const rows = getCommercialPrenetRows(selectedPrenetClient);
+  if (!selectedPrenetClient) {
+    if (prenetSendStatus) prenetSendStatus.textContent = "Sélectionnez d'abord un client.";
+    return;
+  }
+  if (!rows.length) {
+    if (prenetSendStatus) prenetSendStatus.textContent = "Aucun prix net à envoyer.";
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = "Adresse e-mail invalide.";
+      prenetSendStatus.className = "tarif-send-status is-error";
+    }
+    prenetRecipient?.focus();
+    return;
+  }
+  const commercial = getAdminCommercialForPrenetClient(selectedPrenetClient) || currentUser || {};
+  if (sendPrenetPrices) sendPrenetPrices.disabled = true;
+  if (prenetSendStatus) {
+    prenetSendStatus.textContent = "Envoi du PDF en cours...";
+    prenetSendStatus.className = "tarif-send-status";
+  }
+  try {
+    const result = await postService({
+      action: "sendAdminPrenetPrices",
+      recipient,
+      client: JSON.stringify({
+        name: selectedPrenetClient.name || "",
+        code: selectedPrenetClient.code || "",
+        sector: normalizeStatsSector(selectedPrenetClient.sector || "") || selectedPrenetClient.sector || "",
+        commercial: commercial.name || currentUser?.name || "",
+        address: formatAdminPrenetClientAddress(selectedPrenetClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = result.message || `Prix nets envoyés à ${recipient}.`;
+      prenetSendStatus.classList.add("is-success");
+    }
+    recordActivity("Prix nets envoyés", `${selectedPrenetClient.name || "Client"} - ${rows.length} référence(s) à ${recipient}`);
+  } catch (error) {
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = error.message || "Envoi impossible.";
+      prenetSendStatus.classList.add("is-error");
+    }
+  } finally {
+    if (sendPrenetPrices) sendPrenetPrices.disabled = false;
+  }
 }
 
 function renderPrenetReferenceResults(client, query = "") {
@@ -2046,6 +2173,7 @@ function selectPrenetClient(client) {
   prenetClientSuggestions.classList.remove("is-open");
   const newEntries = getPrenetNewEntries(client);
   const clientAddress = formatAdminPrenetClientAddress(client);
+  showPrenetSendForm(client);
   recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
 
   prenetResult.innerHTML = `
@@ -5926,7 +6054,7 @@ function renderLines() {
   lines.forEach((line) => {
     const product = findProduct(line.ref);
     const quantity = Math.max(Number(line.qty) || 0, 0);
-    const unitPrice = product ? getOrderUnitPrice(product) : 0;
+    const unitPrice = product ? getOrderUnitPrice(product, quantity) : 0;
     const lineTotal = product ? unitPrice * quantity : 0;
     const row = document.createElement("tr");
     row.dataset.lineId = line.id;
@@ -5988,7 +6116,7 @@ function getValidLines() {
     .map((line) => {
       const product = findProduct(line.ref);
       const qty = Math.max(Number(line.qty) || 0, 0);
-      const unitPrice = getOrderUnitPrice(product);
+      const unitPrice = getOrderUnitPrice(product, qty);
       return {
         ...line,
         product,
@@ -8630,6 +8758,7 @@ homeRemindersList.addEventListener("click", (event) => {
   if (doneId) markReminderDone(doneId);
 });
 prenetClientSearch.addEventListener("input", (event) => handlePrenetClientSearchInput(event.target.value));
+prenetSendForm?.addEventListener("submit", sendCommercialPrenetPrices);
 prenetResult.addEventListener("input", (event) => {
   if (event.target?.id !== "prenetReferenceSearch" || !selectedPrenetClient) return;
   const results = document.querySelector("#prenetReferenceResults");
