@@ -9089,3 +9089,97 @@ body.tablet-mode .expense-history-heading {
     transform: none !important;
   }
 }
+
+/* Menu compact : les controles restent en bas du tiroir, sans masquer les onglets. */
+@media (max-width: 860px) {
+  body:not(.tablet-mode) .app-tabs {
+    bottom: 0 !important;
+    height: auto !important;
+    max-height: 100svh !important;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:not(.tablet-mode) .app-tabs > .header-actions {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 1 !important;
+    order: 999 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin-top: 12px !important;
+    padding: 12px 0 0 !important;
+    overflow: visible !important;
+    background: #111318 !important;
+    border-top: 1px solid rgba(255, 255, 255, .10) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    backdrop-filter: none !important;
+  }
+
+  body:not(.tablet-mode) .app-tabs > .header-actions .ghost-button,
+  body:not(.tablet-mode) .app-tabs > .header-actions .offline-status,
+  body:not(.tablet-mode) .app-tabs > .header-actions .sync-status {
+    width: 100% !important;
+    min-height: 48px !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.tablet-mode) .app-tabs > .header-actions .ghost-button {
+    color: #f8fafc !important;
+    background: rgba(255, 255, 255, .08) !important;
+    border-color: rgba(255, 255, 255, .16) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  body.tablet-mode .app-tabs {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.tablet-mode .app-view:not(.is-hidden) {
+    grid-template-rows: auto 1fr !important;
+  }
+
+  body.tablet-mode .app-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    min-height: 0 !important;
+  }
+
+  body.tablet-mode .global-search {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    flex-basis: auto !important;
+  }
+
+  body.tablet-mode .app-tabs > .header-actions {
+    position: static !important;
+    order: 999 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin-top: 12px !important;
+    overflow: visible !important;
+  }
+}
