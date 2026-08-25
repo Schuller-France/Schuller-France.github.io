@@ -65,6 +65,7 @@ const tutorialProgressStorageKey = "schullerTutorialProgress";
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
+const sampleHistoryStorageKey = "schullerSampleHistory";
 const expenseDraftStorageKey = "schullerExpenseDrafts";
 const prospectionLocalStorageKey = "schullerProspectionFollowup";
 const orderDraftStorageKey = "schullerOrderDraft";
@@ -378,8 +379,11 @@ const adminClientCount = document.querySelector("#adminClientCount");
 const adminNoteCount = document.querySelector("#adminNoteCount");
 const adminReminderCount = document.querySelector("#adminReminderCount");
 const adminExpenseCount = document.querySelector("#adminExpenseCount");
+const adminSampleCount = document.querySelector("#adminSampleCount");
 const adminExpenseTotal = document.querySelector("#adminExpenseTotal");
 const adminExpenseBody = document.querySelector("#adminExpenseBody");
+const adminSampleTotal = document.querySelector("#adminSampleTotal");
+const adminSampleBody = document.querySelector("#adminSampleBody");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
@@ -450,6 +454,8 @@ const sampleNote = document.querySelector("#sampleNote");
 const addSampleLine = document.querySelector("#addSampleLine");
 const sendSampleRequest = document.querySelector("#sendSampleRequest");
 const sampleSendStatus = document.querySelector("#sampleSendStatus");
+const sampleHistorySearch = document.querySelector("#sampleHistorySearch");
+const sampleHistoryList = document.querySelector("#sampleHistoryList");
 const expensesPeriod = document.querySelector("#expensesPeriod");
 const expensesNote = document.querySelector("#expensesNote");
 const expensesLines = document.querySelector("#expensesLines");
@@ -906,6 +912,7 @@ async function loadAdminLogs() {
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
     adminExpenseBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Impossible de charger les frais. Reconnectez-vous.</td></tr>';
+    if (adminSampleBody) adminSampleBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger les demandes d’échantillons. Reconnectez-vous.</td></tr>';
   } finally {
     refreshAdminLogs.disabled = false;
   }
@@ -942,6 +949,69 @@ function getFilteredAdminExpenses() {
   if (scope.startsWith("user:")) return adminExpenseReportsCache.filter((report) => report.userId === scope.slice(5));
   if (scope.startsWith("sector:")) return adminExpenseReportsCache.filter((report) => String(report.sectors || "").includes(scope.slice(7)));
   return adminExpenseReportsCache;
+}
+
+function parseSampleLogDetail(log = {}) {
+  const detail = String(log.detail || "");
+  const cleanDetail = detail.replace(/\s+-\s+envoy[ée].*$/i, "");
+  const [clientPart, refsPart = ""] = cleanDetail.split(/\s+-\s+(.+)/);
+  const refs = refsPart
+    .split(/\s*,\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => ({ ref: part, designation: "", qty: "" }));
+  return {
+    id: `log:${log.date}:${log.userId}:${detail}`,
+    date: log.date || "-",
+    timestamp: parseFrenchDateTime(log.date || "") || 0,
+    userId: log.userId || "",
+    userName: log.userName || log.userId || "-",
+    sectors: log.sectors || "-",
+    clientName: clientPart || detail || "-",
+    clientCode: "",
+    sector: log.sectors || "-",
+    lines: refs.length ? refs : [{ ref: detail || "-", designation: "", qty: "" }],
+    source: "log",
+  };
+}
+
+function sampleHistoryMatchesAdminScope(item = {}) {
+  const scope = adminScopeFilter.value || "all";
+  if (scope === "all") return true;
+  if (scope.startsWith("user:")) return item.userId === scope.slice(5);
+  if (scope.startsWith("sector:")) return String(item.sectors || item.sector || "").includes(scope.slice(7));
+  return true;
+}
+
+function getAdminSampleRows() {
+  const logRows = getFilteredAdminLogs()
+    .filter((log) => normalize(log.type || "").includes("echantillon"))
+    .map(parseSampleLogDetail);
+
+  const localRows = getAllLocalSampleHistory()
+    .filter(sampleHistoryMatchesAdminScope)
+    .map((item) => ({
+      ...item,
+      timestamp: item.timestamp ? Date.parse(item.timestamp) || 0 : 0,
+      source: "local",
+    }));
+
+  const rows = [...localRows, ...logRows];
+  const seen = new Set();
+  return rows
+    .filter((row) => {
+      const key = normalize([
+        row.userId,
+        row.userName,
+        row.clientName,
+        row.date,
+        (row.lines || []).map((line) => line.ref).join(","),
+      ].join("|"));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }
 
 function parseFrenchDateTime(value = "") {
@@ -981,6 +1051,7 @@ function renderAdminDashboard() {
   adminNoteCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("note")).length);
   adminReminderCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("relance")).length);
   renderAdminExpenses();
+  renderAdminSampleRequests();
 
   adminTypeSummary.innerHTML = Object.keys(counts).length
     ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
@@ -1011,6 +1082,34 @@ function renderAdminDashboard() {
       <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
+}
+
+function renderAdminSampleRequests() {
+  if (!adminSampleBody) return;
+  const rows = getAdminSampleRows();
+  if (adminSampleCount) adminSampleCount.textContent = String(rows.length);
+  if (adminSampleTotal) adminSampleTotal.textContent = `${rows.length} demande${rows.length > 1 ? "s" : ""}`;
+  adminSampleBody.innerHTML = rows.length ? rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.date || "-")}</td>
+      <td><strong>${escapeHtml(row.userName || row.userId || "-")}</strong></td>
+      <td>${escapeHtml(row.sectors || row.sector || "-")}</td>
+      <td><strong>${escapeHtml(row.clientName || "-")}</strong><br><small>${escapeHtml(row.clientCode || "")}</small></td>
+      <td>
+        <details class="admin-expense-details admin-sample-details" open>
+          <summary>${escapeHtml((row.lines || []).length)} référence${(row.lines || []).length > 1 ? "s" : ""}</summary>
+          <ul>
+            ${(row.lines || []).map((line) => `
+              <li>
+                <strong>${escapeHtml(line.ref || "-")}${line.qty ? ` x${escapeHtml(line.qty)}` : ""}</strong>
+                <span>${escapeHtml(line.designation || line.comment || "")}</span>
+              </li>
+            `).join("")}
+          </ul>
+        </details>
+      </td>
+    </tr>
+  `).join("") : '<tr><td colspan="5" class="admin-empty">Aucune demande d’échantillon enregistrée sur ce filtre.</td></tr>';
 }
 
 function renderAdminExpenses() {
@@ -4031,6 +4130,7 @@ function showApp(user, token = user.token || "") {
   renderQuoteHistory();
   resetSampleRequest();
   renderSampleLines();
+  renderSampleHistory();
   resetExpenses();
   resetCommercialStatsFilters();
   renderPrenetEmpty();
@@ -4455,6 +4555,99 @@ function renderQuoteLines() {
   `).join("");
 }
 
+function sampleHistoryKey(userId = currentUser?.id || "default") {
+  return `${sampleHistoryStorageKey}:${userId || "default"}`;
+}
+
+function getSampleHistory(userId = currentUser?.id || "default") {
+  try {
+    const items = JSON.parse(localStorage.getItem(sampleHistoryKey(userId)) || "[]");
+    return Array.isArray(items) ? items : [];
+  } catch (error) {
+    localStorage.removeItem(sampleHistoryKey(userId));
+    return [];
+  }
+}
+
+function saveSampleHistory(items, userId = currentUser?.id || "default") {
+  localStorage.setItem(sampleHistoryKey(userId), JSON.stringify((Array.isArray(items) ? items : []).slice(0, 300)));
+}
+
+function formatSampleLineLabel(line = {}) {
+  return `${line.ref || "-"}${line.qty ? ` x${line.qty}` : ""}${line.designation ? ` - ${line.designation}` : ""}`;
+}
+
+function getAllLocalSampleHistory() {
+  const rows = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key || !key.startsWith(`${sampleHistoryStorageKey}:`)) continue;
+    try {
+      const items = JSON.parse(localStorage.getItem(key) || "[]");
+      if (Array.isArray(items)) rows.push(...items);
+    } catch {
+      // Ignore les anciennes valeurs locales illisibles.
+    }
+  }
+  return rows;
+}
+
+function addSampleHistoryItem(client, lines, note, status = "sent") {
+  if (!currentUser || !client || !Array.isArray(lines) || !lines.length) return;
+  const now = new Date();
+  const item = {
+    id: crypto.randomUUID(),
+    date: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
+    timestamp: now.toISOString(),
+    status,
+    userId: currentUser.id || "",
+    userName: currentUser.name || "",
+    sectors: (currentUser.sectors || [currentUser.sector]).filter(Boolean).join(" + "),
+    clientCode: client.code || "",
+    clientName: client.name || "",
+    sector: client.sector || "",
+    note: note || "",
+    lines: lines.map((line) => ({
+      ref: line.ref || "",
+      designation: line.designation || "",
+      qty: Math.max(1, Number(line.qty) || 1),
+      comment: line.comment || "",
+    })),
+  };
+  saveSampleHistory([item, ...getSampleHistory()].slice(0, 300));
+  renderSampleHistory();
+}
+
+function renderSampleHistory() {
+  if (!sampleHistoryList) return;
+  const query = normalize(sampleHistorySearch?.value || "");
+  const items = getSampleHistory().filter((item) => {
+    if (!query) return true;
+    return normalize([
+      item.date,
+      item.clientName,
+      item.clientCode,
+      item.sector,
+      item.note,
+      ...(item.lines || []).flatMap((line) => [line.ref, line.designation, line.qty, line.comment]),
+    ].join(" ")).includes(query);
+  });
+
+  sampleHistoryList.innerHTML = items.length
+    ? items.map((item) => `
+      <article class="quote-history-item sample-history-item">
+        <div class="quote-history-main">
+          <span class="quote-status-pill is-accepted">${escapeHtml(item.status === "training" ? "Formation" : "Envoyée")}</span>
+          <strong>${escapeHtml(item.clientName || "Client")}</strong>
+          <small>${escapeHtml(item.date || "")} · ${escapeHtml(item.clientCode || "")} · ${escapeHtml(item.sector || "")}</small>
+          <p>${escapeHtml((item.lines || []).map(formatSampleLineLabel).join(", ") || "Aucune référence")}</p>
+          ${item.note ? `<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
+        </div>
+      </article>
+    `).join("")
+    : '<div class="dashboard-empty">Aucune demande d’échantillon enregistrée pour ce compte.</div>';
+}
+
 function renderSampleClientSuggestions(query) {
   const cleanQuery = normalize(query.trim());
   sampleClientSuggestions.innerHTML = "";
@@ -4626,6 +4819,7 @@ async function sendSampleRequestDraft() {
   }
 
   if (isTrainingAccount()) {
+    addSampleHistoryItem(selectedSampleClient, validLines, sampleNote.value.trim(), "training");
     showTrainingStatus(sampleSendStatus, "Mode formation : demande d'échantillon validée, aucun e-mail réel envoyé.");
     markTutorialTabDone("sample");
     return;
@@ -4657,6 +4851,7 @@ async function sendSampleRequestDraft() {
       lines: JSON.stringify(validLines),
       note: sampleNote.value.trim(),
     });
+    addSampleHistoryItem(selectedSampleClient, validLines, sampleNote.value.trim(), "sent");
     recordActivity("Demande échantillon envoyée", `${selectedSampleClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
     sampleSendStatus.textContent = "Demande échantillon envoyée à flogilet44@gmail.com.";
     sampleSendStatus.classList.add("is-success");
@@ -8095,6 +8290,7 @@ quoteLines.addEventListener("click", (event) => {
 sampleClientSearch.addEventListener("input", (event) => handleSampleClientSearchInput(event.target.value));
 addSampleLine.addEventListener("click", addSampleLineItem);
 sendSampleRequest.addEventListener("click", sendSampleRequestDraft);
+sampleHistorySearch?.addEventListener("input", renderSampleHistory);
 sampleLines.addEventListener("input", (event) => {
   const row = event.target.closest("[data-sample-line]");
   const field = event.target.dataset.sampleField;

@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260824catalogue2" />
+    <link rel="stylesheet" href="style.css?v=20260825samplehistory1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -666,6 +666,17 @@
               </div>
             </section>
           </div>
+
+          <section class="quote-history-card sample-history-card">
+            <div class="quote-history-heading">
+              <div>
+                <p class="step">Suivi commercial</p>
+                <h3>Historique des demandes d'&eacute;chantillons</h3>
+              </div>
+              <input id="sampleHistorySearch" type="search" autocomplete="off" placeholder="Rechercher client, r&eacute;f&eacute;rence, date..." />
+            </div>
+            <div class="quote-history-list sample-history-list" id="sampleHistoryList"></div>
+          </section>
         </section>
       </main>
 
@@ -1169,6 +1180,7 @@
           <article class="panel metric-card"><span>Notes ajoutées</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
           <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminées</small></article>
           <article class="panel metric-card"><span>Frais contrôlés</span><strong id="adminExpenseCount">0</strong><small>Notes enregistrées / envoyées</small></article>
+          <article class="panel metric-card"><span>&Eacute;chantillons</span><strong id="adminSampleCount">0</strong><small>Demandes tous secteurs</small></article>
         </section>
         <section class="panel admin-expense-panel">
           <div class="panel-heading">
@@ -1183,6 +1195,22 @@
             <table class="admin-log-table admin-expense-table">
               <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Statut</th><th>Note</th><th>Total</th><th>Détail</th><th></th></tr></thead>
               <tbody id="adminExpenseBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel admin-sample-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Contr&ocirc;le &eacute;chantillons</p>
+              <h2>Demandes d'&eacute;chantillons tous secteurs</h2>
+              <p class="helper-text">Date, commercial, client et r&eacute;f&eacute;rences demand&eacute;es par secteur.</p>
+            </div>
+            <span class="status-pill" id="adminSampleTotal">0 demande</span>
+          </div>
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-sample-table">
+              <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Client</th><th>R&eacute;f&eacute;rences produit</th></tr></thead>
+              <tbody id="adminSampleBody"></tbody>
             </table>
           </div>
         </section>
@@ -1386,7 +1414,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260824catalogue2" charset="UTF-8"></script>
+    <script src="script.js?v=20260825samplehistory1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
