@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260825tourlocation1" />
+    <link rel="stylesheet" href="style.css?v=20260825maildocs1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -505,7 +505,7 @@
         </label>
 
         <button class="primary-button full" type="button" id="generateOrderFiles">
-          Télécharger CSV ERP + PDF
+          Envoyer la commande
         </button>
         <p class="helper-text">
           Le CSV contient uniquement les références. Le PDF contient la commande complète. Destinataire : france@schuller.eu.
@@ -1017,6 +1017,15 @@
           </div>
 
           <div class="tarif-grid">
+            <div class="tarif-client-panel">
+              <label class="promotion-field" for="tarifClientSearch">
+                Client
+                <input id="tarifClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                <div class="suggestions" id="tarifClientSuggestions" role="listbox"></div>
+              </label>
+              <p class="helper-text">Sélectionnez un client pour remplir automatiquement son e-mail avant l'envoi.</p>
+            </div>
+
             <article class="tarif-card">
               <div class="tarif-icon" aria-hidden="true">%</div>
               <div class="tarif-card-copy">
@@ -1166,7 +1175,7 @@
           <strong id="promotionModalTitle">Promotion</strong>
           <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
         </div>
-        <iframe id="promotionPreviewFrame" title="Aperçu promotion"></iframe>
+        <iframe id="promotionPreviewFrame" title="Aperçu promotion" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
 
       <main class="app-shell admin-shell is-hidden" id="adminView">
@@ -1441,7 +1450,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260825tourlocation1" charset="UTF-8"></script>
+    <script src="script.js?v=20260825maildocs1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

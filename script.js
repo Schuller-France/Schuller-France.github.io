@@ -51,6 +51,7 @@ let tourLocationWatchId = null;
 let tourFollowUserLocation = false;
 let driveAutoRefreshTimer = null;
 let selectedPromotionClient = null;
+let selectedTarifClient = null;
 let loginProgressTimer = null;
 let loginProgressValue = 0;
 let loginProgressTarget = 0;
@@ -91,6 +92,7 @@ const expenseLunchLimit = 20;
 const expenseDinnerLimit = 20;
 const expenseHotelDinnerLimit = 115;
 const schullerOperationsEmail = "france@schuller.eu";
+const schullerCommercialRequestEmail = "flogilet44@gmail.com";
 const purecreaAdminSectors = ["Secteur 20", "Secteur 21", "Secteur 22", "Secteur 23", "Secteur 24", "Secteur 25", "Secteur 26"];
 const adminCommercials = [
   { id: "agilet", name: "Alain Gilet", sectors: ["Secteur 1"] },
@@ -583,6 +585,8 @@ const promotionModal = document.querySelector("#promotionModal");
 const promotionModalTitle = document.querySelector("#promotionModalTitle");
 const promotionPreviewFrame = document.querySelector("#promotionPreviewFrame");
 const closePromotionModal = document.querySelector("#closePromotionModal");
+const tarifClientSearch = document.querySelector("#tarifClientSearch");
+const tarifClientSuggestions = document.querySelector("#tarifClientSuggestions");
 const tarifSendForm = document.querySelector("#tarifSendForm");
 const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
@@ -1488,6 +1492,9 @@ function renderAdminChecking() {
 }
 
 function resetTarifForm() {
+  selectedTarifClient = null;
+  if (tarifClientSearch) tarifClientSearch.value = "";
+  tarifClientSuggestions?.classList.remove("is-open");
   tarifSendForm.reset();
   tarifSendForm.classList.add("is-hidden");
   tarifSendStatus.textContent = "";
@@ -1504,7 +1511,8 @@ function openTarifForm(tariffId) {
   tarifSendStatus.textContent = tariffConfig.endpoint
     ? ""
     : "L’envoi sera disponible après l’autorisation Google de l’adresse expéditrice.";
-  requestAnimationFrame(() => tarifRecipient.focus());
+  if (selectedTarifClient?.email) tarifRecipient.value = selectedTarifClient.email;
+  requestAnimationFrame(() => (selectedTarifClient?.email ? tarifRecipient : tarifClientSearch || tarifRecipient).focus());
 }
 
 async function sendTarif(event) {
@@ -1565,6 +1573,35 @@ function getTariffDocument(documentId) {
   };
 }
 
+function drivePreviewUrl(fileId) {
+  return fileId ? `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview` : "";
+}
+
+function extractDriveFileId(url = "") {
+  const value = String(url || "");
+  const directMatch = value.match(/\/file\/d\/([^/]+)/);
+  if (directMatch) return directMatch[1];
+  const idMatch = value.match(/[?&]id=([^&]+)/);
+  if (idMatch) return idMatch[1];
+  return "";
+}
+
+function normalizeDrivePreviewUrl(url = "", fileId = "") {
+  if (fileId) return drivePreviewUrl(fileId);
+  const value = String(url || "").trim();
+  if (!value) return "";
+  const extractedId = extractDriveFileId(value);
+  if (extractedId) return drivePreviewUrl(extractedId);
+  if (value.includes("docs.google.com") && value.includes("/edit")) return value.replace(/\/edit.*$/, "/preview");
+  return value;
+}
+
+function setPreviewFrameUrl(url) {
+  if (!promotionPreviewFrame || !url) return;
+  promotionPreviewFrame.removeAttribute("srcdoc");
+  promotionPreviewFrame.src = url;
+}
+
 async function openDocumentPreview(documentId) {
   const documentEntry = getTariffDocument(documentId);
   if (!documentEntry || !promotionModal || !promotionPreviewFrame) return;
@@ -1572,10 +1609,10 @@ async function openDocumentPreview(documentId) {
   promotionModalTitle.textContent = documentEntry.name || "Document";
   promotionModal.classList.remove("is-hidden");
   setPromotionPreviewMessage("Chargement de l'aperçu", "Préparation du document depuis Google Drive...");
+  const fallbackPreviewUrl = normalizeDrivePreviewUrl(documentEntry.previewUrl, documentEntry.driveFileId || documentEntry.fileId || "");
 
-  if (documentEntry.previewUrl) {
-    promotionPreviewFrame.removeAttribute("srcdoc");
-    promotionPreviewFrame.src = documentEntry.previewUrl;
+  if (fallbackPreviewUrl) {
+    setPreviewFrameUrl(fallbackPreviewUrl);
     recordActivity("Document consulté", documentEntry.name || documentId);
     return;
   }
@@ -1589,8 +1626,7 @@ async function openDocumentPreview(documentId) {
       tariff: documentEntry.id || documentId,
     });
     if (result.previewUrl) {
-      promotionPreviewFrame.removeAttribute("srcdoc");
-      promotionPreviewFrame.src = result.previewUrl;
+      setPreviewFrameUrl(normalizeDrivePreviewUrl(result.previewUrl));
       recordActivity("Document consulté", documentEntry.name || documentId);
       return;
     }
@@ -1716,6 +1752,62 @@ function handlePromotionClientSearch(value, autoSelect = false) {
   else renderPromotionClientSuggestions(value);
 }
 
+function selectTarifClient(client) {
+  selectedTarifClient = client;
+  if (tarifClientSearch) tarifClientSearch.value = `${client.name} · ${client.code}`;
+  if (client.email) tarifRecipient.value = client.email;
+  if (!client.email && tarifRecipient.value) tarifRecipient.value = "";
+  tarifClientSuggestions?.classList.remove("is-open");
+  tarifSendStatus.textContent = client.email ? "" : "Client sélectionné : ajoutez l'adresse e-mail avant l'envoi.";
+  tarifSendStatus.className = client.email ? "tarif-send-status" : "tarif-send-status is-warning";
+}
+
+function getTarifClientMatches(value = "") {
+  const cleanQuery = normalize(value.trim());
+  if (!cleanQuery) return [];
+  return visibleClients
+    .filter((item) => normalize([
+      item.code,
+      item.name,
+      item.billingCity,
+      item.deliveryCity,
+      item.billingZip,
+      item.deliveryZip,
+      item.email,
+      item.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 8);
+}
+
+function renderTarifClientSuggestions(value = "") {
+  if (!tarifClientSuggestions) return;
+  const matches = getTarifClientMatches(value);
+  if (!matches.length) {
+    tarifClientSuggestions.classList.remove("is-open");
+    tarifClientSuggestions.innerHTML = "";
+    return;
+  }
+  tarifClientSuggestions.innerHTML = matches.map((client, index) => `
+    <button class="suggestion" type="button" data-tarif-client-index="${index}">
+      <strong>${escapeHtml(client.name || "Client")}</strong>
+      <span>${escapeHtml([client.code, client.deliveryCity || client.billingCity, client.email || "email a saisir"].filter(Boolean).join(" · "))}</span>
+    </button>
+  `).join("");
+  tarifClientSuggestions.classList.add("is-open");
+}
+
+function handleTarifClientSearch(value, autoSelect = false) {
+  const cleanQuery = normalize(value.trim());
+  if (!cleanQuery) {
+    selectedTarifClient = null;
+    tarifClientSuggestions?.classList.remove("is-open");
+    return;
+  }
+  const matches = getTarifClientMatches(value);
+  if (autoSelect && matches.length) selectTarifClient(matches[0]);
+  else renderTarifClientSuggestions(value);
+}
+
 function driveThumbnailUrl(fileId) {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1000`;
 }
@@ -1755,6 +1847,15 @@ function base64ToBlob(base64, mimeType = "application/pdf") {
     chunks.push(bytes);
   }
   return new Blob(chunks, { type: mimeType });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(reader.error || new Error("Lecture du fichier impossible."));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function setPromotionPreviewMessage(title, message) {
@@ -1824,6 +1925,11 @@ async function openPromotionPreview(promotionId) {
   promotionModalTitle.textContent = promotion.name;
   promotionModal.classList.remove("is-hidden");
   setPromotionPreviewMessage("Chargement de l’aperçu", "Préparation du document depuis Google Drive...");
+  const fallbackPreviewUrl = normalizeDrivePreviewUrl(promotion.previewUrl, promotion.driveFileId || promotion.fileId || "");
+  if (fallbackPreviewUrl) {
+    setPreviewFrameUrl(fallbackPreviewUrl);
+    recordActivity("Promotion consultée", promotion.name);
+  }
   try {
     const result = await postService({
       action: "getPromotionPreview",
@@ -1831,8 +1937,7 @@ async function openPromotionPreview(promotionId) {
       documentId: promotion.id || "",
     });
     if (result.previewUrl) {
-      promotionPreviewFrame.removeAttribute("srcdoc");
-      promotionPreviewFrame.src = result.previewUrl;
+      setPreviewFrameUrl(normalizeDrivePreviewUrl(result.previewUrl));
       recordActivity("Promotion consultée", promotion.name);
       return;
     }
@@ -1842,6 +1947,7 @@ async function openPromotionPreview(promotionId) {
     promotionPreviewFrame.src = promotionPreviewObjectUrl;
     recordActivity("Promotion consultée", promotion.name);
   } catch (error) {
+    if (fallbackPreviewUrl) return;
     setPromotionPreviewMessage(
       "Aperçu indisponible",
       error.message || "Impossible d’ouvrir ce document. Le format PDF reste le plus fiable pour les promotions client."
@@ -5139,6 +5245,8 @@ async function sendSampleRequestDraft() {
   try {
     await postService({
       action: "sendSampleRequest",
+      recipient: schullerCommercialRequestEmail,
+      destinationEmail: schullerCommercialRequestEmail,
       client: JSON.stringify({
         code: selectedSampleClient.code || "",
         name: selectedSampleClient.name || "",
@@ -5151,8 +5259,8 @@ async function sendSampleRequestDraft() {
       note: sampleNote.value.trim(),
     });
     addSampleHistoryItem(selectedSampleClient, validLines, sampleNote.value.trim(), "sent");
-    recordActivity("Demande échantillon envoyée", `${selectedSampleClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
-    sampleSendStatus.textContent = "Demande échantillon envoyée à flogilet44@gmail.com.";
+    recordActivity("Demande échantillon envoyée", `${selectedSampleClient.name} - ${refs}${more} - envoyé à ${schullerCommercialRequestEmail}`);
+    sampleSendStatus.textContent = `Demande échantillon envoyée à ${schullerCommercialRequestEmail}.`;
     sampleSendStatus.classList.add("is-success");
   } catch (error) {
     sampleSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
@@ -5730,6 +5838,8 @@ async function sendExecutiveExpenseReportDraft() {
     }));
     const result = await postService({
       action: "sendExecutiveExpenseReport",
+      recipient: schullerOperationsEmail,
+      destinationEmail: schullerOperationsEmail,
       owner,
       period: executiveExpensesPeriod?.value.trim() || "",
       note: executiveExpensesNote?.value.trim() || "",
@@ -5738,7 +5848,7 @@ async function sendExecutiveExpenseReportDraft() {
     });
     resetExecutiveExpensesForm();
     if (executiveExpensesSendStatus) {
-      executiveExpensesSendStatus.textContent = result.message || "Frais dirigeants envoyés.";
+      executiveExpensesSendStatus.textContent = result.message || `Frais dirigeants envoyés à ${schullerOperationsEmail}.`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
     }
     loadAdminLogs();
@@ -5920,6 +6030,8 @@ async function sendQuoteRequestDraft() {
   try {
     await postService({
       action: "sendQuoteRequest",
+      recipient: schullerCommercialRequestEmail,
+      destinationEmail: schullerCommercialRequestEmail,
       client: JSON.stringify({
         code: selectedQuoteClient.code || "",
         name: selectedQuoteClient.name || "",
@@ -5931,9 +6043,9 @@ async function sendQuoteRequestDraft() {
       lines: JSON.stringify(validLines),
       note: quoteNote.value.trim(),
     });
-    recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à flogilet44@gmail.com`);
+    recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à ${schullerCommercialRequestEmail}`);
     addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
-    quoteSendStatus.textContent = "Demande envoyée à flogilet44@gmail.com avec le fichier Excel.";
+    quoteSendStatus.textContent = `Demande envoyée à ${schullerCommercialRequestEmail} avec le fichier Excel.`;
     quoteSendStatus.classList.add("is-success");
   } catch (error) {
     quoteSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
@@ -8413,8 +8525,9 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
-function generateOrderFiles() {
+async function generateOrderFiles() {
   const validLines = getValidLines();
+  const orderSendButton = document.querySelector("#generateOrderFiles");
 
   if (!selectedClient) {
     alert("Selectionne d'abord un client.");
@@ -8447,11 +8560,40 @@ function generateOrderFiles() {
   }
 
   const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note });
+  const csvName = `${baseName}_ERP_REFERENCES.csv`;
+  const pdfName = `${baseName}_COMMANDE_COMPLETE.pdf`;
+  const csvText = `\uFEFF${buildErpCsvRows(validLines).join("\r\n")}`;
 
   storeOrder(orderSnapshot);
-  downloadErpCsv(`${baseName}_ERP_REFERENCES.csv`, buildErpCsvRows(validLines));
-  downloadBlob(`${baseName}_COMMANDE_COMPLETE.pdf`, pdfBlob);
-  recordActivity("Commande prête à envoyer", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+  if (orderSendButton) {
+    orderSendButton.disabled = true;
+    orderSendButton.textContent = "Envoi en cours…";
+  }
+
+  try {
+    await postService({
+      action: "sendOrderFiles",
+      recipient: schullerOperationsEmail,
+      destinationEmail: schullerOperationsEmail,
+      order: JSON.stringify(orderSnapshot),
+      csvName,
+      csvContent: csvText,
+      pdfName,
+      pdfBase64: await blobToBase64(pdfBlob),
+    });
+    recordActivity("Commande envoyée", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+    alert(`Commande envoyée à ${schullerOperationsEmail}.`);
+  } catch (error) {
+    downloadErpCsv(csvName, buildErpCsvRows(validLines));
+    downloadBlob(pdfName, pdfBlob);
+    recordActivity("Commande prête à envoyer", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+    alert(`Envoi automatique indisponible : les fichiers ont été téléchargés. Envoyez-les à ${schullerOperationsEmail}.`);
+  } finally {
+    if (orderSendButton) {
+      orderSendButton.disabled = false;
+      orderSendButton.textContent = "Envoyer la commande";
+    }
+  }
   localStorage.removeItem(`${orderDraftStorageKey}:${currentUser?.id || ""}`);
   setSyncStatus("ready", "Commande prête");
 }
@@ -8908,6 +9050,18 @@ prospectionList.addEventListener("click", (event) => {
   if (quickButton) quickUpdateProspection(quickButton);
 });
 tarifSendForm.addEventListener("submit", sendTarif);
+tarifClientSearch?.addEventListener("input", (event) => handleTarifClientSearch(event.target.value));
+tarifClientSearch?.addEventListener("change", (event) => handleTarifClientSearch(event.target.value, true));
+tarifClientSearch?.addEventListener("blur", (event) => {
+  handleTarifClientSearch(event.target.value, true);
+  setTimeout(() => tarifClientSuggestions?.classList.remove("is-open"), 120);
+});
+tarifClientSuggestions?.addEventListener("click", (event) => {
+  const index = event.target.closest("[data-tarif-client-index]")?.dataset.tarifClientIndex;
+  if (index === undefined) return;
+  const client = getTarifClientMatches(tarifClientSearch?.value || "")[Number(index)];
+  if (client) selectTarifClient(client);
+});
 sendSelectedPromotions.addEventListener("click", () => sendPromotions());
 promotionClientSearch?.addEventListener("input", (event) => handlePromotionClientSearch(event.target.value));
 promotionClientSearch?.addEventListener("change", (event) => handlePromotionClientSearch(event.target.value, true));
