@@ -3849,10 +3849,29 @@ function createClientStatsReportPdf(client, rows) {
     setColor(previous);
   }
 
+  function pdfLatinText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[€]/g, "EUR")
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/[–—]/g, "-")
+      .replace(/[…]/g, "...")
+      .replace(/[•]/g, "-")
+      .replace(/[^\x20-\x7E]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function pdfLiteralString(value) {
+    return `(${pdfLatinText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")})`;
+  }
+
   function textAt(x, yTop, size, text, options = {}) {
     const font = options.bold ? "F2" : "F1";
-    const safe = toUtf16Hex(shortPdfText(text, options.max || 130));
-    commands += `BT /${font} ${size} Tf ${x.toFixed(2)} ${(pageHeight - yTop).toFixed(2)} Td <${safe}> Tj ET\n`;
+    const safe = pdfLiteralString(shortPdfText(text, options.max || 130));
+    commands += `BT /${font} ${size} Tf ${x.toFixed(2)} ${(pageHeight - yTop).toFixed(2)} Td ${safe} Tj ET\n`;
   }
 
   function wrapText(text, maxChars = 92) {
@@ -4034,6 +4053,20 @@ function createClientStatsReportPdf(client, rows) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
+function openStatsReportMailFallback(recipient, client, filename) {
+  const clientName = client?.name || selectedStatsClient?.name || "client";
+  const safeRecipient = String(recipient || "").replace(/[\r\n]/g, "").trim();
+  const subject = `Analyse client Schuller - ${clientName}`;
+  const body = [
+    "Bonjour,",
+    "",
+    `Vous trouverez l'analyse client Schuller Eh'Klar en pièce jointe : ${filename}.`,
+    "",
+    "Cordialement,"
+  ].join("\n");
+  window.location.href = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 async function sendClientStatsReport() {
   if (!statsReportStatus || !statsReportRecipient || !sendStatsReport) return;
   statsReportStatus.className = "tarif-send-status";
@@ -4084,7 +4117,8 @@ async function sendClientStatsReport() {
     recordActivity("Analyse client envoyée", `${client?.name || selectedStatsClient.name} - ${recipient}`);
   } catch (error) {
     downloadBlob(filename, pdfBlob);
-    statsReportStatus.textContent = "Envoi automatique indisponible : le PDF a été téléchargé.";
+    openStatsReportMailFallback(recipient, client, filename);
+    statsReportStatus.textContent = "Envoi automatique indisponible : PDF téléchargé, ajoutez-le au mail ouvert.";
     statsReportStatus.classList.add("is-warning");
   } finally {
     sendStatsReport.disabled = false;
