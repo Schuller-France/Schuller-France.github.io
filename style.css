@@ -3949,6 +3949,17 @@ h2 {
 .admin-sample-table td:nth-child(5) { min-width: 320px; }
 .admin-sample-details[open] summary { margin-bottom: 8px; }
 .admin-sample-details li strong { color: var(--dark); }
+.admin-sample-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.admin-sample-analysis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 0 0 18px; }
+.admin-sample-analysis article { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.admin-sample-analysis-kpi span,
+.admin-sample-analysis article > strong { color: var(--muted); font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .06em; }
+.admin-sample-analysis-kpi strong { color: var(--dark); font-size: 26px; }
+.admin-sample-analysis ol { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.admin-sample-analysis li { display: flex; justify-content: space-between; gap: 10px; color: var(--dark); font-weight: 850; }
+.admin-sample-analysis li span { min-width: 0; overflow-wrap: anywhere; }
+.admin-sample-analysis li b { white-space: nowrap; }
+.compact-empty { border-radius: 12px; background: #fff; }
 .admin-expense-action-cell {
   width: 54px;
   text-align: center !important;

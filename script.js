@@ -384,6 +384,9 @@ const adminExpenseTotal = document.querySelector("#adminExpenseTotal");
 const adminExpenseBody = document.querySelector("#adminExpenseBody");
 const adminSampleTotal = document.querySelector("#adminSampleTotal");
 const adminSampleBody = document.querySelector("#adminSampleBody");
+const adminSampleAnalyze = document.querySelector("#adminSampleAnalyze");
+const adminSampleExport = document.querySelector("#adminSampleExport");
+const adminSampleAnalysis = document.querySelector("#adminSampleAnalysis");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
@@ -1014,6 +1017,117 @@ function getAdminSampleRows() {
     .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }
 
+function incrementMap(map, key, amount = 1) {
+  const cleanKey = String(key || "-").trim() || "-";
+  map.set(cleanKey, (map.get(cleanKey) || 0) + amount);
+}
+
+function topMapEntries(map, limit = 5) {
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr", { numeric: true }))
+    .slice(0, limit);
+}
+
+function analyzeAdminSampleRows(rows = getAdminSampleRows()) {
+  const bySector = new Map();
+  const byCommercial = new Map();
+  const byClient = new Map();
+  const byReference = new Map();
+  let referenceCount = 0;
+  let quantityCount = 0;
+
+  rows.forEach((row) => {
+    const lines = Array.isArray(row.lines) && row.lines.length ? row.lines : [{ ref: "-" }];
+    incrementMap(bySector, row.sectors || row.sector || "-");
+    incrementMap(byCommercial, row.userName || row.userId || "-");
+    incrementMap(byClient, row.clientName || "-");
+    lines.forEach((line) => {
+      const qty = Math.max(1, Number(line.qty) || 1);
+      referenceCount += 1;
+      quantityCount += qty;
+      incrementMap(byReference, line.ref || "-", qty);
+    });
+  });
+
+  return {
+    requests: rows.length,
+    references: referenceCount,
+    quantity: quantityCount,
+    bySector: topMapEntries(bySector),
+    byCommercial: topMapEntries(byCommercial),
+    byClient: topMapEntries(byClient),
+    byReference: topMapEntries(byReference),
+  };
+}
+
+function renderAdminSampleAnalysis() {
+  if (!adminSampleAnalysis) return;
+  const rows = getAdminSampleRows();
+  const analysis = analyzeAdminSampleRows(rows);
+  if (!rows.length) {
+    adminSampleAnalysis.innerHTML = '<div class="admin-empty compact-empty">Aucune donnée à analyser sur ce filtre.</div>';
+    return;
+  }
+  const renderList = (title, entries, suffix = "") => `
+    <article>
+      <strong>${escapeHtml(title)}</strong>
+      ${entries.length
+        ? `<ol>${entries.map(([label, count]) => `<li><span>${escapeHtml(label)}</span><b>${escapeHtml(formatNumber(count))}${suffix}</b></li>`).join("")}</ol>`
+        : '<small>Aucune donnée</small>'}
+    </article>
+  `;
+  adminSampleAnalysis.innerHTML = `
+    <article class="admin-sample-analysis-kpi"><span>Demandes</span><strong>${escapeHtml(formatNumber(analysis.requests))}</strong></article>
+    <article class="admin-sample-analysis-kpi"><span>Références</span><strong>${escapeHtml(formatNumber(analysis.references))}</strong></article>
+    <article class="admin-sample-analysis-kpi"><span>Quantités</span><strong>${escapeHtml(formatNumber(analysis.quantity))}</strong></article>
+    ${renderList("Par secteur", analysis.bySector)}
+    ${renderList("Par commercial", analysis.byCommercial)}
+    ${renderList("Clients les plus demandeurs", analysis.byClient)}
+    ${renderList("Références les plus demandées", analysis.byReference, " ex.")}
+  `;
+}
+
+function exportAdminSampleRows() {
+  const rows = getAdminSampleRows();
+  if (!rows.length) {
+    window.alert("Aucune demande d'échantillon à exporter sur ce filtre.");
+    return;
+  }
+  const csvRows = [[
+    "Date",
+    "Commercial",
+    "Secteur commercial",
+    "Client",
+    "Code client",
+    "Secteur client",
+    "Référence",
+    "Désignation",
+    "Quantité",
+    "Commentaire",
+    "Source",
+  ]];
+  rows.forEach((row) => {
+    const lines = Array.isArray(row.lines) && row.lines.length ? row.lines : [{ ref: "" }];
+    lines.forEach((line) => {
+      csvRows.push([
+        row.date || "",
+        row.userName || row.userId || "",
+        row.sectors || "",
+        row.clientName || "",
+        row.clientCode || "",
+        row.sector || "",
+        line.ref || "",
+        line.designation || "",
+        line.qty || "",
+        line.comment || "",
+        row.source || "",
+      ]);
+    });
+  });
+  downloadCsv(`echantillons-admin-${todayInputDate()}.csv`, csvRows);
+  recordActivity("Export échantillons admin", `${rows.length} demande(s) exportée(s)`);
+}
+
 function parseFrenchDateTime(value = "") {
   const match = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
   if (!match) return 0;
@@ -1089,6 +1203,7 @@ function renderAdminSampleRequests() {
   const rows = getAdminSampleRows();
   if (adminSampleCount) adminSampleCount.textContent = String(rows.length);
   if (adminSampleTotal) adminSampleTotal.textContent = `${rows.length} demande${rows.length > 1 ? "s" : ""}`;
+  renderAdminSampleAnalysis();
   adminSampleBody.innerHTML = rows.length ? rows.map((row) => `
     <tr>
       <td>${escapeHtml(row.date || "-")}</td>
@@ -8152,6 +8267,8 @@ adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
+adminSampleAnalyze?.addEventListener("click", renderAdminSampleAnalysis);
+adminSampleExport?.addEventListener("click", exportAdminSampleRows);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
 refreshDashboardData?.addEventListener("click", refreshDashboardDataFromDrive);
 statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
