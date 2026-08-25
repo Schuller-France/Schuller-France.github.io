@@ -4187,6 +4187,56 @@ function normalizeSessionUser(user = {}, token = "") {
   };
 }
 
+function getLaunchTabFromUrl() {
+  try {
+    const rawTab = new URLSearchParams(window.location.search).get("tab") || "";
+    const aliases = {
+      commande: "order",
+      client: "client360",
+      echantillon: "sample",
+      echantillons: "sample",
+      promos: "promotion",
+      promotions: "promotion",
+      tournee: "tour",
+      tournees: "tour",
+    };
+    const tab = aliases[rawTab] || rawTab;
+    const allowedTabs = new Set([
+      "home",
+      "client360",
+      "stats",
+      "order",
+      "quote",
+      "sample",
+      "expenses",
+      "notes",
+      "tour",
+      "backlog",
+      "prenet",
+      "tarif",
+      "promotion",
+      "prospection",
+      "admin",
+      "adminChecking",
+      "adminExecutiveExpenses",
+      "adminPrenet",
+    ]);
+    return allowedTabs.has(tab) ? tab : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function getLaunchTabForUser(user) {
+  const tab = getLaunchTabFromUrl();
+  if (!tab) return "";
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "order", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection"]);
+  return user.role === "admin"
+    ? (adminTabs.has(tab) ? tab : "")
+    : (commercialTabs.has(tab) ? tab : "");
+}
+
 function showApp(user, token = user.token || "") {
   const normalizedUser = normalizeSessionUser(user, token);
   currentSessionToken = token;
@@ -4260,7 +4310,7 @@ function showApp(user, token = user.token || "") {
     renderOrderHistory();
     return;
   }
-  setActiveTab("home");
+  setActiveTab(getLaunchTabForUser(currentUser) || "home");
   renderOrderHistory();
   restoreOrderDraft();
 }

@@ -1,10 +1,12 @@
 {
   "name": "Schuller France",
   "short_name": "Schuller",
-  "description": "Application commerciale Schuller France pour commandes, notes, tournées et documents.",
+  "description": "Application commerciale Schuller France pour commandes, notes, tournees et documents.",
+  "id": "./?app=schuller",
   "start_url": "./?app=1",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#e30613",
@@ -22,6 +24,43 @@
       "sizes": "590x423",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Saisie commande",
+      "short_name": "Commande",
+      "description": "Ouvrir directement la saisie de commande.",
+      "url": "./?tab=order&app=1",
+      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+    },
+    {
+      "name": "Fiche client",
+      "short_name": "Client",
+      "description": "Ouvrir la recherche et la fiche client.",
+      "url": "./?tab=client360&app=1",
+      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+    },
+    {
+      "name": "Promotions",
+      "short_name": "Promos",
+      "description": "Ouvrir les supports commerciaux et promotions.",
+      "url": "./?tab=promotion&app=1",
+      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+    },
+    {
+      "name": "Echantillons",
+      "short_name": "Echantillons",
+      "description": "Creer une demande d'echantillons.",
+      "url": "./?tab=sample&app=1",
+      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+    },
+    {
+      "name": "Tournees",
+      "short_name": "Tournees",
+      "description": "Ouvrir les tournees commerciales.",
+      "url": "./?tab=tour&app=1",
+      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
     }
   ]
 }

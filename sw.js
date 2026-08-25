@@ -1,11 +1,10 @@
-const CACHE_NAME = "schuller-france-app-v20260825sampleanalysis1";
+const CACHE_NAME = "schuller-france-app-v20260825pwa1";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260825sampleanalysis1",
-  "./script.js?v=20260825sampleanalysis1",
-  "./tarifs.js?v=20260722q",
-  "./tarifs.js?v=20260713c",
+  "./style.css?v=20260825pwa1",
+  "./script.js?v=20260825pwa1",
+  "./tarifs.js?v=20260722s",
   "./manifest.webmanifest",
   "./assets/schuller-logo.png",
   "./assets/schuller-app-icon.svg",
@@ -16,7 +15,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -34,6 +32,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .catch(() => caches.match("./index.html").then((cached) => cached || caches.match("./")))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(request)
       .then((response) => {
@@ -45,5 +51,9 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
