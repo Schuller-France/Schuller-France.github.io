@@ -4178,6 +4178,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminCheckingTab);
   appTabs.appendChild(adminExecutiveExpensesTab);
   appTabs.appendChild(adminPrenetTab);
+  appTabs.appendChild(problemTab);
 }
 
 function normalizeBacklogType(value) {

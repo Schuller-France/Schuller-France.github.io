@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260825support1" />
+    <link rel="stylesheet" href="style.css?v=20260825problemtab1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -150,11 +150,11 @@
         <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
         <button class="tab-button" type="button" id="prenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
-        <button class="tab-button" type="button" id="problemTab" data-icon="🛠️">Signaler un problème</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab" data-icon="📈">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
+        <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
         </nav>
       </div>
       <button class="tablet-menu-backdrop" type="button" id="tabletMenuBackdrop" aria-label="Fermer le menu"></button>
@@ -1498,7 +1498,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260825support1" charset="UTF-8"></script>
+    <script src="script.js?v=20260825problemtab1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

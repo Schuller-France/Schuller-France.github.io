@@ -5275,6 +5275,22 @@ body:not(.tablet-mode) .app-tabs .tab-button.is-hidden {
   display: none !important;
 }
 
+body:not(.tablet-mode) #problemTab,
+body.tablet-mode #problemTab {
+  margin-top: auto;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+body:not(.tablet-mode) #problemTab:hover,
+body.tablet-mode #problemTab:hover,
+body:not(.tablet-mode) #problemTab.is-active,
+body.tablet-mode #problemTab.is-active {
+  background: #e30613;
+  color: #fff;
+}
+
 body:not(.tablet-mode) .app-shell {
   grid-column: 2;
   width: 100%;
@@ -6591,6 +6607,7 @@ body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !importan
 #tourTab[data-icon]::before,
 #prenetTab[data-icon]::before,
 #backlogTab[data-icon]::before,
+#problemTab[data-icon]::before,
 #adminCheckingTab[data-icon]::before,
 #adminTab[data-icon]::before,
 #adminExecutiveExpensesTab[data-icon]::before,
@@ -7945,6 +7962,7 @@ html body #tarifTab[data-icon]::before,
 html body #tourTab[data-icon]::before,
 html body #prenetTab[data-icon]::before,
 html body #backlogTab[data-icon]::before,
+html body #problemTab[data-icon]::before,
 html body #adminCheckingTab[data-icon]::before,
 html body #adminTab[data-icon]::before,
 html body #adminExecutiveExpensesTab[data-icon]::before,
@@ -7981,6 +7999,7 @@ html body.tablet-mode #tarifTab[data-icon]::before,
 html body.tablet-mode #tourTab[data-icon]::before,
 html body.tablet-mode #prenetTab[data-icon]::before,
 html body.tablet-mode #backlogTab[data-icon]::before,
+html body.tablet-mode #problemTab[data-icon]::before,
 html body.tablet-mode #adminCheckingTab[data-icon]::before,
 html body.tablet-mode #adminTab[data-icon]::before,
 html body.tablet-mode #adminExecutiveExpensesTab[data-icon]::before,
@@ -7990,6 +8009,18 @@ html body.tablet-mode #adminPrenetTab[data-icon]::before {
   height: 24px !important;
   margin-right: 10px !important;
   font-size: 18px !important;
+}
+
+html body #problemTab[data-icon]::before,
+html body.tablet-mode #problemTab[data-icon]::before {
+  content: "" !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  margin-right: 10px !important;
+  border-radius: 7px !important;
+  background: #fff url("assets/schuller-logo.png") center / 20px 20px no-repeat !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .18) !important;
 }
 
 body.dark-theme .promotion-preview-fallback {
