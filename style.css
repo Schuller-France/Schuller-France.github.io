@@ -489,6 +489,44 @@
   outline: 3px solid rgba(227, 6, 19, .12);
   border-color: var(--red);
 }
+.stats-report-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(260px, .7fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid #e1e5eb;
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, rgba(27, 58, 92, .07), rgba(227, 6, 19, .04)),
+    #fff;
+}
+.stats-report-toolbar h3 {
+  margin: 4px 0 4px;
+  font-size: 22px;
+}
+.stats-report-toolbar .helper-text {
+  margin: 0;
+}
+.stats-report-toolbar label {
+  display: grid;
+  gap: 8px;
+  color: #111827;
+  font-weight: 900;
+}
+.stats-report-toolbar input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid #cfd5dd;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-weight: 800;
+}
+.stats-report-toolbar .tarif-send-status {
+  grid-column: 1 / -1;
+}
 .stats-kpi-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -4082,6 +4120,21 @@ body.dark-theme .problem-form label {
 
 body.dark-theme .problem-form select,
 body.dark-theme .problem-form textarea {
+  background: #0f1722;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, .28);
+}
+
+body.dark-theme .stats-report-toolbar {
+  background: linear-gradient(90deg, rgba(27, 58, 92, .34), rgba(227, 6, 19, .13)), #151b24;
+  border-color: rgba(148, 163, 184, .22);
+}
+
+body.dark-theme .stats-report-toolbar label {
+  color: #e5edf8;
+}
+
+body.dark-theme .stats-report-toolbar input {
   background: #0f1722;
   color: #f8fafc;
   border-color: rgba(148, 163, 184, .28);
@@ -8652,6 +8705,7 @@ body.tablet-mode .expense-history-heading {
   .tarif-grid,
   .promotion-grid,
   .stats-filter-grid,
+  .stats-report-toolbar,
   .stats-kpi-grid,
   .client360-search-card,
   .client360-identity,
@@ -8686,6 +8740,7 @@ body.tablet-mode .expense-history-heading {
 
   #promotionGrid .promotion-card-actions,
   .promotion-toolbar,
+  .stats-report-toolbar,
   .order-actions,
   .quote-actions,
   .sample-actions,

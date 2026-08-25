@@ -415,6 +415,9 @@ const statsArticleFilter = document.querySelector("#statsArticleFilter");
 const statsFamilyFilter = document.querySelector("#statsFamilyFilter");
 const statsSortSelect = document.querySelector("#statsSortSelect");
 const statsResetFilters = document.querySelector("#statsResetFilters");
+const statsReportRecipient = document.querySelector("#statsReportRecipient");
+const sendStatsReport = document.querySelector("#sendStatsReport");
+const statsReportStatus = document.querySelector("#statsReportStatus");
 const statsSourceBadge = document.querySelector("#statsSourceBadge");
 const statsTotalCa = document.querySelector("#statsTotalCa");
 const statsTotalPreviousCa = document.querySelector("#statsTotalPreviousCa");
@@ -3584,6 +3587,7 @@ function getCommercialStatsClientMatches(query) {
       sector: client?.sector || row.sector || "",
       city: client?.deliveryCity || client?.billingCity || "",
       zip: client?.deliveryZip || client?.billingZip || "",
+      email: client?.email || "",
     };
     const text = normalize([candidate.code, candidate.name, candidate.sector, candidate.zip, candidate.city].join(" "));
     if (text.includes(cleanQuery)) byKey.set(key, candidate);
@@ -3596,6 +3600,7 @@ function getCommercialStatsClientMatches(query) {
 function selectCommercialStatsClient(client) {
   selectedStatsClient = client;
   if (statsClientFilter) statsClientFilter.value = client?.name || "";
+  if (statsReportRecipient && client?.email) statsReportRecipient.value = client.email;
   statsClientSuggestions?.classList.remove("is-open");
   renderCommercialStats();
 }
@@ -3724,6 +3729,367 @@ function renderCommercialStats() {
       </tr>
     `;
   }).join("");
+}
+
+function getSelectedStatsClientFull() {
+  if (!selectedStatsClient) return null;
+  const code = normalize(selectedStatsClient.code || "");
+  const name = normalize(selectedStatsClient.name || "");
+  const scope = currentUser?.role === "admin" ? allClients : visibleClients;
+  return scope.find((client) =>
+    (code && normalize(client.code || "") === code) ||
+    (name && normalize(client.name || "") === name)
+  ) || selectedStatsClient;
+}
+
+function getStatsRowsForSelectedClient() {
+  if (!selectedStatsClient) return [];
+  const code = normalize(selectedStatsClient.code || "");
+  const name = normalize(selectedStatsClient.name || "");
+  return getCommercialStatsRows().filter((row) => {
+    const rowCode = normalize(row.clientCode || "");
+    const rowName = normalize(row.clientName || "");
+    return (code && rowCode === code) || (name && rowName === name);
+  });
+}
+
+function percentDelta(current, previous) {
+  const cur = Number(current) || 0;
+  const prev = Number(previous) || 0;
+  if (!prev && cur) return 100;
+  if (!prev) return 0;
+  return Math.round(((cur - prev) / prev) * 100);
+}
+
+function formatPercentDelta(value) {
+  const number = Number(value) || 0;
+  if (number > 0) return `+${number}%`;
+  return `${number}%`;
+}
+
+function summarizeClientStatsReport(rows) {
+  const totalCa = rows.reduce((sum, row) => sum + (Number(row.ca2026) || 0), 0);
+  const totalPreviousCa = rows.reduce((sum, row) => sum + (Number(row.ca2025) || 0), 0);
+  const totalQty = rows.reduce((sum, row) => sum + (Number(row.quantity2026) || 0), 0);
+  const totalPreviousQty = rows.reduce((sum, row) => sum + (Number(row.quantity2025) || 0), 0);
+  const activeRefs = rows.filter((row) => Number(row.quantity2026) > 0 || Number(row.ca2026) > 0).length;
+  const previousRefs = rows.filter((row) => Number(row.quantity2025) > 0 || Number(row.ca2025) > 0).length;
+  const newRefs = rows.filter((row) => (Number(row.quantity2026) > 0 || Number(row.ca2026) > 0) && !(Number(row.quantity2025) > 0 || Number(row.ca2025) > 0));
+  const lostRefs = rows.filter((row) => !(Number(row.quantity2026) > 0 || Number(row.ca2026) > 0) && (Number(row.quantity2025) > 0 || Number(row.ca2025) > 0));
+  const topCurrent = [...rows].sort((a, b) => b.ca2026 - a.ca2026).slice(0, 10);
+  const topPrevious = [...rows].sort((a, b) => b.ca2025 - a.ca2025).slice(0, 10);
+  const progress = [...rows].filter((row) => row.gapCa > 0 || row.gapQuantity > 0).sort((a, b) => (b.gapCa - a.gapCa) || (b.gapQuantity - a.gapQuantity)).slice(0, 8);
+  const declines = [...rows].filter((row) => row.gapCa < 0 || row.gapQuantity < 0).sort((a, b) => (a.gapCa - b.gapCa) || (a.gapQuantity - b.gapQuantity)).slice(0, 8);
+  const familyMap = new Map();
+  rows.forEach((row) => {
+    const family = row.family || "Famille non renseignée";
+    const item = familyMap.get(family) || { family, ca2026: 0, ca2025: 0, gapCa: 0, quantity2026: 0, quantity2025: 0 };
+    item.ca2026 += Number(row.ca2026) || 0;
+    item.ca2025 += Number(row.ca2025) || 0;
+    item.gapCa += Number(row.gapCa) || 0;
+    item.quantity2026 += Number(row.quantity2026) || 0;
+    item.quantity2025 += Number(row.quantity2025) || 0;
+    familyMap.set(family, item);
+  });
+  const families = [...familyMap.values()].sort((a, b) => Math.abs(b.gapCa) - Math.abs(a.gapCa)).slice(0, 6);
+  const bestFamily = families.filter((item) => item.gapCa > 0).sort((a, b) => b.gapCa - a.gapCa)[0] || null;
+  const weakFamily = families.filter((item) => item.gapCa < 0).sort((a, b) => a.gapCa - b.gapCa)[0] || null;
+  const points = [
+    `CA HT ${formatWholeCurrency(totalCa)} vs ${formatWholeCurrency(totalPreviousCa)} en N-1, soit ${formatWholeCurrencyDelta(totalCa - totalPreviousCa)} (${formatPercentDelta(percentDelta(totalCa, totalPreviousCa))}).`,
+    `Quantités : ${formatNumber(totalQty)} vs ${formatNumber(totalPreviousQty)} en N-1, écart ${formatNumberDelta(totalQty - totalPreviousQty)}.`,
+    `${activeRefs} référence(s) actives cette année, ${newRefs.length} nouvelle(s) référence(s) et ${lostRefs.length} référence(s) à vérifier car absentes cette année.`,
+  ];
+  if (bestFamily) points.push(`Famille la plus dynamique : ${bestFamily.family} (${formatWholeCurrencyDelta(bestFamily.gapCa)}).`);
+  if (weakFamily) points.push(`Famille à aborder en rendez-vous : ${weakFamily.family} (${formatWholeCurrencyDelta(weakFamily.gapCa)}).`);
+  if (declines[0]) points.push(`Priorité relance : ${declines[0].articleCode} - ${declines[0].articleName.slice(0, 70)}.`);
+  return { totalCa, totalPreviousCa, totalQty, totalPreviousQty, activeRefs, previousRefs, newRefs, lostRefs, topCurrent, topPrevious, progress, declines, families, points };
+}
+
+function shortPdfText(value, max = 64) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function createClientStatsReportPdf(client, rows) {
+  const summary = summarizeClientStatsReport(rows);
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 34;
+  const navy = "#1B3A5C";
+  const red = "#D0453B";
+  const green = "#1E9E5A";
+  const soft = "#F3F5F7";
+  const line = "#DCE2EA";
+  const pages = [];
+  let commands = "";
+  let color = "#111827";
+
+  function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    return [0, 2, 4].map((index) => parseInt(clean.slice(index, index + 2), 16) / 255);
+  }
+
+  function setColor(hex) {
+    color = hex;
+    const [r, g, b] = hexToRgb(hex);
+    commands += `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG\n`;
+  }
+
+  function fillRect(x, yTop, w, h, fill = soft) {
+    const previous = color;
+    setColor(fill);
+    commands += `${x} ${(pageHeight - yTop - h).toFixed(2)} ${w} ${h} re f\n`;
+    setColor(previous);
+  }
+
+  function strokeRect(x, yTop, w, h, stroke = line) {
+    const previous = color;
+    setColor(stroke);
+    commands += `${x} ${(pageHeight - yTop - h).toFixed(2)} ${w} ${h} re S\n`;
+    setColor(previous);
+  }
+
+  function textAt(x, yTop, size, text, options = {}) {
+    const font = options.bold ? "F2" : "F1";
+    const safe = toUtf16Hex(shortPdfText(text, options.max || 130));
+    commands += `BT /${font} ${size} Tf ${x.toFixed(2)} ${(pageHeight - yTop).toFixed(2)} Td <${safe}> Tj ET\n`;
+  }
+
+  function wrapText(text, maxChars = 92) {
+    const words = String(text || "").split(/\s+/).filter(Boolean);
+    const lines = [];
+    let current = "";
+    words.forEach((word) => {
+      const next = current ? `${current} ${word}` : word;
+      if (next.length > maxChars && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = next;
+      }
+    });
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function pageHeader(title, subtitle = "") {
+    fillRect(0, 0, pageWidth, 78, navy);
+    setColor("#FFFFFF");
+    textAt(margin, 30, 18, title, { bold: true, max: 72 });
+    textAt(margin, 53, 9, subtitle, { max: 100 });
+    textAt(pageWidth - 156, 28, 14, "Schuller Eh'Klar", { bold: true });
+    fillRect(pageWidth - 82, 42, 11, 11, "#E30613");
+    fillRect(pageWidth - 63, 31, 14, 14, "#E30613");
+    fillRect(pageWidth - 40, 18, 18, 18, "#E30613");
+    setColor("#111827");
+  }
+
+  function addPage(title, subtitle) {
+    if (commands) pages.push(commands);
+    commands = "";
+    setColor("#111827");
+    pageHeader(title, subtitle);
+  }
+
+  function card(x, y, w, h, label, value, detail = "", accent = navy) {
+    fillRect(x, y, w, h, "#F8FAFC");
+    strokeRect(x, y, w, h, line);
+    fillRect(x, y, 5, h, accent);
+    setColor("#5F6B7A");
+    textAt(x + 14, y + 22, 8, label.toUpperCase(), { bold: true, max: 32 });
+    setColor("#111827");
+    textAt(x + 14, y + 48, 18, value, { bold: true, max: 22 });
+    setColor("#64748B");
+    textAt(x + 14, y + 68, 8, detail, { max: 36 });
+    setColor("#111827");
+  }
+
+  function bar(x, y, w, h, label, value, maxValue, fill, amount) {
+    setColor("#334155");
+    textAt(x, y, 8, label, { bold: true, max: 42 });
+    fillRect(x, y + 9, w, h, "#E7ECF2");
+    fillRect(x, y + 9, Math.max(2, w * ((Number(value) || 0) / Math.max(maxValue, 1))), h, fill);
+    setColor("#111827");
+    textAt(x + w + 10, y + 20, 8, amount, { bold: true, max: 28 });
+  }
+
+  function table(title, tableRows, yStart, columns, options = {}) {
+    let y = yStart;
+    setColor(navy);
+    textAt(margin, y, 12, title, { bold: true, max: 80 });
+    y += 12;
+    fillRect(margin, y, pageWidth - margin * 2, 22, navy);
+    setColor("#FFFFFF");
+    columns.forEach((col) => textAt(col.x, y + 14, 7.2, col.title, { bold: true, max: col.max || 20 }));
+    y += 24;
+    tableRows.slice(0, options.limit || 10).forEach((row, index) => {
+      if (index % 2 === 0) fillRect(margin, y - 2, pageWidth - margin * 2, 21, "#F8FAFC");
+      setColor("#111827");
+      columns.forEach((col) => {
+        const value = typeof col.value === "function" ? col.value(row) : row[col.value];
+        if (col.color) setColor(col.color(row));
+        textAt(col.x, y + 12, col.size || 7.1, value, { bold: col.bold, max: col.max || 24 });
+        setColor("#111827");
+      });
+      y += 22;
+    });
+    return y + 8;
+  }
+
+  const clientName = client?.name || selectedStatsClient?.name || rows[0]?.clientName || "Client";
+  const clientCode = client?.code || selectedStatsClient?.code || rows[0]?.clientCode || "";
+  const city = [client?.billingZip || client?.deliveryZip || "", client?.billingCity || client?.deliveryCity || ""].filter(Boolean).join(" ");
+  const period = new Date().toLocaleDateString("fr-FR");
+  const totalGapCa = summary.totalCa - summary.totalPreviousCa;
+  const totalGapQty = summary.totalQty - summary.totalPreviousQty;
+
+  addPage(`Analyse client - ${clientName}`, `Comparatif CA et quantités N vs N-1 - généré le ${period}`);
+  setColor("#111827");
+  textAt(margin, 104, 11, `${clientName} ${clientCode ? `(${clientCode})` : ""}`, { bold: true, max: 90 });
+  setColor("#64748B");
+  textAt(margin, 121, 8, [rows[0]?.sector || client?.sector || "", city, client?.email || ""].filter(Boolean).join(" - "), { max: 115 });
+  card(margin, 145, 124, 86, "CA HT 2026", formatWholeCurrency(summary.totalCa), `${formatPercentDelta(percentDelta(summary.totalCa, summary.totalPreviousCa))} vs N-1`, totalGapCa >= 0 ? green : red);
+  card(margin + 138, 145, 124, 86, "CA HT N-1", formatWholeCurrency(summary.totalPreviousCa), "Base comparaison", navy);
+  card(margin + 276, 145, 124, 86, "Écart CA", formatWholeCurrencyDelta(totalGapCa), `${formatNumberDelta(totalGapQty)} unités`, totalGapCa >= 0 ? green : red);
+  card(margin + 414, 145, 112, 86, "Références", formatNumber(summary.activeRefs), `${summary.newRefs.length} nouvelles`, navy);
+
+  setColor(navy);
+  textAt(margin, 266, 13, "Visuel d'évolution", { bold: true });
+  const maxCa = Math.max(summary.totalCa, summary.totalPreviousCa, 1);
+  bar(margin, 287, 250, 24, "CA 2026", summary.totalCa, maxCa, green, formatWholeCurrency(summary.totalCa));
+  bar(margin, 329, 250, 24, "CA N-1", summary.totalPreviousCa, maxCa, "#93A4B8", formatWholeCurrency(summary.totalPreviousCa));
+  const maxQty = Math.max(summary.totalQty, summary.totalPreviousQty, 1);
+  bar(margin + 314, 287, 170, 24, "Qté 2026", summary.totalQty, maxQty, green, formatNumber(summary.totalQty));
+  bar(margin + 314, 329, 170, 24, "Qté N-1", summary.totalPreviousQty, maxQty, "#93A4B8", formatNumber(summary.totalPreviousQty));
+
+  table("Top 10 articles du client", summary.topCurrent, 398, [
+    { title: "Réf.", x: 42, value: "articleCode", bold: true, max: 13 },
+    { title: "Désignation", x: 102, value: (row) => row.articleName, max: 54 },
+    { title: "CA 2026", x: 360, value: (row) => formatWholeCurrency(row.ca2026), bold: true, max: 14 },
+    { title: "CA N-1", x: 428, value: (row) => formatWholeCurrency(row.ca2025), max: 14 },
+    { title: "Écart", x: 496, value: (row) => formatWholeCurrencyDelta(row.gapCa), color: (row) => row.gapCa >= 0 ? green : red, max: 14 },
+  ], { limit: 10 });
+
+  addPage("Points clés rendez-vous", `${clientName} - données issues de l'onglet Statistiques`);
+  let y = 108;
+  fillRect(margin, y - 8, pageWidth - margin * 2, 118, "#F8FAFC");
+  strokeRect(margin, y - 8, pageWidth - margin * 2, 118, line);
+  setColor(navy);
+  textAt(margin + 14, y + 8, 13, "Synthèse à présenter", { bold: true });
+  y += 30;
+  summary.points.slice(0, 6).forEach((point) => {
+    wrapText(point, 94).slice(0, 2).forEach((lineText, index) => {
+      setColor(index === 0 ? "#111827" : "#475569");
+      textAt(margin + 18, y, 8.4, `${index === 0 ? "• " : "  "}${lineText}`, { max: 110 });
+      y += 13;
+    });
+  });
+
+  const gapColumns = [
+    { title: "Réf.", x: 42, value: "articleCode", bold: true, max: 13 },
+    { title: "Désignation", x: 102, value: (row) => row.articleName, max: 47 },
+    { title: "Qté", x: 330, value: (row) => `${formatNumber(row.quantity2026)} / ${formatNumber(row.quantity2025)}`, max: 16 },
+    { title: "Écart CA", x: 420, value: (row) => formatWholeCurrencyDelta(row.gapCa), bold: true, color: (row) => row.gapCa >= 0 ? green : red, max: 16 },
+    { title: "Écart Qté", x: 500, value: (row) => formatNumberDelta(row.gapQuantity), color: (row) => row.gapQuantity >= 0 ? green : red, max: 14 },
+  ];
+  table("Articles en progression", summary.progress, 268, gapColumns, { limit: 7 });
+  table("Articles à relancer / vérifier", summary.declines, 488, gapColumns, { limit: 7 });
+
+  setColor("#64748B");
+  textAt(margin, 790, 7, "Document client : chiffres HT et quantités uniquement. Les marges ne sont jamais affichées.");
+
+  if (commands) pages.push(commands);
+  const objects = [];
+  const addObject = (content) => {
+    objects.push(content);
+    return objects.length;
+  };
+  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pageRefs = [];
+  pages.forEach((pageCommands) => {
+    const contentRef = addObject(`<< /Length ${pageCommands.length} >>\nstream\n${pageCommands}\nendstream`);
+    const pageRef = addObject(
+      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentRef} 0 R >>`
+    );
+    pageRefs.push(pageRef);
+  });
+  const pagesRef = addObject(`<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
+  pageRefs.forEach((pageRef) => {
+    objects[pageRef - 1] = objects[pageRef - 1].replace("/Parent 0 0 R", `/Parent ${pagesRef} 0 R`);
+  });
+  const catalogRef = addObject(`<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${offset.toString().padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogRef} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+async function sendClientStatsReport() {
+  if (!statsReportStatus || !statsReportRecipient || !sendStatsReport) return;
+  statsReportStatus.className = "tarif-send-status";
+  const recipient = statsReportRecipient.value.trim();
+  if (!selectedStatsClient) {
+    statsReportStatus.textContent = "Sélectionnez d'abord un client dans la recherche.";
+    statsReportStatus.classList.add("is-error");
+    statsClientFilter?.focus();
+    return;
+  }
+  if (!statsReportRecipient.checkValidity() || !recipient) {
+    statsReportStatus.textContent = "Saisissez une adresse e-mail valide.";
+    statsReportStatus.classList.add("is-error");
+    statsReportRecipient.focus();
+    return;
+  }
+  const rows = getStatsRowsForSelectedClient();
+  if (!rows.length) {
+    statsReportStatus.textContent = "Aucune statistique disponible pour ce client.";
+    statsReportStatus.classList.add("is-error");
+    return;
+  }
+  const client = getSelectedStatsClientFull();
+  const filename = `Analyse_${sanitizeDownloadName(client?.name || selectedStatsClient.name || "client")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const pdfBlob = createClientStatsReportPdf(client, rows);
+  if (isTrainingAccount()) {
+    showTrainingStatus(statsReportStatus, "Mode formation : analyse PDF validée, aucun e-mail réel envoyé.");
+    return;
+  }
+  sendStatsReport.disabled = true;
+  sendStatsReport.textContent = "Envoi en cours…";
+  statsReportStatus.textContent = "Préparation de l'analyse PDF…";
+  try {
+    await postService({
+      action: "sendClientStatsReport",
+      recipient,
+      destinationEmail: recipient,
+      client: JSON.stringify({
+        code: client?.code || selectedStatsClient.code || "",
+        name: client?.name || selectedStatsClient.name || "",
+        sector: client?.sector || selectedStatsClient.sector || "",
+      }),
+      pdfName: filename,
+      pdfBase64: await blobToBase64(pdfBlob),
+    });
+    statsReportStatus.textContent = `Analyse envoyée à ${recipient}.`;
+    statsReportStatus.classList.add("is-success");
+    recordActivity("Analyse client envoyée", `${client?.name || selectedStatsClient.name} - ${recipient}`);
+  } catch (error) {
+    downloadBlob(filename, pdfBlob);
+    statsReportStatus.textContent = "Envoi automatique indisponible : le PDF a été téléchargé.";
+    statsReportStatus.classList.add("is-warning");
+  } finally {
+    sendStatsReport.disabled = false;
+    sendStatsReport.textContent = "Envoyer l'analyse PDF";
+  }
 }
 
 function resetCommercialStatsFilters() {
@@ -8907,6 +9273,7 @@ adminSampleExport?.addEventListener("click", exportAdminSampleRows);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
 refreshDashboardData?.addEventListener("click", refreshDashboardDataFromDrive);
 statsResetFilters?.addEventListener("click", resetCommercialStatsFilters);
+sendStatsReport?.addEventListener("click", sendClientStatsReport);
 statsClientFilter?.addEventListener("input", renderCommercialStatsClientSuggestions);
 statsClientFilter?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;

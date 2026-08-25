@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260825promohistory1" />
+    <link rel="stylesheet" href="style.css?v=20260825statsreport1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -368,6 +368,20 @@
               </select>
             </label>
             <button class="ghost-button" type="button" id="statsResetFilters">Effacer</button>
+          </section>
+
+          <section class="stats-report-toolbar" aria-label="Envoyer une analyse client">
+            <div>
+              <p class="step">PDF rendez-vous client</p>
+              <h3>Analyse du client sélectionné</h3>
+              <p class="helper-text">Le PDF reprend les chiffres de cet onglet : CA, quantités, top articles, hausses, baisses et points clés.</p>
+            </div>
+            <label>
+              Adresse e-mail du client
+              <input id="statsReportRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            </label>
+            <button class="primary-button" type="button" id="sendStatsReport">Envoyer l'analyse PDF</button>
+            <p class="tarif-send-status" id="statsReportStatus" role="status"></p>
           </section>
 
           <section class="dashboard-grid stats-kpi-grid" aria-label="Résumé statistiques">
@@ -1498,7 +1512,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260825promohistory1" charset="UTF-8"></script>
+    <script src="script.js?v=20260825statsreport1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
