@@ -3807,22 +3807,25 @@ function summarizeClientStatsReport(rows) {
 
 function shortPdfText(value, max = 64) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
 }
 
 function createClientStatsReportPdf(client, rows) {
   const summary = summarizeClientStatsReport(rows);
   const pageWidth = 595;
   const pageHeight = 842;
-  const margin = 34;
-  const navy = "#1B3A5C";
-  const red = "#D0453B";
-  const green = "#1E9E5A";
-  const soft = "#F3F5F7";
-  const line = "#DCE2EA";
+  const margin = 32;
+  const black = "#111827";
+  const slate = "#64748B";
+  const lightSlate = "#F4F7FA";
+  const line = "#D7DEE8";
+  const red = "#E30613";
+  const darkRed = "#B91C1C";
+  const green = "#0F8A4B";
+  const orange = "#B45309";
   const pages = [];
   let commands = "";
-  let color = "#111827";
+  let color = black;
 
   function hexToRgb(hex) {
     const clean = hex.replace("#", "");
@@ -3835,122 +3838,171 @@ function createClientStatsReportPdf(client, rows) {
     commands += `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG\n`;
   }
 
-  function fillRect(x, yTop, w, h, fill = soft) {
+  function fillRect(x, yTop, w, h, fill = lightSlate) {
     const previous = color;
     setColor(fill);
-    commands += `${x} ${(pageHeight - yTop - h).toFixed(2)} ${w} ${h} re f\n`;
+    commands += `${Number(x).toFixed(2)} ${(pageHeight - yTop - h).toFixed(2)} ${Number(w).toFixed(2)} ${Number(h).toFixed(2)} re f\n`;
     setColor(previous);
   }
 
   function strokeRect(x, yTop, w, h, stroke = line) {
     const previous = color;
     setColor(stroke);
-    commands += `${x} ${(pageHeight - yTop - h).toFixed(2)} ${w} ${h} re S\n`;
+    commands += `${Number(x).toFixed(2)} ${(pageHeight - yTop - h).toFixed(2)} ${Number(w).toFixed(2)} ${Number(h).toFixed(2)} re S\n`;
     setColor(previous);
   }
 
-  function pdfLatinText(value) {
-    return String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[€]/g, "EUR")
-      .replace(/[’‘]/g, "'")
-      .replace(/[“”]/g, '"')
-      .replace(/[–—]/g, "-")
-      .replace(/[…]/g, "...")
-      .replace(/[•]/g, "-")
-      .replace(/[^\x20-\x7E]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  function strokeLine(x1, y1Top, x2, y2Top, stroke = line, width = 0.8) {
+    const previous = color;
+    setColor(stroke);
+    commands += `${Number(width).toFixed(2)} w ${Number(x1).toFixed(2)} ${(pageHeight - y1Top).toFixed(2)} m ${Number(x2).toFixed(2)} ${(pageHeight - y2Top).toFixed(2)} l S 1 w\n`;
+    setColor(previous);
+  }
+
+  function circle(cx, yTop, radius, fill = red) {
+    const previous = color;
+    const cy = pageHeight - yTop;
+    const k = radius * 0.5522847498;
+    setColor(fill);
+    commands += `${(cx + radius).toFixed(2)} ${cy.toFixed(2)} m ${(cx + radius).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx + k).toFixed(2)} ${(cy + radius).toFixed(2)} ${cx.toFixed(2)} ${(cy + radius).toFixed(2)} c ${(cx - k).toFixed(2)} ${(cy + radius).toFixed(2)} ${(cx - radius).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx - radius).toFixed(2)} ${cy.toFixed(2)} c ${(cx - radius).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx - k).toFixed(2)} ${(cy - radius).toFixed(2)} ${cx.toFixed(2)} ${(cy - radius).toFixed(2)} c ${(cx + k).toFixed(2)} ${(cy - radius).toFixed(2)} ${(cx + radius).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx + radius).toFixed(2)} ${cy.toFixed(2)} c f\n`;
+    setColor(previous);
+  }
+
+  function approximateTextWidth(text, size) {
+    return String(text || "").length * size * 0.48;
   }
 
   function pdfLiteralString(value) {
-    return `(${pdfLatinText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")})`;
+    const text = String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/[–—]/g, "-")
+      .replace(/[^\x20-\x7E€]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    let escaped = "";
+    for (const char of text) {
+      if (char === "€") escaped += "\\200";
+      else if (char === "\\") escaped += "\\\\";
+      else if (char === "(") escaped += "\\(";
+      else if (char === ")") escaped += "\\)";
+      else escaped += char;
+    }
+    return `(${escaped})`;
   }
 
   function textAt(x, yTop, size, text, options = {}) {
     const font = options.bold ? "F2" : "F1";
-    const safe = pdfLiteralString(shortPdfText(text, options.max || 130));
-    commands += `BT /${font} ${size} Tf ${x.toFixed(2)} ${(pageHeight - yTop).toFixed(2)} Td ${safe} Tj ET\n`;
-  }
-
-  function wrapText(text, maxChars = 92) {
-    const words = String(text || "").split(/\s+/).filter(Boolean);
-    const lines = [];
-    let current = "";
-    words.forEach((word) => {
-      const next = current ? `${current} ${word}` : word;
-      if (next.length > maxChars && current) {
-        lines.push(current);
-        current = word;
-      } else {
-        current = next;
-      }
-    });
-    if (current) lines.push(current);
-    return lines;
+    const value = shortPdfText(text, options.max || 130);
+    const safe = pdfLiteralString(value);
+    const drawX = options.align === "right"
+      ? x - approximateTextWidth(value, size)
+      : options.align === "center"
+        ? x - approximateTextWidth(value, size) / 2
+        : x;
+    commands += `BT /${font} ${size} Tf ${drawX.toFixed(2)} ${(pageHeight - yTop).toFixed(2)} Td ${safe} Tj ET\n`;
   }
 
   function pageHeader(title, subtitle = "") {
-    fillRect(0, 0, pageWidth, 78, navy);
-    setColor("#FFFFFF");
-    textAt(margin, 30, 18, title, { bold: true, max: 72 });
-    textAt(margin, 53, 9, subtitle, { max: 100 });
-    textAt(pageWidth - 156, 28, 14, "Schuller Eh'Klar", { bold: true });
-    fillRect(pageWidth - 82, 42, 11, 11, "#E30613");
-    fillRect(pageWidth - 63, 31, 14, 14, "#E30613");
-    fillRect(pageWidth - 40, 18, 18, 18, "#E30613");
-    setColor("#111827");
+    fillRect(0, 0, pageWidth, pageHeight, "#FFFFFF");
+    fillRect(0, 0, pageWidth, 7, red);
+    setColor(black);
+    textAt(margin, 38, 18, title, { bold: true, max: 76 });
+    setColor(slate);
+    textAt(margin, 58, 8.5, subtitle, { max: 112 });
+    setColor(black);
+    textAt(pageWidth - 164, 34, 15, "Schuller Eh'Klar", { bold: true });
+    circle(pageWidth - 48, 30, 5, red);
+    circle(pageWidth - 34, 42, 7, red);
+    circle(pageWidth - 55, 51, 4.5, red);
+    strokeLine(margin, 76, pageWidth - margin, 76, line, 0.9);
   }
 
   function addPage(title, subtitle) {
     if (commands) pages.push(commands);
     commands = "";
-    setColor("#111827");
+    setColor(black);
     pageHeader(title, subtitle);
   }
 
-  function card(x, y, w, h, label, value, detail = "", accent = navy) {
-    fillRect(x, y, w, h, "#F8FAFC");
+  function card(x, y, w, h, label, value, detail = "", accent = red) {
+    fillRect(x, y, w, h, "#FFFFFF");
     strokeRect(x, y, w, h, line);
-    fillRect(x, y, 5, h, accent);
-    setColor("#5F6B7A");
-    textAt(x + 14, y + 22, 8, label.toUpperCase(), { bold: true, max: 32 });
-    setColor("#111827");
-    textAt(x + 14, y + 48, 18, value, { bold: true, max: 22 });
-    setColor("#64748B");
-    textAt(x + 14, y + 68, 8, detail, { max: 36 });
-    setColor("#111827");
+    fillRect(x, y, w, 4, accent);
+    setColor(slate);
+    textAt(x + 12, y + 20, 7.5, label.toUpperCase(), { bold: true, max: 34 });
+    setColor(black);
+    textAt(x + 12, y + 49, 18, value, { bold: true, max: 24 });
+    setColor(detail.startsWith("+") ? green : detail.startsWith("-") ? darkRed : slate);
+    textAt(x + 12, y + 70, 8, detail, { max: 42 });
+    setColor(black);
   }
 
-  function bar(x, y, w, h, label, value, maxValue, fill, amount) {
-    setColor("#334155");
-    textAt(x, y, 8, label, { bold: true, max: 42 });
-    fillRect(x, y + 9, w, h, "#E7ECF2");
-    fillRect(x, y + 9, Math.max(2, w * ((Number(value) || 0) / Math.max(maxValue, 1))), h, fill);
-    setColor("#111827");
-    textAt(x + w + 10, y + 20, 8, amount, { bold: true, max: 28 });
+  function sectionTitle(title, x, y) {
+    fillRect(x, y - 9, 4, 17, red);
+    setColor(black);
+    textAt(x + 11, y + 3, 12, title, { bold: true, max: 80 });
+  }
+
+  function deltaBadge(x, y, value, formatter, width = 76) {
+    const numeric = Number(value) || 0;
+    const bg = numeric >= 0 ? "#E8F7EF" : "#FDECEC";
+    const fg = numeric >= 0 ? green : darkRed;
+    fillRect(x, y - 12, width, 18, bg);
+    setColor(fg);
+    textAt(x + width - 6, y + 1, 7.5, formatter(numeric), { bold: true, align: "right", max: 18 });
+  }
+
+  function comparisonPanel(x, y, w, h, title, current, previous, gap, formatter, gapFormatter) {
+    const maxValue = Math.max(Math.abs(current), Math.abs(previous), 1);
+    fillRect(x, y, w, h, "#FFFFFF");
+    strokeRect(x, y, w, h, line);
+    setColor(black);
+    textAt(x + 14, y + 22, 10.5, title, { bold: true, max: 28 });
+    setColor(slate);
+    textAt(x + 14, y + 42, 7.3, "Année en cours", { max: 26 });
+    setColor(black);
+    textAt(x + w - 16, y + 42, 8.2, formatter(current), { bold: true, align: "right", max: 22 });
+    fillRect(x + 14, y + 51, w - 28, 10, "#E8EDF3");
+    fillRect(x + 14, y + 51, Math.max(3, (w - 28) * (Math.abs(current) / maxValue)), 10, gap >= 0 ? green : orange);
+    setColor(slate);
+    textAt(x + 14, y + 76, 7.3, "Année N-1", { max: 26 });
+    textAt(x + w - 16, y + 76, 8.2, formatter(previous), { align: "right", max: 22 });
+    fillRect(x + 14, y + 85, w - 28, 7, "#EDF1F5");
+    fillRect(x + 14, y + 85, Math.max(3, (w - 28) * (Math.abs(previous) / maxValue)), 7, "#9AA8B8");
+    deltaBadge(x + w - 104, y + 111, gap, gapFormatter, 88);
+    setColor(slate);
+    textAt(x + 14, y + 112, 7.2, "Écart", { bold: true, max: 18 });
   }
 
   function table(title, tableRows, yStart, columns, options = {}) {
     let y = yStart;
-    setColor(navy);
-    textAt(margin, y, 12, title, { bold: true, max: 80 });
-    y += 12;
-    fillRect(margin, y, pageWidth - margin * 2, 22, navy);
+    sectionTitle(title, margin, y);
+    y += 17;
+    fillRect(margin, y, pageWidth - margin * 2, 22, black);
     setColor("#FFFFFF");
-    columns.forEach((col) => textAt(col.x, y + 14, 7.2, col.title, { bold: true, max: col.max || 20 }));
+    columns.forEach((col) => textAt(col.x, y + 14, 6.9, col.title, { bold: true, max: col.max || 18, align: col.align }));
     y += 24;
-    tableRows.slice(0, options.limit || 10).forEach((row, index) => {
-      if (index % 2 === 0) fillRect(margin, y - 2, pageWidth - margin * 2, 21, "#F8FAFC");
-      setColor("#111827");
+    const visibleRows = tableRows.slice(0, options.limit || 9);
+    if (!visibleRows.length) {
+      fillRect(margin, y, pageWidth - margin * 2, 28, lightSlate);
+      setColor(slate);
+      textAt(margin + 12, y + 18, 8, options.empty || "Aucune donnée sur cette sélection.");
+      return y + 38;
+    }
+    visibleRows.forEach((row, index) => {
+      if (index % 2 === 0) fillRect(margin, y - 1, pageWidth - margin * 2, 27, lightSlate);
+      strokeLine(margin, y + 27, pageWidth - margin, y + 27, "#E8EDF3", 0.4);
       columns.forEach((col) => {
         const value = typeof col.value === "function" ? col.value(row) : row[col.value];
         if (col.color) setColor(col.color(row));
-        textAt(col.x, y + 12, col.size || 7.1, value, { bold: col.bold, max: col.max || 24 });
-        setColor("#111827");
+        else setColor(col.muted ? slate : black);
+        textAt(col.x, y + 16, col.size || 6.8, value, { bold: col.bold, max: col.max || 24, align: col.align });
+        setColor(black);
       });
-      y += 22;
+      y += 28;
     });
     return y + 8;
   }
@@ -3962,60 +4014,64 @@ function createClientStatsReportPdf(client, rows) {
   const totalGapCa = summary.totalCa - summary.totalPreviousCa;
   const totalGapQty = summary.totalQty - summary.totalPreviousQty;
 
-  addPage(`Analyse client - ${clientName}`, `Comparatif CA et quantités N vs N-1 - généré le ${period}`);
-  setColor("#111827");
-  textAt(margin, 104, 11, `${clientName} ${clientCode ? `(${clientCode})` : ""}`, { bold: true, max: 90 });
-  setColor("#64748B");
-  textAt(margin, 121, 8, [rows[0]?.sector || client?.sector || "", city, client?.email || ""].filter(Boolean).join(" - "), { max: 115 });
-  card(margin, 145, 124, 86, "CA HT 2026", formatWholeCurrency(summary.totalCa), `${formatPercentDelta(percentDelta(summary.totalCa, summary.totalPreviousCa))} vs N-1`, totalGapCa >= 0 ? green : red);
-  card(margin + 138, 145, 124, 86, "CA HT N-1", formatWholeCurrency(summary.totalPreviousCa), "Base comparaison", navy);
-  card(margin + 276, 145, 124, 86, "Écart CA", formatWholeCurrencyDelta(totalGapCa), `${formatNumberDelta(totalGapQty)} unités`, totalGapCa >= 0 ? green : red);
-  card(margin + 414, 145, 112, 86, "Références", formatNumber(summary.activeRefs), `${summary.newRefs.length} nouvelles`, navy);
+  addPage("Analyse client", `Comparatif CA et quantités N / N-1 - généré le ${period}`);
+  setColor(black);
+  textAt(margin, 102, 15, clientName, { bold: true, max: 72 });
+  setColor(slate);
+  textAt(margin, 119, 8.2, [clientCode, rows[0]?.sector || client?.sector || "", city, client?.email || ""].filter(Boolean).join(" - "), { max: 110 });
+  const cardY = 145;
+  card(margin, cardY, 124, 78, "CA HT 2026", formatWholeCurrency(summary.totalCa), `${formatPercentDelta(percentDelta(summary.totalCa, summary.totalPreviousCa))} vs N-1`, totalGapCa >= 0 ? green : darkRed);
+  card(margin + 136, cardY, 124, 78, "CA HT N-1", formatWholeCurrency(summary.totalPreviousCa), "base comparaison", black);
+  card(margin + 272, cardY, 124, 78, "Écart CA", formatWholeCurrencyDelta(totalGapCa), `${formatNumberDelta(totalGapQty)} unités`, totalGapCa >= 0 ? green : darkRed);
+  card(margin + 408, cardY, 123, 78, "Références", formatNumber(summary.activeRefs), `${summary.newRefs.length} nouvelles / ${summary.lostRefs.length} perdues`, red);
 
-  setColor(navy);
-  textAt(margin, 266, 13, "Visuel d'évolution", { bold: true });
-  const maxCa = Math.max(summary.totalCa, summary.totalPreviousCa, 1);
-  bar(margin, 287, 250, 24, "CA 2026", summary.totalCa, maxCa, green, formatWholeCurrency(summary.totalCa));
-  bar(margin, 329, 250, 24, "CA N-1", summary.totalPreviousCa, maxCa, "#93A4B8", formatWholeCurrency(summary.totalPreviousCa));
-  const maxQty = Math.max(summary.totalQty, summary.totalPreviousQty, 1);
-  bar(margin + 314, 287, 170, 24, "Qté 2026", summary.totalQty, maxQty, green, formatNumber(summary.totalQty));
-  bar(margin + 314, 329, 170, 24, "Qté N-1", summary.totalPreviousQty, maxQty, "#93A4B8", formatNumber(summary.totalPreviousQty));
+  sectionTitle("Évolution commerciale", margin, 258);
+  comparisonPanel(margin, 277, 255, 126, "CA HT", summary.totalCa, summary.totalPreviousCa, totalGapCa, formatWholeCurrency, formatWholeCurrencyDelta);
+  comparisonPanel(margin + 276, 277, 255, 126, "Quantités", summary.totalQty, summary.totalPreviousQty, totalGapQty, formatNumber, formatNumberDelta);
 
-  table("Top 10 articles du client", summary.topCurrent, 398, [
-    { title: "Réf.", x: 42, value: "articleCode", bold: true, max: 13 },
-    { title: "Désignation", x: 102, value: (row) => row.articleName, max: 54 },
-    { title: "CA 2026", x: 360, value: (row) => formatWholeCurrency(row.ca2026), bold: true, max: 14 },
-    { title: "CA N-1", x: 428, value: (row) => formatWholeCurrency(row.ca2025), max: 14 },
-    { title: "Écart", x: 496, value: (row) => formatWholeCurrencyDelta(row.gapCa), color: (row) => row.gapCa >= 0 ? green : red, max: 14 },
-  ], { limit: 10 });
-
-  addPage("Points clés rendez-vous", `${clientName} - données issues de l'onglet Statistiques`);
-  let y = 108;
-  fillRect(margin, y - 8, pageWidth - margin * 2, 118, "#F8FAFC");
-  strokeRect(margin, y - 8, pageWidth - margin * 2, 118, line);
-  setColor(navy);
-  textAt(margin + 14, y + 8, 13, "Synthèse à présenter", { bold: true });
-  y += 30;
-  summary.points.slice(0, 6).forEach((point) => {
-    wrapText(point, 94).slice(0, 2).forEach((lineText, index) => {
-      setColor(index === 0 ? "#111827" : "#475569");
-      textAt(margin + 18, y, 8.4, `${index === 0 ? "• " : "  "}${lineText}`, { max: 110 });
-      y += 13;
-    });
+  sectionTitle("Analyse par famille", margin, 428);
+  const maxFamilyGap = Math.max(...summary.families.map((item) => Math.abs(item.gapCa)), 1);
+  let familyY = 453;
+  summary.families.slice(0, 6).forEach((item) => {
+    const gapColor = item.gapCa >= 0 ? green : darkRed;
+    setColor(black);
+    textAt(margin, familyY, 7.5, item.family, { bold: true, max: 34 });
+    fillRect(margin + 150, familyY - 9, 160, 8, "#E8EDF3");
+    fillRect(margin + 150, familyY - 9, Math.max(3, 160 * (Math.abs(item.gapCa) / maxFamilyGap)), 8, gapColor);
+    setColor(gapColor);
+    textAt(margin + 330, familyY, 7.2, formatWholeCurrencyDelta(item.gapCa), { bold: true, max: 18 });
+    setColor(slate);
+    textAt(margin + 415, familyY, 7.2, `${formatNumberDelta(item.quantity2026 - item.quantity2025)} u.`, { max: 16 });
+    familyY += 25;
   });
 
-  const gapColumns = [
-    { title: "Réf.", x: 42, value: "articleCode", bold: true, max: 13 },
-    { title: "Désignation", x: 102, value: (row) => row.articleName, max: 47 },
-    { title: "Qté", x: 330, value: (row) => `${formatNumber(row.quantity2026)} / ${formatNumber(row.quantity2025)}`, max: 16 },
-    { title: "Écart CA", x: 420, value: (row) => formatWholeCurrencyDelta(row.gapCa), bold: true, color: (row) => row.gapCa >= 0 ? green : red, max: 16 },
-    { title: "Écart Qté", x: 500, value: (row) => formatNumberDelta(row.gapQuantity), color: (row) => row.gapQuantity >= 0 ? green : red, max: 14 },
+  const fullColumns = [
+    { title: "Réf.", x: 40, value: "articleCode", bold: true, max: 11 },
+    { title: "Désignation", x: 88, value: (row) => row.articleName, max: 34 },
+    { title: "Q26", x: 295, value: (row) => formatNumber(row.quantity2026), align: "right", bold: true, max: 9 },
+    { title: "QN-1", x: 342, value: (row) => formatNumber(row.quantity2025), align: "right", muted: true, max: 9 },
+    { title: "Écart Q", x: 393, value: (row) => formatNumberDelta(row.gapQuantity), align: "right", color: (row) => row.gapQuantity >= 0 ? green : darkRed, max: 10 },
+    { title: "CA 26", x: 458, value: (row) => formatWholeCurrency(row.ca2026), align: "right", bold: true, max: 12 },
+    { title: "Écart CA", x: 544, value: (row) => formatWholeCurrencyDelta(row.gapCa), align: "right", color: (row) => row.gapCa >= 0 ? green : darkRed, bold: true, max: 13 },
   ];
-  table("Articles en progression", summary.progress, 268, gapColumns, { limit: 7 });
-  table("Articles à relancer / vérifier", summary.declines, 488, gapColumns, { limit: 7 });
+  table("Top articles du client", summary.topCurrent, 622, fullColumns, { limit: 6 });
 
-  setColor("#64748B");
-  textAt(margin, 790, 7, "Document client : chiffres HT et quantités uniquement. Les marges ne sont jamais affichées.");
+  addPage("Détail des écarts", `${clientName} - articles et familles avec comparatif complet`);
+  table("Articles en progression", summary.progress, 103, fullColumns, { limit: 8, empty: "Aucune progression détectée." });
+  table("Articles en recul / à vérifier", summary.declines, 382, fullColumns, { limit: 8, empty: "Aucun recul détecté." });
+
+  const familyColumns = [
+    { title: "Famille", x: 40, value: "family", bold: true, max: 34 },
+    { title: "Qté 26", x: 260, value: (row) => formatNumber(row.quantity2026), align: "right", bold: true, max: 11 },
+    { title: "Qté N-1", x: 322, value: (row) => formatNumber(row.quantity2025), align: "right", muted: true, max: 11 },
+    { title: "Écart Q", x: 386, value: (row) => formatNumberDelta(row.quantity2026 - row.quantity2025), align: "right", color: (row) => (row.quantity2026 - row.quantity2025) >= 0 ? green : darkRed, max: 11 },
+    { title: "CA 26", x: 462, value: (row) => formatWholeCurrency(row.ca2026), align: "right", bold: true, max: 13 },
+    { title: "Écart CA", x: 544, value: (row) => formatWholeCurrencyDelta(row.gapCa), align: "right", color: (row) => row.gapCa >= 0 ? green : darkRed, bold: true, max: 13 },
+  ];
+  table("Familles - écarts principaux", summary.families, 660, familyColumns, { limit: 4 });
+
+  setColor(slate);
+  textAt(margin, 812, 7, "Document client : chiffres HT et quantités uniquement. Les marges ne sont jamais affichées.");
 
   if (commands) pages.push(commands);
   const objects = [];
@@ -4023,8 +4079,8 @@ function createClientStatsReportPdf(client, rows) {
     objects.push(content);
     return objects.length;
   };
-  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
   const pageRefs = [];
   pages.forEach((pageCommands) => {
     const contentRef = addObject(`<< /Length ${pageCommands.length} >>\nstream\n${pageCommands}\nendstream`);
@@ -4051,20 +4107,6 @@ function createClientStatsReportPdf(client, rows) {
   });
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogRef} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
   return new Blob([pdf], { type: "application/pdf" });
-}
-
-function openStatsReportMailFallback(recipient, client, filename) {
-  const clientName = client?.name || selectedStatsClient?.name || "client";
-  const safeRecipient = String(recipient || "").replace(/[\r\n]/g, "").trim();
-  const subject = `Analyse client Schuller - ${clientName}`;
-  const body = [
-    "Bonjour,",
-    "",
-    `Vous trouverez l'analyse client Schuller Eh'Klar en pièce jointe : ${filename}.`,
-    "",
-    "Cordialement,"
-  ].join("\n");
-  window.location.href = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 async function sendClientStatsReport() {
@@ -4117,8 +4159,7 @@ async function sendClientStatsReport() {
     recordActivity("Analyse client envoyée", `${client?.name || selectedStatsClient.name} - ${recipient}`);
   } catch (error) {
     downloadBlob(filename, pdfBlob);
-    openStatsReportMailFallback(recipient, client, filename);
-    statsReportStatus.textContent = "Envoi automatique indisponible : PDF téléchargé, ajoutez-le au mail ouvert.";
+    statsReportStatus.textContent = "Envoi automatique indisponible : le PDF a été téléchargé.";
     statsReportStatus.classList.add("is-warning");
   } finally {
     sendStatsReport.disabled = false;
