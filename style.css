@@ -1549,6 +1549,9 @@ h2 {
   background: var(--red);
   color: var(--white);
 }
+.dashboard-sector-total {
+  min-width: 180px;
+}
 
 .dashboard-status {
   display: grid;
@@ -3992,11 +3995,70 @@ h2 {
   padding: 14px 18px;
   color: var(--white);
 }
+.promotion-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .promotion-modal iframe {
   width: 100%;
   height: 100%;
   border: 0;
   background: var(--white);
+}
+
+.problem-panel {
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+}
+.problem-form {
+  display: grid;
+  gap: 16px;
+  max-width: 840px;
+}
+.problem-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 900;
+}
+.problem-form select,
+.problem-form textarea {
+  width: 100%;
+  border: 1px solid #cfd5dd;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+.problem-form select {
+  min-height: 52px;
+  padding: 0 14px;
+}
+.problem-form textarea {
+  min-height: 180px;
+  padding: 14px;
+  resize: vertical;
+  line-height: 1.45;
+}
+.problem-form .primary-button {
+  width: fit-content;
+  min-width: 220px;
+}
+
+body.dark-theme .problem-form label {
+  color: #e5edf8;
+}
+
+body.dark-theme .problem-form select,
+body.dark-theme .problem-form textarea {
+  background: #0f1722;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, .28);
 }
 
 .admin-hero {
@@ -8890,6 +8952,17 @@ body.tablet-mode .expense-history-heading {
     display: grid;
     grid-template-columns: 1fr auto;
   }
+
+  #expensesView .expense-history-card {
+    display: grid !important;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  #expensesView .expense-history-list {
+    display: grid !important;
+    gap: 10px;
+  }
 }
 
 /* Mobile terrain : tableaux critiques transformes en fiches lisibles. */
@@ -9265,5 +9338,32 @@ body.tablet-mode .expense-history-heading {
     max-height: none !important;
     margin-top: 12px !important;
     overflow: visible !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .problem-panel {
+    padding: 16px !important;
+  }
+
+  .problem-form {
+    max-width: none;
+  }
+
+  .problem-form .primary-button {
+    width: 100%;
+  }
+
+  .promotion-modal-header {
+    align-items: stretch;
+  }
+
+  .promotion-modal-actions {
+    width: 100%;
+  }
+
+  .promotion-modal-actions .ghost-button {
+    flex: 1;
+    min-width: 140px;
   }
 }

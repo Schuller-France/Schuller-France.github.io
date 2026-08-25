@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260825maildocs1" />
+    <link rel="stylesheet" href="style.css?v=20260825support1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -150,6 +150,7 @@
         <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
         <button class="tab-button" type="button" id="prenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
+        <button class="tab-button" type="button" id="problemTab" data-icon="🛠️">Signaler un problème</button>
         <button class="tab-button is-hidden" type="button" id="adminCheckingTab" data-icon="📈">Journal de bord</button>
         <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
@@ -261,6 +262,7 @@
             <button type="button" data-tablet-tab="expenses">Frais</button>
             <button type="button" data-tablet-tab="tour">Tournées</button>
             <button type="button" data-tablet-tab="backlog">Reliquats &amp; litiges</button>
+            <button type="button" data-tablet-tab="problem">Signaler un problème</button>
           </div>
         </section>
 
@@ -880,6 +882,49 @@
         </section>
       </main>
 
+      <main class="app-shell is-hidden" id="problemView">
+        <section class="panel problem-panel" aria-labelledby="problemTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Assistance</p>
+              <h2 id="problemTitle">Signaler un problème</h2>
+              <p class="helper-text">Choisissez l'onglet concerné, expliquez ce qui bloque, puis envoyez le message.</p>
+            </div>
+            <span class="status-pill">Envoi à flogilet44@gmail.com</span>
+          </div>
+          <form class="problem-form" id="problemForm">
+            <label>
+              Onglet concerné
+              <select id="problemTabSelect" required>
+                <option value="">Choisir un onglet</option>
+                <option>Accueil</option>
+                <option>Fiche client</option>
+                <option>Statistiques</option>
+                <option>Saisie commande</option>
+                <option>Demande de devis</option>
+                <option>Demande échantillon</option>
+                <option>Frais</option>
+                <option>Prise de notes</option>
+                <option>Prospection</option>
+                <option>Promotions</option>
+                <option>Tarifs & Documents</option>
+                <option>Tournées</option>
+                <option>Prix nets</option>
+                <option>Reliquats & litiges</option>
+                <option>Connexion</option>
+                <option>Autre</option>
+              </select>
+            </label>
+            <label>
+              Explication du problème
+              <textarea id="problemMessage" rows="8" required placeholder="Ex. Sur tablette, quand je clique sur aperçu plein écran dans Promotions, le document ne s'affiche pas..."></textarea>
+            </label>
+            <button class="primary-button" type="submit" id="sendProblemReport">Envoyer le problème</button>
+            <p class="tarif-send-status" id="problemStatus" role="status"></p>
+          </form>
+        </section>
+      </main>
+
       <main class="app-shell is-hidden tour-shell" id="tourView">
         <section class="panel tour-panel" aria-labelledby="tourTitle">
           <div class="panel-heading">
@@ -1173,7 +1218,10 @@
       <div class="promotion-modal is-hidden" id="promotionModal" role="dialog" aria-modal="true" aria-labelledby="promotionModalTitle">
         <div class="promotion-modal-header">
           <strong id="promotionModalTitle">Promotion</strong>
-          <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
+          <div class="promotion-modal-actions">
+            <button class="ghost-button compact" type="button" id="openPromotionExternal">Ouvrir dans Drive</button>
+            <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
+          </div>
         </div>
         <iframe id="promotionPreviewFrame" title="Aperçu promotion" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
@@ -1450,7 +1498,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260825maildocs1" charset="UTF-8"></script>
+    <script src="script.js?v=20260825support1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

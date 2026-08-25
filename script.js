@@ -52,6 +52,7 @@ let tourFollowUserLocation = false;
 let driveAutoRefreshTimer = null;
 let selectedPromotionClient = null;
 let selectedTarifClient = null;
+let currentPreviewExternalUrl = "";
 let loginProgressTimer = null;
 let loginProgressValue = 0;
 let loginProgressTarget = 0;
@@ -352,6 +353,7 @@ const backlogTab = document.querySelector("#backlogTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
+const problemTab = document.querySelector("#problemTab");
 const adminTab = document.querySelector("#adminTab");
 const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminExecutiveExpensesTab = document.querySelector("#adminExecutiveExpensesTab");
@@ -371,6 +373,7 @@ const backlogView = document.querySelector("#backlogView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
+const problemView = document.querySelector("#problemView");
 const adminView = document.querySelector("#adminView");
 const adminCheckingView = document.querySelector("#adminCheckingView");
 const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
@@ -585,6 +588,7 @@ const promotionModal = document.querySelector("#promotionModal");
 const promotionModalTitle = document.querySelector("#promotionModalTitle");
 const promotionPreviewFrame = document.querySelector("#promotionPreviewFrame");
 const closePromotionModal = document.querySelector("#closePromotionModal");
+const openPromotionExternal = document.querySelector("#openPromotionExternal");
 const tarifClientSearch = document.querySelector("#tarifClientSearch");
 const tarifClientSuggestions = document.querySelector("#tarifClientSuggestions");
 const tarifSendForm = document.querySelector("#tarifSendForm");
@@ -592,6 +596,11 @@ const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
 const sendTarifButton = document.querySelector("#sendTarifButton");
 const selectedTarifName = document.querySelector("#selectedTarifName");
+const problemForm = document.querySelector("#problemForm");
+const problemTabSelect = document.querySelector("#problemTabSelect");
+const problemMessage = document.querySelector("#problemMessage");
+const sendProblemReport = document.querySelector("#sendProblemReport");
+const problemStatus = document.querySelector("#problemStatus");
 const dashboardSectorSwitch = document.querySelector("#dashboardSectorSwitch");
 const homeRemindersPanel = document.querySelector("#homeRemindersPanel");
 const homeRemindersCount = document.querySelector("#homeRemindersCount");
@@ -1598,6 +1607,8 @@ function normalizeDrivePreviewUrl(url = "", fileId = "") {
 
 function setPreviewFrameUrl(url) {
   if (!promotionPreviewFrame || !url) return;
+  currentPreviewExternalUrl = url;
+  if (openPromotionExternal) openPromotionExternal.disabled = false;
   promotionPreviewFrame.removeAttribute("srcdoc");
   promotionPreviewFrame.src = url;
 }
@@ -1606,6 +1617,8 @@ async function openDocumentPreview(documentId) {
   const documentEntry = getTariffDocument(documentId);
   if (!documentEntry || !promotionModal || !promotionPreviewFrame) return;
   clearPromotionPreviewObjectUrl();
+  currentPreviewExternalUrl = "";
+  if (openPromotionExternal) openPromotionExternal.disabled = true;
   promotionModalTitle.textContent = documentEntry.name || "Document";
   promotionModal.classList.remove("is-hidden");
   setPromotionPreviewMessage("Chargement de l'aperçu", "Préparation du document depuis Google Drive...");
@@ -1922,6 +1935,8 @@ async function openPromotionPreview(promotionId) {
   const promotion = getPromotions().find((item) => item.id === promotionId);
   if (!promotion) return;
   clearPromotionPreviewObjectUrl();
+  currentPreviewExternalUrl = "";
+  if (openPromotionExternal) openPromotionExternal.disabled = true;
   promotionModalTitle.textContent = promotion.name;
   promotionModal.classList.remove("is-hidden");
   setPromotionPreviewMessage("Chargement de l’aperçu", "Préparation du document depuis Google Drive...");
@@ -1959,7 +1974,14 @@ function closePromotionPreview() {
   promotionModal.classList.add("is-hidden");
   promotionPreviewFrame.removeAttribute("srcdoc");
   promotionPreviewFrame.src = "";
+  currentPreviewExternalUrl = "";
+  if (openPromotionExternal) openPromotionExternal.disabled = true;
   clearPromotionPreviewObjectUrl();
+}
+
+function openCurrentPreviewExternal() {
+  if (!currentPreviewExternalUrl) return;
+  window.open(currentPreviewExternalUrl, "_blank", "noopener,noreferrer");
 }
 
 async function sendPromotions(forcedId = "") {
@@ -3066,6 +3088,9 @@ async function loadClientArticleStatsFromDrive() {
 
 function getDashboardStats(user) {
   const stats = dashboardStatsOverride || localStatsData || {};
+  if (activeDashboardSector === "total-3-5a") {
+    return stats.byUser?.[user.id] || buildCombinedDashboardStats(["Secteur 3", "Secteur 5A"], stats);
+  }
   if (activeDashboardSector && stats.bySector?.[activeDashboardSector]) return stats.bySector[activeDashboardSector];
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
@@ -3079,11 +3104,37 @@ function getDashboardStats(user) {
   };
 }
 
+function buildCombinedDashboardStats(sectors, stats) {
+  const sectorStats = sectors.map((sector) => stats.bySector?.[sector]).filter(Boolean);
+  if (!sectorStats.length) return {};
+  const revenue = sectorStats.reduce((sum, item) => sum + (Number(item.kpis?.revenue) || 0), 0);
+  const monthlyObjective = sectorStats.reduce((sum, item) => sum + (Number(item.kpis?.monthlyObjective) || 0), 0);
+  const clients = sectorStats.reduce((sum, item) => sum + (Number(item.kpis?.clients) || 0), 0);
+  return {
+    updatedAt: sectorStats[0].updatedAt || "En attente",
+    periodLabel: `Total secteurs ${sectors.join(" + ")}`,
+    kpis: {
+      revenue,
+      monthlyObjective,
+      objectiveRemaining: Math.max(0, monthlyObjective - revenue),
+      objectivePercent: monthlyObjective ? Math.round((revenue / monthlyObjective) * 100) : 0,
+      averageClient: clients ? revenue / clients : 0,
+      revenueNote: `Total ${sectors.join(" + ")}`,
+      clientsNote: "Objectif cumulé",
+      averageNote: "Moyenne cumulée",
+    },
+    salesTrend: sectorStats.flatMap((item) => item.salesTrend || []),
+    goals: sectorStats.flatMap((item) => item.goals || []),
+    topClients: sectorStats.flatMap((item) => item.topClients || []).sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0)).slice(0, 12),
+  };
+}
+
 function renderDashboardSectorSwitch(user) {
   const sectors = user.sectors || [];
+  const hasPierreTotal = sectors.some((sector) => normalizeStatsSector(sector) === "Secteur 3") && sectors.some((sector) => normalizeStatsSector(sector) === "Secteur 5A");
   dashboardSectorSwitch.innerHTML = "";
-  dashboardSectorSwitch.classList.toggle("is-hidden", sectors.length < 2);
-  if (sectors.length < 2) return;
+  dashboardSectorSwitch.classList.toggle("is-hidden", sectors.length < 2 && !hasPierreTotal);
+  if (sectors.length < 2 && !hasPierreTotal) return;
 
   sectors.forEach((sector) => {
     const button = document.createElement("button");
@@ -3097,6 +3148,18 @@ function renderDashboardSectorSwitch(user) {
     });
     dashboardSectorSwitch.appendChild(button);
   });
+  if (hasPierreTotal) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `dashboard-sector-button dashboard-sector-total${activeDashboardSector === "total-3-5a" ? " is-active" : ""}`;
+    button.textContent = "Total secteurs 3 + 5A";
+    button.addEventListener("click", () => {
+      activeDashboardSector = "total-3-5a";
+      renderDashboardSectorSwitch(user);
+      renderDashboard(user);
+    });
+    dashboardSectorSwitch.appendChild(button);
+  }
 }
 
 function formatNumber(value) {
@@ -4456,6 +4519,7 @@ function getLaunchTabFromUrl() {
       "tarif",
       "promotion",
       "prospection",
+      "problem",
       "admin",
       "adminChecking",
       "adminExecutiveExpenses",
@@ -4471,7 +4535,7 @@ function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
   const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour"]);
-  const commercialTabs = new Set(["home", "client360", "stats", "order", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "order", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
     : (commercialTabs.has(tab) ? tab : "");
@@ -4500,7 +4564,7 @@ function showApp(user, token = user.token || "") {
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
   tutorialTab?.classList.toggle("is-hidden", isAdmin || !isTrainingAccount(currentUser));
-  [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab, problemTab].forEach((tab) => tab?.classList.toggle("is-hidden", isAdmin));
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
@@ -5450,13 +5514,14 @@ function renderExpenseHistory() {
   }
   expenseHistoryList.innerHTML = drafts.map((draft) => {
     const totals = draft.totals || getExpenseDraftTotals((draft.lines || []).map(normalizeExpenseLine));
-    const receiptCount = (draft.lines || []).filter((line) => line.receiptName).length;
+    const receiptCount = Number(draft.receiptCount) || (draft.lines || []).filter((line) => line.receiptName).length;
     const active = draft.id === activeExpenseDraftId ? " is-active" : "";
+    const statusLabel = draft.status === "sent" ? "Envoyé" : "Brouillon";
     return `
       <article class="expense-history-item${active}" data-expense-draft="${escapeHtml(draft.id)}">
         <button class="expense-history-open" type="button" data-open-expense-draft="${escapeHtml(draft.id)}">
           <strong>${escapeHtml(draft.title || "Note de frais")}</strong>
-          <span>${escapeHtml(draft.updatedLabel || "Non datée")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
+          <span>${escapeHtml(statusLabel)} · ${escapeHtml(draft.updatedLabel || "Non datée")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
           <em>${escapeHtml(formatter.format(roundMoney(totals.refund || 0)))} net à payer</em>
         </button>
         <div class="expense-history-actions">
@@ -5582,6 +5647,42 @@ function openExpenseDraft(id) {
   expensesView?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function saveSentExpenseHistory(lines, receiptEntries, period, note) {
+  const now = new Date();
+  const title = period || `Frais envoyés du ${now.toLocaleDateString("fr-FR")}`;
+  const historyLines = lines.map((line) => ({
+    id: crypto.randomUUID(),
+    date: line.date || "",
+    type: line.type || "",
+    precision: line.precision || "",
+    amount: line.amount || "",
+    vat: line.vat || "",
+    refund: line.refund || "",
+    receiptName: line.receiptName || "",
+    receiptDataUrl: "",
+    receiptMimeType: "",
+  }));
+  const item = {
+    id: `sent-${crypto.randomUUID()}`,
+    title,
+    period: title,
+    note,
+    status: "sent",
+    lines: historyLines,
+    totals: {
+      amount: historyLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0),
+      vat: historyLines.reduce((sum, line) => sum + (Number(line.vat) || 0), 0),
+      refund: historyLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0),
+    },
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    updatedLabel: `Envoyé le ${now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`,
+    receiptCount: receiptEntries.length,
+  };
+  saveExpenseDrafts([item, ...getExpenseDrafts().filter((draft) => draft.id !== activeExpenseDraftId)].slice(0, 60));
+  activeExpenseDraftId = item.id;
+}
+
 function renameExpenseDraft(id) {
   const drafts = getExpenseDrafts();
   const draft = drafts.find((item) => item.id === id);
@@ -5699,6 +5800,7 @@ async function sendExpenseReportDraft() {
     });
     const successMessage = result.message || `Frais envoyés à ${schullerOperationsEmail}.`;
     recordActivity("Frais envoyés", `${payloadLines.length} ligne(s) - ${formatter.format(payloadLines.reduce((sum, line) => sum + (Number(line.refund) || 0), 0))}`);
+    saveSentExpenseHistory(payloadLines, receiptEntries, expensesPeriod.value.trim(), expensesNote.value.trim());
     resetExpenses();
     expensesSendStatus.textContent = successMessage;
     expensesSendStatus.classList.add("is-success");
@@ -8108,6 +8210,7 @@ function setActiveTab(tabName) {
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
   const showProspection = tabName === "prospection";
+  const showProblem = tabName === "problem";
   const showAdmin = tabName === "admin";
   const showAdminChecking = tabName === "adminChecking";
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
@@ -8127,6 +8230,7 @@ function setActiveTab(tabName) {
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
   prospectionTab.classList.toggle("is-active", showProspection);
+  problemTab?.classList.toggle("is-active", showProblem);
   adminTab.classList.toggle("is-active", showAdmin);
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
@@ -8146,13 +8250,14 @@ function setActiveTab(tabName) {
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
   prospectionView.classList.toggle("is-hidden", !showProspection);
+  problemView?.classList.toggle("is-hidden", !showProblem);
   adminView.classList.toggle("is-hidden", !showAdmin);
   adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -8185,6 +8290,10 @@ function setActiveTab(tabName) {
   if (showExpenses) {
     renderExpenses();
     requestAnimationFrame(() => expensesPeriod?.focus());
+  }
+
+  if (showProblem) {
+    requestAnimationFrame(() => problemTabSelect?.focus());
   }
 
   if (showAdminExecutiveExpenses) {
@@ -8676,6 +8785,78 @@ function refreshNotesHistoryFromCurrentMode() {
   }
 }
 
+function problemContextPayload(tab, message) {
+  return {
+    tab,
+    message,
+    user: currentUser ? JSON.stringify({
+      id: currentUser.id || "",
+      name: currentUser.name || "",
+      sectors: currentUser.sectors || [],
+      role: currentUser.role || "",
+    }) : "",
+    pageUrl: window.location.href,
+    userAgent: navigator.userAgent,
+    date: new Date().toISOString(),
+  };
+}
+
+function openProblemMailFallback(tab, message) {
+  const subject = `Probleme site Schuller - ${tab}`;
+  const body = [
+    `Onglet concerne : ${tab}`,
+    "",
+    message,
+    "",
+    currentUser ? `Compte : ${currentUser.name} (${(currentUser.sectors || []).join(" + ")})` : "",
+    `Page : ${window.location.href}`,
+  ].filter(Boolean).join("\n");
+  window.location.href = `mailto:${schullerCommercialRequestEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+async function sendProblemReportDraft(event) {
+  event.preventDefault();
+  if (!problemTabSelect || !problemMessage || !problemStatus) return;
+  const tab = problemTabSelect.value.trim();
+  const message = problemMessage.value.trim();
+  problemStatus.className = "tarif-send-status";
+  if (!tab || !message) {
+    problemStatus.textContent = "Choisissez l'onglet et décrivez le problème.";
+    problemStatus.classList.add("is-error");
+    return;
+  }
+  if (isTrainingAccount()) {
+    showTrainingStatus(problemStatus, "Mode formation : problème noté, aucun e-mail réel envoyé.");
+    problemForm?.reset();
+    return;
+  }
+  if (sendProblemReport) {
+    sendProblemReport.disabled = true;
+    sendProblemReport.textContent = "Envoi en cours…";
+  }
+  try {
+    await postService({
+      action: "sendProblemReport",
+      recipient: schullerCommercialRequestEmail,
+      destinationEmail: schullerCommercialRequestEmail,
+      ...problemContextPayload(tab, message),
+    });
+    problemStatus.textContent = `Problème envoyé à ${schullerCommercialRequestEmail}.`;
+    problemStatus.classList.add("is-success");
+    recordActivity("Problème signalé", `${tab} - ${message.slice(0, 120)}`);
+    problemForm?.reset();
+  } catch (error) {
+    problemStatus.textContent = "Envoi automatique indisponible : ouverture d'un e-mail prérempli.";
+    problemStatus.classList.add("is-warning");
+    openProblemMailFallback(tab, message);
+  } finally {
+    if (sendProblemReport) {
+      sendProblemReport.disabled = false;
+      sendProblemReport.textContent = "Envoyer le problème";
+    }
+  }
+}
+
 function updateOfflineStatus() {
   if (!offlineStatus) return;
   const online = navigator.onLine !== false;
@@ -8705,6 +8886,7 @@ prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
 prospectionTab.addEventListener("click", () => setActiveTab("prospection"));
+problemTab?.addEventListener("click", () => setActiveTab("problem"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
@@ -9085,6 +9267,8 @@ promotionGrid.addEventListener("click", (event) => {
   if (sendId) sendPromotions(sendId);
 });
 closePromotionModal.addEventListener("click", closePromotionPreview);
+openPromotionExternal?.addEventListener("click", openCurrentPreviewExternal);
+problemForm?.addEventListener("submit", sendProblemReportDraft);
 displayModeToggle.addEventListener("click", toggleDisplayMode);
 tabletMenuToggle?.addEventListener("click", toggleTabletMenu);
 tabletMenuBackdrop?.addEventListener("click", () => setTabletMenuOpen(false));
