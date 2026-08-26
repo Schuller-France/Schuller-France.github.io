@@ -650,8 +650,8 @@ async function postService(parameters) {
     setSyncStatus("local", "Local");
     throw new Error("Service indisponible.");
   }
-  const payload = { ...parameters };
-  if (currentSessionToken && !payload.token) payload.token = currentSessionToken;
+  const { skipSessionToken = false, ...payload } = parameters;
+  if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   let response;
   try {
     response = await fetch(tariffConfig.endpoint, {
@@ -921,6 +921,11 @@ function expireCurrentSession(message = "Votre session a expiré. Reconnectez-vo
 
 async function loadAdminLogs() {
   if (currentUser?.role !== "admin") return;
+  if (isLocalAdminSession()) {
+    if (adminLogStatus) adminLogStatus.textContent = "Mode admin local";
+    renderAdminDashboard();
+    return;
+  }
   adminLogStatus.textContent = "Actualisation…";
   refreshAdminLogs.disabled = true;
   try {
@@ -6412,15 +6417,18 @@ async function sendExecutiveExpenseReportDraft() {
       note: executiveExpensesNote?.value.trim() || "",
       lines: JSON.stringify(payloadLines),
       receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
+      skipSessionToken: isLocalAdminSession() ? "1" : "",
     });
     resetExecutiveExpensesForm();
     if (executiveExpensesSendStatus) {
       executiveExpensesSendStatus.textContent = result.message || `Frais dirigeants envoyés à ${schullerOperationsEmail}.`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
     }
-    loadAdminLogs();
+    if (!isLocalAdminSession()) loadAdminLogs();
   } catch (error) {
-    executiveExpensesSendStatus.textContent = error.message || "L'envoi des frais dirigeants a échoué.";
+    executiveExpensesSendStatus.textContent = isLocalAdminSession() && isSessionError(error)
+      ? "Le serveur refuse l'envoi avec l'accès admin local. Il faut reconnecter l'admin via le Google Script ou mettre le mot de passe admin à jour côté serveur."
+      : (error.message || "L'envoi des frais dirigeants a échoué.");
     executiveExpensesSendStatus.className = "tarif-send-status is-error";
   } finally {
     sendExecutiveExpenseReport.disabled = false;
