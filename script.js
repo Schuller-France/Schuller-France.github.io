@@ -500,6 +500,8 @@ const executiveExpensesSendStatus = document.querySelector("#executiveExpensesSe
 const executiveExpensesStatus = document.querySelector("#executiveExpensesStatus");
 const executiveExpensesTotalAmount = document.querySelector("#executiveExpensesTotalAmount");
 const executiveExpensesTotalVat = document.querySelector("#executiveExpensesTotalVat");
+const executiveExpenseDraftCard = document.querySelector("#executiveExpenseDraftCard");
+const executiveExpenseDraftMeta = document.querySelector("#executiveExpenseDraftMeta");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -3003,6 +3005,15 @@ function buildDashboardStatsFromRows(rows, sourceInfo) {
 
 async function loadDashboardStatsFromDrive(options = {}) {
   if (!currentSessionToken) return;
+  if (isLocalAdminSession()) {
+    if (!dashboardStatsOverride) restoreDashboardStatsCache();
+    if (currentUser?.role === "admin") {
+      if (checkingStatus) checkingStatus.textContent = "Mode admin local";
+      renderAdminChecking();
+      renderAdminDashboard();
+    }
+    return;
+  }
   // Ne vide jamais la derniere bonne lecture avant d'avoir une reponse Drive valide.
   // Ainsi, si le reseau est lent ou absent, l'accueil garde les derniers chiffres fiables.
   if (dashboardStatsLoading) {
@@ -5172,7 +5183,7 @@ async function submitLogin() {
     if (normalize(loginId.value.trim()) === "admin" && loginPassword.value === "admin") {
       updateLoginProgress(96, "Compte admin local", "Ouverture de l'espace administrateur...", "dashboard");
       await waitForLoginProgressComplete();
-      showApp({ id: "admin", name: "Administrateur", role: "admin", sectors: [], remember: rememberLogin.checked }, localAdminToken);
+      showApp({ id: "admin", name: "Administrateur", role: "admin", sectors: [], remember: true }, localAdminToken);
       return;
     }
     const result = await postService({
@@ -5284,6 +5295,10 @@ async function restoreSession() {
       rememberLogin.checked = Boolean(savedUser.remember);
       loginError.textContent = "Reconnexion sécurisée...";
       loginError.className = "login-error";
+      if (savedUser.role === "admin" && savedUser.token === localAdminToken) {
+        showApp({ ...savedUser, remember: true }, localAdminToken);
+        return;
+      }
       const cached = restoreSecureDataCache(savedUser.id);
       if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
       showApp(savedUser, savedUser.token || "");
@@ -6314,6 +6329,31 @@ function executiveExpenseDraftKey() {
   return `${executiveExpenseDraftStorageKey}:${currentUser?.id || "admin"}`;
 }
 
+function getExecutiveExpenseDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(executiveExpenseDraftKey()) || "null");
+    return draft?.id ? draft : null;
+  } catch (error) {
+    localStorage.removeItem(executiveExpenseDraftKey());
+    return null;
+  }
+}
+
+function renderExecutiveExpenseDraftNotice(draft = getExecutiveExpenseDraft()) {
+  if (!executiveExpenseDraftCard || !executiveExpenseDraftMeta) return;
+  if (!draft?.id) {
+    executiveExpenseDraftCard.classList.add("is-hidden");
+    executiveExpenseDraftMeta.textContent = "";
+    return;
+  }
+  const savedLines = Array.isArray(draft.lines) ? draft.lines : [];
+  const lineCount = savedLines.filter((line) => parseAmount(line.amount) > 0).length;
+  const totalFromLines = savedLines.reduce((sum, line) => sum + parseAmount(line.amount), 0);
+  const total = roundMoney(draft.totals?.amount || totalFromLines);
+  executiveExpenseDraftMeta.textContent = `${draft.updatedLabel || "Dernière sauvegarde"} · ${lineCount} ligne${lineCount > 1 ? "s" : ""} · ${formatter.format(total)}`;
+  executiveExpenseDraftCard.classList.remove("is-hidden");
+}
+
 function serializeExecutiveExpenseLine(line) {
   return {
     id: line.id || crypto.randomUUID(),
@@ -6360,6 +6400,7 @@ function renderExecutiveExpenses() {
     </tr>
   `).join("");
   updateExecutiveExpenseSummary();
+  renderExecutiveExpenseDraftNotice();
 }
 
 function updateExecutiveExpenseSummary() {
@@ -6375,6 +6416,7 @@ function updateExecutiveExpenseSummary() {
 function resetExecutiveExpensesForm() {
   activeExecutiveExpenseDraftId = null;
   localStorage.removeItem(executiveExpenseDraftKey());
+  renderExecutiveExpenseDraftNotice(null);
   executiveExpenseLineItems = [newExecutiveExpenseLine()];
   if (executiveExpenseOwner) executiveExpenseOwner.value = "";
   if (executiveExpensesPeriod) executiveExpensesPeriod.value = "";
@@ -6411,6 +6453,7 @@ async function saveCurrentExecutiveExpenseDraft() {
     };
     localStorage.setItem(executiveExpenseDraftKey(), JSON.stringify(draft));
     activeExecutiveExpenseDraftId = draft.id;
+    renderExecutiveExpenseDraftNotice(draft);
     if (executiveExpensesSendStatus) {
       executiveExpensesSendStatus.textContent = `Brouillon enregistré (${draft.updatedLabel}).`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
@@ -6427,7 +6470,7 @@ async function saveCurrentExecutiveExpenseDraft() {
 function restoreExecutiveExpenseDraft({ silent = false } = {}) {
   if (!currentUser || currentUser.role !== "admin") return false;
   try {
-    const draft = JSON.parse(localStorage.getItem(executiveExpenseDraftKey()) || "null");
+    const draft = getExecutiveExpenseDraft();
     if (!draft?.id) return false;
     activeExecutiveExpenseDraftId = draft.id;
     executiveExpenseLineItems = Array.isArray(draft.lines) && draft.lines.length
@@ -6440,6 +6483,7 @@ function restoreExecutiveExpenseDraft({ silent = false } = {}) {
       executiveExpensesSendStatus.textContent = `Brouillon repris : ${draft.updatedLabel || "dernière sauvegarde"}.`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
     }
+    renderExecutiveExpenseDraftNotice(draft);
     renderExecutiveExpenses();
     return true;
   } catch (error) {
@@ -6539,16 +6583,22 @@ async function sendExecutiveExpenseReportDraft() {
       refund: line.amountNumber,
       receiptName: receiptEntries.find((receipt) => receipt.lineId === line.id)?.name || "",
     }));
+    const localAdmin = isLocalAdminSession();
     const result = await postService({
-      action: "sendExecutiveExpenseReport",
+      action: localAdmin ? "sendExpenseReport" : "sendExecutiveExpenseReport",
       recipient: schullerOperationsEmail,
       destinationEmail: schullerOperationsEmail,
       owner,
-      period: executiveExpensesPeriod?.value.trim() || "",
-      note: executiveExpensesNote?.value.trim() || "",
+      period: localAdmin
+        ? [owner, executiveExpensesPeriod?.value.trim()].filter(Boolean).join(" - ")
+        : executiveExpensesPeriod?.value.trim() || "",
+      note: localAdmin
+        ? ["Frais dirigeants", executiveExpensesNote?.value.trim()].filter(Boolean).join(" - ")
+        : executiveExpensesNote?.value.trim() || "",
       lines: JSON.stringify(payloadLines),
       receipts: JSON.stringify(receiptEntries.map(({ lineId, ...receipt }) => receipt)),
-      skipSessionToken: isLocalAdminSession() ? "1" : "",
+      draftId: activeExecutiveExpenseDraftId || "",
+      skipSessionToken: localAdmin ? "1" : "",
     });
     resetExecutiveExpensesForm();
     if (executiveExpensesSendStatus) {
@@ -6558,8 +6608,7 @@ async function sendExecutiveExpenseReportDraft() {
     if (!isLocalAdminSession()) loadAdminLogs();
   } catch (error) {
     if (isLocalAdminSession() && isSessionError(error)) {
-      exportExecutiveExpenseCsv(payloadLines.length ? payloadLines : filledLines, owner, receiptEntries);
-      executiveExpensesSendStatus.textContent = "Le serveur refuse l'accès admin local. Brouillon conservé et CSV téléchargé : envoie-le à france@schuller.eu, puis corrige le mot de passe admin côté Google Script.";
+      executiveExpensesSendStatus.textContent = "Le serveur refuse encore l'envoi admin local. Le brouillon est conservé : il faut mettre le mot de passe admin à jour côté Google Script pour autoriser l'envoi.";
     } else {
       executiveExpensesSendStatus.textContent = error.message || "L'envoi des frais dirigeants a échoué.";
     }

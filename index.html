@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260826execdraft1" />
+    <link rel="stylesheet" href="style.css?v=20260826adminstable1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1321,8 +1321,15 @@
           <section class="expenses-rules executive-expense-rules" aria-label="Principe frais dirigeants">
             <article><strong>Aucun plafond</strong><span>Les montants sont repris tels qu'ils sont saisis.</span></article>
             <article><strong>Justificatifs</strong><span>Ajoutez une photo ou un PDF pour chaque ligne si besoin.</span></article>
-            <article><strong>Envoi automatique</strong><span>Le tableau complet part &agrave; l'adresse configur&eacute;e : flogilet44@gmail.com.</span></article>
+            <article><strong>Envoi automatique</strong><span>Le tableau complet part &agrave; l'adresse configur&eacute;e : france@schuller.eu.</span></article>
           </section>
+
+          <div class="executive-draft-card is-hidden" id="executiveExpenseDraftCard" aria-live="polite">
+            <div>
+              <strong>Brouillon enregistr&eacute;</strong>
+              <span id="executiveExpenseDraftMeta">Derni&egrave;re sauvegarde locale disponible.</span>
+            </div>
+          </div>
 
           <div class="expenses-meta executive-expenses-meta">
             <label>
@@ -1499,7 +1506,7 @@
 
     <script src="tarifs.js?v=20260722s" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260826execdraft1" charset="UTF-8"></script>
+    <script src="script.js?v=20260826adminstable1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
