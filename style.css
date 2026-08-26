@@ -251,6 +251,9 @@ body {
   gap: 10px;
   min-width: 0;
 }
+.client360-waze-button {
+  margin-top: 10px;
+}
 .client360-kpis span {
   display: grid;
   gap: 5px;
@@ -3720,6 +3723,12 @@ h2 {
 
 .france-map .leaflet-control-attribution {
   font-size: 10px;
+}
+
+.tour-marker-label {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
 }
 
 .tour-map-unavailable {

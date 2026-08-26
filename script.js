@@ -47,6 +47,8 @@ let tourMarkersLayer = null;
 let tourRouteLayer = null;
 let tourUserLocationLayer = null;
 let tourMarkerByCode = new Map();
+let tourMarkerNameByCode = new Map();
+const TOUR_MARKER_LABEL_ZOOM = 13;
 let tourUserLocation = null;
 let tourLocationWatchId = null;
 let tourFollowUserLocation = false;
@@ -649,6 +651,11 @@ function setSyncStatus(state, message) {
 let adminLogsCache = [];
 let adminExpenseReportsCache = [];
 
+const POST_SERVICE_TIMEOUT_MS = 25000;
+// Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
+// une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "login"]);
+
 async function postService(parameters) {
   setSyncStatus("syncing", "Synchro...");
   if (!tariffConfig.endpoint) {
@@ -657,39 +664,63 @@ async function postService(parameters) {
   }
   const { skipSessionToken = false, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
-  let response;
-  try {
-    response = await fetch(tariffConfig.endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams(payload).toString(),
-    });
-  } catch (error) {
-    setSyncStatus("error", "Hors ligne");
-    throw new Error("Connexion au service Google impossible. Vérifiez la connexion internet puis réessayez.");
+  const action = String(payload.action || "");
+  const maxAttempts = POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), POST_SERVICE_TIMEOUT_MS);
+    let response;
+    try {
+      response = await fetch(tariffConfig.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: new URLSearchParams(payload).toString(),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const isTimeout = error?.name === "AbortError";
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        continue;
+      }
+      setSyncStatus("error", isTimeout ? "Delai depasse" : "Hors ligne");
+      throw new Error(
+        isTimeout
+          ? "Le serveur met trop de temps a repondre. Reessayez dans quelques instants."
+          : "Connexion au service Google impossible. Verifiez la connexion internet puis reessayez."
+      );
+    }
+    clearTimeout(timeoutId);
+    const rawText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(rawText);
+    } catch (error) {
+      console.warn("Reponse Google non JSON", {
+        status: response.status,
+        action: payload.action,
+        preview: rawText.slice(0, 300),
+      });
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        continue;
+      }
+      setSyncStatus("error", "Synchro a verifier");
+      throw new Error("Le service Google a renvoye une reponse invalide. Reconnectez-vous ou reessayez dans quelques instants.");
+    }
+    if (!result.ok) {
+      setSyncStatus("error", "Synchro a verifier");
+      const serviceError = new Error(result.message || "Operation impossible.");
+      serviceError.servicePayload = result;
+      serviceError.serviceAction = payload.action;
+      throw serviceError;
+    }
+    setSyncStatus("ready", "Synchronise");
+    return result;
   }
-  const rawText = await response.text();
-  let result;
-  try {
-    result = JSON.parse(rawText);
-  } catch (error) {
-    console.warn("Réponse Google non JSON", {
-      status: response.status,
-      action: payload.action,
-      preview: rawText.slice(0, 300),
-    });
-    setSyncStatus("error", "Synchro à vérifier");
-    throw new Error("Le service Google a renvoyé une réponse invalide. Reconnectez-vous ou réessayez dans quelques instants.");
-  }
-  if (!result.ok) {
-    setSyncStatus("error", "Synchro à vérifier");
-    const serviceError = new Error(result.message || "Opération impossible.");
-    serviceError.servicePayload = result;
-    serviceError.serviceAction = payload.action;
-    throw serviceError;
-  }
-  setSyncStatus("ready", "Synchronisé");
-  return result;
+  throw new Error("Connexion au service Google impossible. Verifiez la connexion internet puis reessayez.");
 }
 
 function applySecureAppData(result) {
@@ -4212,6 +4243,7 @@ function selectClient360(client) {
   const gapCa = articleSummary ? Number(articleSummary.gapCa || ((Number(articleSummary.ca2026) || 0) - (Number(articleSummary.ca2025) || 0))) : null;
   const evolutionLabel = articleSummary ? formatWholeCurrencyDelta(gapCa) : "--";
   const topArticles = Array.isArray(data.articleStats?.topArticles) ? data.articleStats.topArticles : [];
+  const client360WazeAddress = getClientRouteAddress(client);
   client360Summary.innerHTML = `
     <article class="selected-client client360-identity">
       <div>
@@ -4219,6 +4251,7 @@ function selectClient360(client) {
         <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span>
         <span>${escapeHtml(client.deliveryAddress || client.billingAddress || "")}</span>
         <span>${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</span>
+        ${client360WazeAddress ? `<button class="ghost-button compact client360-waze-button" type="button" data-client360-waze="${escapeHtml(client.code)}">Itinéraire Waze</button>` : ""}
       </div>
       <div class="client360-kpis">
         <span><small>CA 2026</small><strong>${escapeHtml(caLabel)}</strong></span>
@@ -8226,8 +8259,24 @@ function initTourMap() {
   tourMarkersLayer = L.layerGroup().addTo(tourMapInstance);
   tourRouteLayer = L.layerGroup().addTo(tourMapInstance);
   tourUserLocationLayer = L.layerGroup().addTo(tourMapInstance);
+  tourMapInstance.on("zoomend", updateTourMarkerLabels);
   setTimeout(() => tourMapInstance.invalidateSize(), 150);
   return true;
+}
+
+function updateTourMarkerLabels() {
+  if (!tourMapInstance) return;
+  const showLabels = tourMapInstance.getZoom() >= TOUR_MARKER_LABEL_ZOOM;
+  tourMarkerByCode.forEach((marker, code) => {
+    const name = tourMarkerNameByCode.get(code) || "";
+    marker.unbindTooltip();
+    marker.bindTooltip(name, {
+      direction: "top",
+      sticky: !showLabels,
+      permanent: showLabels,
+      className: "tour-marker-label",
+    });
+  });
 }
 
 function renderInteractiveTourMap(clients) {
@@ -8235,9 +8284,11 @@ function renderInteractiveTourMap(clients) {
   tourMarkersLayer.clearLayers();
   tourRouteLayer.clearLayers();
   tourMarkerByCode = new Map();
+  tourMarkerNameByCode = new Map();
   const selectedClients = getSelectedTourClients();
   const bounds = [];
   const selectedCoordinates = [];
+  const showLabels = tourMapInstance.getZoom() >= TOUR_MARKER_LABEL_ZOOM;
 
   clients.forEach((client) => {
     const coordinates = getClientCoordinates(client, clients);
@@ -8250,7 +8301,12 @@ function renderInteractiveTourMap(clients) {
       fillColor: selected ? "#e70013" : "#111827",
       fillOpacity: selected ? 0.9 : 0.75,
     }).addTo(tourMarkersLayer);
-    marker.bindTooltip(client.name, { direction: "top", sticky: true });
+    marker.bindTooltip(client.name, {
+      direction: "top",
+      sticky: !showLabels,
+      permanent: showLabels,
+      className: "tour-marker-label",
+    });
     marker.bindPopup(`
       <strong>${escapeHtml(client.name)}</strong><br>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
@@ -8259,6 +8315,7 @@ function renderInteractiveTourMap(clients) {
     `);
     marker.on("click", () => toggleTourClient(client.code));
     tourMarkerByCode.set(client.code, marker);
+    tourMarkerNameByCode.set(client.code, client.name);
     bounds.push([coordinates.lat, coordinates.lng]);
   });
 
@@ -8521,6 +8578,16 @@ function openWazeNextClient() {
   if (!client) return;
   const url = `https://waze.com/ul?q=${encodeURIComponent(getClientRouteAddress(client))}&navigate=yes`;
   recordActivity("Tournée Waze ouverte", `${client.name} (${client.code})`);
+  window.open(url, "_blank", "noopener");
+}
+
+function openClientWazeByCode(code) {
+  const client = (allClients || []).find((item) => item.code === code) || (visibleClients || []).find((item) => item.code === code);
+  if (!client) return;
+  const address = getClientRouteAddress(client);
+  if (!address) return;
+  const url = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+  recordActivity("Itinéraire Waze ouvert", `${client.name} (${client.code})`);
   window.open(url, "_blank", "noopener");
 }
 
@@ -9659,6 +9726,11 @@ document.querySelector("#client360Grid")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-client360-open]");
   if (!button) return;
   openClient360LinkedTab(button.dataset.client360Open, button.dataset.orderId || "");
+});
+client360Summary?.addEventListener("click", (event) => {
+  const wazeButton = event.target.closest("[data-client360-waze]");
+  if (!wazeButton) return;
+  openClientWazeByCode(wazeButton.dataset.client360Waze);
 });
 quoteClientSearch.addEventListener("input", (event) => handleQuoteClientSearchInput(event.target.value));
 addQuoteLine.addEventListener("click", addQuoteLineItem);
