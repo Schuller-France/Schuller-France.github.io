@@ -5933,8 +5933,8 @@ function renderExpenses() {
         <td><strong>${escapeHtml(formatter.format(refunded))}</strong>${warning}</td>
         <td>
           <label class="expense-upload">
-            <input type="file" accept="image/*,.pdf" capture="environment" data-expense-field="receipt" />
-            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter un justificatif photo"}</span>
+            <input type="file" accept="image/*,.pdf" data-expense-field="receipt" />
+            <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter une photo ou un fichier"}</span>
           </label>
         </td>
         <td><button class="icon-button" type="button" data-remove-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
@@ -6317,8 +6317,8 @@ function renderExecutiveExpenses() {
       <td><input type="text" inputmode="decimal" value="${escapeHtml(line.vat)}" placeholder="0,00" data-executive-expense-field="vat" /></td>
       <td>
         <label class="expense-upload">
-          <input type="file" accept="image/*,.pdf" capture="environment" data-executive-expense-field="receipt" />
-          <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter un justificatif photo"}</span>
+          <input type="file" accept="image/*,.pdf" data-executive-expense-field="receipt" />
+          <span>${line.receiptName ? escapeHtml(line.receiptName) : "Ajouter une photo ou un fichier"}</span>
         </label>
       </td>
       <td><button class="icon-button" type="button" data-remove-executive-expense-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
