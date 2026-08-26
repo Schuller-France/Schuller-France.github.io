@@ -26,6 +26,7 @@ let sampleLineItems = [];
 let expenseLineItems = [];
 let executiveExpenseLineItems = [];
 let activeExpenseDraftId = null;
+let activeExecutiveExpenseDraftId = null;
 let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
@@ -74,6 +75,7 @@ const backlogHiddenStorageKey = "schullerBacklogHidden";
 const quoteHistoryStorageKey = "schullerQuoteHistory";
 const sampleHistoryStorageKey = "schullerSampleHistory";
 const expenseDraftStorageKey = "schullerExpenseDrafts";
+const executiveExpenseDraftStorageKey = "schullerExecutiveExpenseDraft";
 const prospectionLocalStorageKey = "schullerProspectionFollowup";
 const orderDraftStorageKey = "schullerOrderDraft";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
@@ -492,6 +494,7 @@ const executiveExpensesNote = document.querySelector("#executiveExpensesNote");
 const executiveExpensesLines = document.querySelector("#executiveExpensesLines");
 const addExecutiveExpenseLine = document.querySelector("#addExecutiveExpenseLine");
 const resetExecutiveExpenses = document.querySelector("#resetExecutiveExpenses");
+const saveExecutiveExpenseDraft = document.querySelector("#saveExecutiveExpenseDraft");
 const sendExecutiveExpenseReport = document.querySelector("#sendExecutiveExpenseReport");
 const executiveExpensesSendStatus = document.querySelector("#executiveExpensesSendStatus");
 const executiveExpensesStatus = document.querySelector("#executiveExpensesStatus");
@@ -904,7 +907,8 @@ function toggleThemeMode() {
 
 function isSessionError(error) {
   const message = normalize(error?.message || "");
-  return message.includes("session expire")
+  return message.includes("expir")
+    || message.includes("session expire")
     || message.includes("session invalide")
     || message.includes("acces refuse")
     || message.includes("reconnectez");
@@ -6306,6 +6310,32 @@ function getExecutiveExpenseTotals() {
   }, { amount: 0, vat: 0 });
 }
 
+function executiveExpenseDraftKey() {
+  return `${executiveExpenseDraftStorageKey}:${currentUser?.id || "admin"}`;
+}
+
+function serializeExecutiveExpenseLine(line) {
+  return {
+    id: line.id || crypto.randomUUID(),
+    date: line.date || todayIsoDate(),
+    type: line.type || "REPAS",
+    precision: line.precision || "",
+    amount: line.amount || "",
+    vat: line.vat || "",
+    receiptName: line.receiptName || "",
+    receiptDataUrl: line.receiptDataUrl || "",
+    receiptMimeType: line.receiptMimeType || "",
+  };
+}
+
+function normalizeExecutiveExpenseLine(line) {
+  return {
+    ...newExecutiveExpenseLine(),
+    ...serializeExecutiveExpenseLine(line || {}),
+    receiptFile: null,
+  };
+}
+
 function ensureExecutiveExpenseLines() {
   if (!executiveExpenseLineItems.length) executiveExpenseLineItems = [newExecutiveExpenseLine()];
 }
@@ -6338,10 +6368,13 @@ function updateExecutiveExpenseSummary() {
   executiveExpensesTotalAmount.textContent = formatter.format(roundMoney(totals.amount));
   executiveExpensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
   const filledCount = executiveExpenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
-  executiveExpensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}`;
+  const draftLabel = activeExecutiveExpenseDraftId ? " · brouillon enregistré" : "";
+  executiveExpensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}${draftLabel}`;
 }
 
 function resetExecutiveExpensesForm() {
+  activeExecutiveExpenseDraftId = null;
+  localStorage.removeItem(executiveExpenseDraftKey());
   executiveExpenseLineItems = [newExecutiveExpenseLine()];
   if (executiveExpenseOwner) executiveExpenseOwner.value = "";
   if (executiveExpensesPeriod) executiveExpensesPeriod.value = "";
@@ -6351,6 +6384,68 @@ function resetExecutiveExpensesForm() {
     executiveExpensesSendStatus.className = "tarif-send-status";
   }
   renderExecutiveExpenses();
+}
+
+async function saveCurrentExecutiveExpenseDraft() {
+  if (!currentUser || currentUser.role !== "admin") return;
+  syncExecutiveExpenseLinesFromDom();
+  if (executiveExpensesSendStatus) {
+    executiveExpensesSendStatus.textContent = "Enregistrement du brouillon…";
+    executiveExpensesSendStatus.className = "tarif-send-status";
+  }
+  try {
+    const linesToSave = [];
+    for (const line of executiveExpenseLineItems) {
+      linesToSave.push(await hydrateExpenseLineForDraft({ ...line, type: line.type || "REPAS" }));
+    }
+    const now = new Date();
+    const draft = {
+      id: activeExecutiveExpenseDraftId || crypto.randomUUID(),
+      owner: executiveExpenseOwner?.value.trim() || "",
+      period: executiveExpensesPeriod?.value.trim() || "",
+      note: executiveExpensesNote?.value.trim() || "",
+      lines: linesToSave.map(serializeExecutiveExpenseLine),
+      totals: getExecutiveExpenseTotals(),
+      updatedAt: now.toISOString(),
+      updatedLabel: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
+    };
+    localStorage.setItem(executiveExpenseDraftKey(), JSON.stringify(draft));
+    activeExecutiveExpenseDraftId = draft.id;
+    if (executiveExpensesSendStatus) {
+      executiveExpensesSendStatus.textContent = `Brouillon enregistré (${draft.updatedLabel}).`;
+      executiveExpensesSendStatus.className = "tarif-send-status is-success";
+    }
+    renderExecutiveExpenses();
+  } catch (error) {
+    if (executiveExpensesSendStatus) {
+      executiveExpensesSendStatus.textContent = "Impossible d'enregistrer les justificatifs. Essaie avec moins de photos.";
+      executiveExpensesSendStatus.className = "tarif-send-status is-error";
+    }
+  }
+}
+
+function restoreExecutiveExpenseDraft({ silent = false } = {}) {
+  if (!currentUser || currentUser.role !== "admin") return false;
+  try {
+    const draft = JSON.parse(localStorage.getItem(executiveExpenseDraftKey()) || "null");
+    if (!draft?.id) return false;
+    activeExecutiveExpenseDraftId = draft.id;
+    executiveExpenseLineItems = Array.isArray(draft.lines) && draft.lines.length
+      ? draft.lines.map(normalizeExecutiveExpenseLine)
+      : [newExecutiveExpenseLine()];
+    if (executiveExpenseOwner) executiveExpenseOwner.value = draft.owner || "";
+    if (executiveExpensesPeriod) executiveExpensesPeriod.value = draft.period || "";
+    if (executiveExpensesNote) executiveExpensesNote.value = draft.note || "";
+    if (!silent && executiveExpensesSendStatus) {
+      executiveExpensesSendStatus.textContent = `Brouillon repris : ${draft.updatedLabel || "dernière sauvegarde"}.`;
+      executiveExpensesSendStatus.className = "tarif-send-status is-success";
+    }
+    renderExecutiveExpenses();
+    return true;
+  } catch (error) {
+    localStorage.removeItem(executiveExpenseDraftKey());
+    return false;
+  }
 }
 
 function setExecutiveExpenseLineField(id, field, value) {
@@ -6378,8 +6473,42 @@ function removeExecutiveExpenseLine(id) {
   renderExecutiveExpenses();
 }
 
+function syncExecutiveExpenseLinesFromDom() {
+  executiveExpensesLines?.querySelectorAll("[data-executive-expense-line]").forEach((row) => {
+    const line = executiveExpenseLineItems.find((item) => item.id === row.dataset.executiveExpenseLine);
+    if (!line) return;
+    row.querySelectorAll("[data-executive-expense-field]").forEach((fieldEl) => {
+      const field = fieldEl.dataset.executiveExpenseField;
+      if (!field || field === "receipt") return;
+      line[field] = fieldEl.value;
+    });
+  });
+}
+
+function exportExecutiveExpenseCsv(linesToExport, owner, receiptEntries = []) {
+  const receiptByLineId = new Map(receiptEntries.map((receipt) => [receipt.lineId, receipt.name]));
+  const period = executiveExpensesPeriod?.value.trim() || "";
+  const note = executiveExpensesNote?.value.trim() || "";
+  const rows = [
+    ["Dirigeant", "Période", "Date", "Type", "Précision", "Montant TTC", "TVA", "Justificatif", "Commentaire"],
+    ...linesToExport.map((line) => [
+      owner || "Direction Schuller",
+      period,
+      line.date || "",
+      line.type || "",
+      line.precision || "",
+      String(line.amount ?? line.amountNumber ?? "").replace(".", ","),
+      String(line.vat ?? line.vatNumber ?? "").replace(".", ","),
+      line.receiptName || receiptByLineId.get(line.id) || "",
+      note,
+    ]),
+  ];
+  downloadCsv(`frais-dirigeants-${todayInputDate()}.csv`, rows);
+}
+
 async function sendExecutiveExpenseReportDraft() {
   if (!currentUser || currentUser.role !== "admin") return;
+  syncExecutiveExpenseLinesFromDom();
   const filledLines = executiveExpenseLineItems
     .map((line, index) => ({ ...line, index, amountNumber: parseAmount(line.amount), vatNumber: parseAmount(line.vat) }))
     .filter((line) => line.date || line.type || line.precision || line.amountNumber || line.vatNumber || line.receiptFile || line.receiptDataUrl);
@@ -6389,17 +6518,19 @@ async function sendExecutiveExpenseReportDraft() {
     return;
   }
   const owner = executiveExpenseOwner?.value.trim() || "Direction Schuller";
+  await saveCurrentExecutiveExpenseDraft();
   sendExecutiveExpenseReport.disabled = true;
   sendExecutiveExpenseReport.textContent = "Envoi en cours…";
   executiveExpensesSendStatus.textContent = "Préparation du tableau et des justificatifs…";
   executiveExpensesSendStatus.className = "tarif-send-status";
+  let payloadLines = [];
+  let receiptEntries = [];
   try {
-    const receiptEntries = [];
     for (const line of filledLines) {
       const receipt = await prepareExpenseReceipt(line, line.index);
       if (receipt) receiptEntries.push({ lineId: line.id, ...receipt });
     }
-    const payloadLines = filledLines.map((line) => ({
+    payloadLines = filledLines.map((line) => ({
       date: line.date,
       type: line.type,
       precision: line.precision,
@@ -6426,9 +6557,12 @@ async function sendExecutiveExpenseReportDraft() {
     }
     if (!isLocalAdminSession()) loadAdminLogs();
   } catch (error) {
-    executiveExpensesSendStatus.textContent = isLocalAdminSession() && isSessionError(error)
-      ? "Le serveur refuse l'envoi avec l'accès admin local. Il faut reconnecter l'admin via le Google Script ou mettre le mot de passe admin à jour côté serveur."
-      : (error.message || "L'envoi des frais dirigeants a échoué.");
+    if (isLocalAdminSession() && isSessionError(error)) {
+      exportExecutiveExpenseCsv(payloadLines.length ? payloadLines : filledLines, owner, receiptEntries);
+      executiveExpensesSendStatus.textContent = "Le serveur refuse l'accès admin local. Brouillon conservé et CSV téléchargé : envoie-le à france@schuller.eu, puis corrige le mot de passe admin côté Google Script.";
+    } else {
+      executiveExpensesSendStatus.textContent = error.message || "L'envoi des frais dirigeants a échoué.";
+    }
     executiveExpensesSendStatus.className = "tarif-send-status is-error";
   } finally {
     sendExecutiveExpenseReport.disabled = false;
@@ -8770,6 +8904,7 @@ function setActiveTab(tabName) {
   }
 
   if (showAdminExecutiveExpenses) {
+    if (!activeExecutiveExpenseDraftId) restoreExecutiveExpenseDraft({ silent: true });
     renderExecutiveExpenses();
     requestAnimationFrame(() => executiveExpenseOwner?.focus());
   }
@@ -9560,6 +9695,7 @@ expensesLines.addEventListener("click", (event) => {
 });
 addExecutiveExpenseLine?.addEventListener("click", addExecutiveExpenseLineItem);
 resetExecutiveExpenses?.addEventListener("click", resetExecutiveExpensesForm);
+saveExecutiveExpenseDraft?.addEventListener("click", saveCurrentExecutiveExpenseDraft);
 sendExecutiveExpenseReport?.addEventListener("click", sendExecutiveExpenseReportDraft);
 executiveExpensesLines?.addEventListener("input", (event) => {
   const row = event.target.closest("[data-executive-expense-line]");

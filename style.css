@@ -7602,7 +7602,7 @@ body.tablet-mode .tutorial-help {
 }
 
 .executive-expenses-actions {
-  grid-template-columns: auto minmax(260px, 1fr) auto auto;
+  grid-template-columns: auto minmax(260px, 1fr) auto auto auto;
 }
 
 body.dark-theme .executive-expenses-panel .panel-heading,
