@@ -502,8 +502,8 @@ const executiveExpensesSendStatus = document.querySelector("#executiveExpensesSe
 const executiveExpensesStatus = document.querySelector("#executiveExpensesStatus");
 const executiveExpensesTotalAmount = document.querySelector("#executiveExpensesTotalAmount");
 const executiveExpensesTotalVat = document.querySelector("#executiveExpensesTotalVat");
-const executiveExpenseDraftCard = document.querySelector("#executiveExpenseDraftCard");
-const executiveExpenseDraftMeta = document.querySelector("#executiveExpenseDraftMeta");
+const executiveExpenseHistorySearch = document.querySelector("#executiveExpenseHistorySearch");
+const executiveExpenseHistoryList = document.querySelector("#executiveExpenseHistoryList");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
 const showAllNotesButton = document.querySelector("#showAllNotesButton");
@@ -2614,30 +2614,48 @@ function selectAdminPrenetClient(client) {
   renderAdminPrenets();
 }
 
-function getAdminPrenetRows() {
+function buildAdminPrenetRowsForClient(client, refKeys) {
   const rows = [];
-  if (!selectedAdminPrenetClient) return rows;
-  const selectedRefKeys = new Set(selectedAdminPrenetRefs.map((ref) => normalize(ref)));
-
-  [selectedAdminPrenetClient].forEach((client) => {
-    const commercial = getAdminCommercialForPrenetClient(client);
-    const entries = getPrenetNewEntries(client);
-    entries.forEach((entry) => {
-      if (selectedRefKeys.size && !selectedRefKeys.has(normalize(entry.ref || ""))) return;
-      const row = {
-        commercial: commercial?.name || "Non attribué",
-        sector: normalizeStatsSector(client.sector || "") || client.sector || "-",
-        clientName: client.name || "Client",
-        clientCode: client.code || "",
-        clientAddress: formatAdminPrenetClientAddress(client),
-        ref: entry.ref || "",
-        designation: entry.designation || "",
-        quantity: entry.quantity,
-        price: Number(entry.price) || 0,
-      };
-      rows.push(row);
+  const commercial = getAdminCommercialForPrenetClient(client);
+  const entries = getPrenetNewEntries(client);
+  entries.forEach((entry) => {
+    if (refKeys && refKeys.size && !refKeys.has(normalize(entry.ref || ""))) return;
+    rows.push({
+      commercial: commercial?.name || "Non attribué",
+      sector: normalizeStatsSector(client.sector || "") || client.sector || "-",
+      clientName: client.name || "Client",
+      clientCode: client.code || "",
+      clientAddress: formatAdminPrenetClientAddress(client),
+      ref: entry.ref || "",
+      designation: entry.designation || "",
+      quantity: entry.quantity,
+      price: Number(entry.price) || 0,
     });
   });
+  return rows;
+}
+
+function getAdminPrenetRows() {
+  let rows = [];
+  if (selectedAdminPrenetClient) {
+    // Vue detaillee d'un seul client (choisi via la recherche), utilisee pour le PDF/e-mail cible.
+    const selectedRefKeys = new Set(selectedAdminPrenetRefs.map((ref) => normalize(ref)));
+    rows = buildAdminPrenetRowsForClient(selectedAdminPrenetClient, selectedRefKeys);
+  } else {
+    // Vue par defaut : tous les prix nets de tous les clients de la societe (filtrable par commercial/recherche).
+    const selectedCommercialId = adminPrenetCommercialFilter?.value || "all";
+    const cleanQuery = normalize(adminPrenetSearch?.value || "");
+    prenetClients.forEach((client) => {
+      const commercial = getAdminCommercialForPrenetClient(client);
+      if (selectedCommercialId !== "all" && commercial?.id !== selectedCommercialId) return;
+      if (cleanQuery) {
+        const address = formatAdminPrenetClientAddress(client);
+        const haystack = normalize([commercial?.name || "", client.name || "", client.code || "", client.sector || "", address].join(" "));
+        if (!haystack.includes(cleanQuery)) return;
+      }
+      rows.push(...buildAdminPrenetRowsForClient(client, null));
+    });
+  }
 
   rows.sort((a, b) => {
     const commercialCompare = a.commercial.localeCompare(b.commercial, "fr", { numeric: true });
@@ -2665,7 +2683,7 @@ function renderAdminPrenets() {
         ? selectedAdminPrenetRefs.length
           ? "Aucun prix net ne correspond aux references selectionnees pour ce client."
           : "Aucun prix net disponible pour ce client."
-        : "Tapez le nom d’un client, cliquez sur le bon résultat, puis ses prix nets s’afficheront ici.";
+        : "Aucun prix net ne correspond à cette recherche.";
     adminPrenetBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
   }
@@ -5113,6 +5131,7 @@ function showApp(user, token = user.token || "") {
   renderSampleLines();
   renderSampleHistory();
   resetExpenses();
+  syncExpenseDraftsFromServer();
   resetCommercialStatsFilters();
   renderPrenetEmpty();
   renderNotesEmpty();
@@ -5894,6 +5913,53 @@ function saveExpenseDrafts(drafts) {
   localStorage.setItem(expenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
 }
 
+function parseServerDateTime(value) {
+  const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})[ ,]+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  const [, day, month, year, hour, minute, second] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second || 0));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Filet de securite : les brouillons de frais ne vivent que dans le localStorage du navigateur.
+// A la connexion, on recupere depuis le serveur les notes deja enregistrees/envoyees (sans les
+// photos de justificatifs, non stockees cote Drive) pour reconstituer l'historique si l'appareil
+// ou le navigateur a change, ou si le cache local a ete efface.
+async function syncExpenseDraftsFromServer() {
+  if (!currentUser || currentUser.role === "admin" || isTrainingAccount(currentUser)) return;
+  try {
+    const result = await postService({ action: "getMyExpenseDrafts" });
+    const serverReports = Array.isArray(result?.reports) ? result.reports : [];
+    if (!serverReports.length) return;
+    const localDrafts = getExpenseDrafts();
+    const localIds = new Set(localDrafts.map((item) => item.id));
+    let added = 0;
+    serverReports.forEach((report) => {
+      if (!report?.id || localIds.has(report.id)) return;
+      const parsedDate = parseServerDateTime(report.updatedAt);
+      localDrafts.push({
+        id: report.id,
+        title: report.title || report.period || "Note de frais",
+        period: report.period || "",
+        note: report.note || "",
+        lines: (report.lines || []).map((line) => ({ ...line, receiptDataUrl: "", receiptMimeType: "" })),
+        totals: report.totals || {},
+        status: report.status === "Envoyé" ? "sent" : undefined,
+        createdAt: (parsedDate || new Date()).toISOString(),
+        updatedAt: (parsedDate || new Date()).toISOString(),
+        updatedLabel: parsedDate ? parsedDate.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : (report.updatedAt || ""),
+      });
+      added += 1;
+    });
+    if (added) {
+      saveExpenseDrafts(localDrafts.slice(0, 60));
+      renderExpenseHistory();
+    }
+  } catch (error) {
+    // Recuperation silencieuse : si le serveur ne repond pas, l'historique local reste tel quel.
+  }
+}
+
 function getExpenseDraftTitle() {
   const period = expensesPeriod?.value.trim();
   if (period) return period;
@@ -6362,29 +6428,122 @@ function executiveExpenseDraftKey() {
   return `${executiveExpenseDraftStorageKey}:${currentUser?.id || "admin"}`;
 }
 
-function getExecutiveExpenseDraft() {
+function getExecutiveExpenseDrafts() {
   try {
-    const draft = JSON.parse(localStorage.getItem(executiveExpenseDraftKey()) || "null");
-    return draft?.id ? draft : null;
+    const drafts = JSON.parse(localStorage.getItem(executiveExpenseDraftKey()) || "[]");
+    return Array.isArray(drafts) ? drafts : [];
   } catch (error) {
     localStorage.removeItem(executiveExpenseDraftKey());
-    return null;
+    return [];
   }
 }
 
-function renderExecutiveExpenseDraftNotice(draft = getExecutiveExpenseDraft()) {
-  if (!executiveExpenseDraftCard || !executiveExpenseDraftMeta) return;
-  if (!draft?.id) {
-    executiveExpenseDraftCard.classList.add("is-hidden");
-    executiveExpenseDraftMeta.textContent = "";
+function saveExecutiveExpenseDrafts(drafts) {
+  localStorage.setItem(executiveExpenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
+}
+
+function getExecutiveExpenseDraftTitle() {
+  const owner = executiveExpenseOwner?.value.trim();
+  const period = executiveExpensesPeriod?.value.trim();
+  if (owner && period) return `${owner} · ${period}`;
+  if (owner) return owner;
+  if (period) return period;
+  return `Frais dirigeants du ${new Date().toLocaleDateString("fr-FR")}`;
+}
+
+function renderExecutiveExpenseHistory() {
+  if (!executiveExpenseHistoryList) return;
+  const query = normalize(executiveExpenseHistorySearch?.value || "");
+  const drafts = getExecutiveExpenseDrafts()
+    .filter((draft) => !query || normalize(`${draft.title} ${draft.owner} ${draft.period} ${draft.note} ${draft.updatedLabel}`).includes(query))
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  if (!drafts.length) {
+    executiveExpenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais dirigeants enregistrée pour le moment.</p>`;
     return;
   }
-  const savedLines = Array.isArray(draft.lines) ? draft.lines : [];
-  const lineCount = savedLines.filter((line) => parseAmount(line.amount) > 0).length;
-  const totalFromLines = savedLines.reduce((sum, line) => sum + parseAmount(line.amount), 0);
-  const total = roundMoney(draft.totals?.amount || totalFromLines);
-  executiveExpenseDraftMeta.textContent = `${draft.updatedLabel || "Dernière sauvegarde"} · ${lineCount} ligne${lineCount > 1 ? "s" : ""} · ${formatter.format(total)}`;
-  executiveExpenseDraftCard.classList.remove("is-hidden");
+  executiveExpenseHistoryList.innerHTML = drafts.map((draft) => {
+    const totals = draft.totals || getExecutiveExpenseTotalsFor(draft.lines || []);
+    const receiptCount = (draft.lines || []).filter((line) => line.receiptName).length;
+    const active = draft.id === activeExecutiveExpenseDraftId ? " is-active" : "";
+    const statusLabel = draft.status === "sent" ? "Envoyé" : "Brouillon";
+    return `
+      <article class="expense-history-item${active}" data-executive-expense-draft="${escapeHtml(draft.id)}">
+        <button class="expense-history-open" type="button" data-open-executive-expense-draft="${escapeHtml(draft.id)}">
+          <strong>${escapeHtml(draft.title || "Frais dirigeants")}</strong>
+          <span>${escapeHtml(statusLabel)} · ${escapeHtml(draft.updatedLabel || "Non daté")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
+          <em>${escapeHtml(formatter.format(roundMoney(totals.amount || 0)))} TTC</em>
+        </button>
+        <div class="expense-history-actions">
+          <button type="button" data-delete-executive-expense-draft="${escapeHtml(draft.id)}" aria-label="Supprimer la note">&times;</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function getExecutiveExpenseTotalsFor(lines) {
+  return (lines || []).reduce((acc, line) => {
+    acc.amount += parseAmount(line.amount);
+    acc.vat += parseAmount(line.vat);
+    return acc;
+  }, { amount: 0, vat: 0 });
+}
+
+function openExecutiveExpenseDraft(id) {
+  const draft = getExecutiveExpenseDrafts().find((item) => item.id === id);
+  if (!draft) return;
+  activeExecutiveExpenseDraftId = draft.id;
+  executiveExpenseLineItems = (draft.lines || []).map(normalizeExecutiveExpenseLine);
+  if (!executiveExpenseLineItems.length) executiveExpenseLineItems = [newExecutiveExpenseLine()];
+  if (executiveExpenseOwner) executiveExpenseOwner.value = draft.owner || "";
+  if (executiveExpensesPeriod) executiveExpensesPeriod.value = draft.period || "";
+  if (executiveExpensesNote) executiveExpensesNote.value = draft.note || "";
+  if (executiveExpensesSendStatus) {
+    executiveExpensesSendStatus.textContent = `Note ouverte : ${draft.title || "frais dirigeants"}.`;
+    executiveExpensesSendStatus.className = "tarif-send-status is-success";
+  }
+  renderExecutiveExpenses();
+  adminExecutiveExpensesView?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function deleteExecutiveExpenseDraft(id) {
+  const draft = getExecutiveExpenseDrafts().find((item) => item.id === id);
+  if (!draft) return;
+  if (!window.confirm(`Supprimer la note "${draft.title || "sans nom"}" ?`)) return;
+  saveExecutiveExpenseDrafts(getExecutiveExpenseDrafts().filter((item) => item.id !== id));
+  if (activeExecutiveExpenseDraftId === id) resetExecutiveExpensesForm();
+  else renderExecutiveExpenseHistory();
+}
+
+function saveSentExecutiveExpenseHistory(lines, receiptEntries, owner, period, note) {
+  const now = new Date();
+  const title = [owner, period].filter(Boolean).join(" · ") || `Frais dirigeants envoyés du ${now.toLocaleDateString("fr-FR")}`;
+  const historyLines = lines.map((line) => ({
+    id: crypto.randomUUID(),
+    date: line.date || "",
+    type: line.type || "",
+    precision: line.precision || "",
+    amount: line.amount || "",
+    vat: line.vat || "",
+    receiptName: line.receiptName || "",
+    receiptDataUrl: "",
+    receiptMimeType: "",
+  }));
+  const item = {
+    id: `sent-${crypto.randomUUID()}`,
+    title,
+    owner: owner || "",
+    period: period || "",
+    note: note || "",
+    status: "sent",
+    lines: historyLines,
+    totals: getExecutiveExpenseTotalsFor(historyLines),
+    updatedAt: now.toISOString(),
+    updatedLabel: `Envoyé le ${now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`,
+    receiptCount: receiptEntries.length,
+  };
+  saveExecutiveExpenseDrafts([item, ...getExecutiveExpenseDrafts().filter((draft) => draft.id !== activeExecutiveExpenseDraftId)].slice(0, 60));
+  activeExecutiveExpenseDraftId = item.id;
 }
 
 function serializeExecutiveExpenseLine(line) {
@@ -6433,7 +6592,7 @@ function renderExecutiveExpenses() {
     </tr>
   `).join("");
   updateExecutiveExpenseSummary();
-  renderExecutiveExpenseDraftNotice();
+  renderExecutiveExpenseHistory();
 }
 
 function updateExecutiveExpenseSummary() {
@@ -6442,14 +6601,12 @@ function updateExecutiveExpenseSummary() {
   executiveExpensesTotalAmount.textContent = formatter.format(roundMoney(totals.amount));
   executiveExpensesTotalVat.textContent = formatter.format(roundMoney(totals.vat));
   const filledCount = executiveExpenseLineItems.filter((line) => parseAmount(line.amount) > 0).length;
-  const draftLabel = activeExecutiveExpenseDraftId ? " · brouillon enregistré" : "";
+  const draftLabel = activeExecutiveExpenseDraftId ? " · brouillon ouvert" : "";
   executiveExpensesStatus.textContent = `${filledCount} ligne${filledCount > 1 ? "s" : ""}${draftLabel}`;
 }
 
 function resetExecutiveExpensesForm() {
   activeExecutiveExpenseDraftId = null;
-  localStorage.removeItem(executiveExpenseDraftKey());
-  renderExecutiveExpenseDraftNotice(null);
   executiveExpenseLineItems = [newExecutiveExpenseLine()];
   if (executiveExpenseOwner) executiveExpenseOwner.value = "";
   if (executiveExpensesPeriod) executiveExpensesPeriod.value = "";
@@ -6465,7 +6622,7 @@ async function saveCurrentExecutiveExpenseDraft() {
   if (!currentUser || currentUser.role !== "admin") return;
   syncExecutiveExpenseLinesFromDom();
   if (executiveExpensesSendStatus) {
-    executiveExpensesSendStatus.textContent = "Enregistrement du brouillon…";
+    executiveExpensesSendStatus.textContent = "Enregistrement de la note…";
     executiveExpensesSendStatus.className = "tarif-send-status";
   }
   try {
@@ -6474,8 +6631,10 @@ async function saveCurrentExecutiveExpenseDraft() {
       linesToSave.push(await hydrateExpenseLineForDraft({ ...line, type: line.type || "REPAS" }));
     }
     const now = new Date();
+    const title = getExecutiveExpenseDraftTitle();
     const draft = {
       id: activeExecutiveExpenseDraftId || crypto.randomUUID(),
+      title,
       owner: executiveExpenseOwner?.value.trim() || "",
       period: executiveExpensesPeriod?.value.trim() || "",
       note: executiveExpensesNote?.value.trim() || "",
@@ -6484,11 +6643,14 @@ async function saveCurrentExecutiveExpenseDraft() {
       updatedAt: now.toISOString(),
       updatedLabel: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
     };
-    localStorage.setItem(executiveExpenseDraftKey(), JSON.stringify(draft));
+    const drafts = getExecutiveExpenseDrafts();
+    const existingIndex = drafts.findIndex((item) => item.id === draft.id);
+    if (existingIndex >= 0) drafts[existingIndex] = draft;
+    else drafts.unshift(draft);
+    saveExecutiveExpenseDrafts(drafts.slice(0, 40));
     activeExecutiveExpenseDraftId = draft.id;
-    renderExecutiveExpenseDraftNotice(draft);
     if (executiveExpensesSendStatus) {
-      executiveExpensesSendStatus.textContent = `Brouillon enregistré (${draft.updatedLabel}).`;
+      executiveExpensesSendStatus.textContent = `Note enregistrée : ${title}.`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
     }
     renderExecutiveExpenses();
@@ -6497,31 +6659,6 @@ async function saveCurrentExecutiveExpenseDraft() {
       executiveExpensesSendStatus.textContent = "Impossible d'enregistrer les justificatifs. Essaie avec moins de photos.";
       executiveExpensesSendStatus.className = "tarif-send-status is-error";
     }
-  }
-}
-
-function restoreExecutiveExpenseDraft({ silent = false } = {}) {
-  if (!currentUser || currentUser.role !== "admin") return false;
-  try {
-    const draft = getExecutiveExpenseDraft();
-    if (!draft?.id) return false;
-    activeExecutiveExpenseDraftId = draft.id;
-    executiveExpenseLineItems = Array.isArray(draft.lines) && draft.lines.length
-      ? draft.lines.map(normalizeExecutiveExpenseLine)
-      : [newExecutiveExpenseLine()];
-    if (executiveExpenseOwner) executiveExpenseOwner.value = draft.owner || "";
-    if (executiveExpensesPeriod) executiveExpensesPeriod.value = draft.period || "";
-    if (executiveExpensesNote) executiveExpensesNote.value = draft.note || "";
-    if (!silent && executiveExpensesSendStatus) {
-      executiveExpensesSendStatus.textContent = `Brouillon repris : ${draft.updatedLabel || "dernière sauvegarde"}.`;
-      executiveExpensesSendStatus.className = "tarif-send-status is-success";
-    }
-    renderExecutiveExpenseDraftNotice(draft);
-    renderExecutiveExpenses();
-    return true;
-  } catch (error) {
-    localStorage.removeItem(executiveExpenseDraftKey());
-    return false;
   }
 }
 
@@ -6633,6 +6770,7 @@ async function sendExecutiveExpenseReportDraft() {
       draftId: activeExecutiveExpenseDraftId || "",
       skipSessionToken: localAdmin ? "1" : "",
     });
+    saveSentExecutiveExpenseHistory(payloadLines, receiptEntries, owner, executiveExpensesPeriod?.value.trim() || "", executiveExpensesNote?.value.trim() || "");
     resetExecutiveExpensesForm();
     if (executiveExpensesSendStatus) {
       executiveExpensesSendStatus.textContent = result.message || `Frais dirigeants envoyés à ${schullerOperationsEmail}.`;
@@ -9020,7 +9158,6 @@ function setActiveTab(tabName) {
   }
 
   if (showAdminExecutiveExpenses) {
-    if (!activeExecutiveExpenseDraftId) restoreExecutiveExpenseDraft({ silent: true });
     renderExecutiveExpenses();
     requestAnimationFrame(() => executiveExpenseOwner?.focus());
   }
@@ -9845,6 +9982,16 @@ executiveExpensesLines?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-executive-expense-line]");
   if (!button) return;
   removeExecutiveExpenseLine(button.dataset.removeExecutiveExpenseLine);
+});
+executiveExpenseHistorySearch?.addEventListener("input", renderExecutiveExpenseHistory);
+executiveExpenseHistoryList?.addEventListener("click", (event) => {
+  const openButton = event.target.closest("[data-open-executive-expense-draft]");
+  if (openButton) {
+    openExecutiveExpenseDraft(openButton.dataset.openExecutiveExpenseDraft);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-executive-expense-draft]");
+  if (deleteButton) deleteExecutiveExpenseDraft(deleteButton.dataset.deleteExecutiveExpenseDraft);
 });
 expenseHistoryList.addEventListener("click", (event) => {
   const openButton = event.target.closest("[data-open-expense-draft]");
