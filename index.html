@@ -1071,6 +1071,18 @@
               <p class="helper-text">Sélectionnez un client pour remplir automatiquement son e-mail avant l'envoi.</p>
             </div>
 
+            <form class="tarif-send-form is-hidden" id="tarifSendForm">
+              <div class="tarif-form-heading">
+                <div><span>Document sélectionné</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
+                <small>Expéditeur : Schuller – Ne pas répondre</small>
+              </div>
+              <label for="tarifRecipient">Adresse e-mail du client</label>
+              <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
+              <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
+              <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
+              <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
+            </form>
+
             <article class="tarif-card">
               <div class="tarif-icon" aria-hidden="true">%</div>
               <div class="tarif-card-copy">
@@ -1116,18 +1128,6 @@
               </div>
               <button class="primary-button" type="button" id="selectAccountOpening">Envoyer ce document</button>
             </article>
-
-            <form class="tarif-send-form is-hidden" id="tarifSendForm">
-              <div class="tarif-form-heading">
-                <div><span>Document sélectionné</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
-                <small>Expéditeur : Schuller – Ne pas répondre</small>
-              </div>
-              <label for="tarifRecipient">Adresse e-mail du client</label>
-              <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
-              <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le document</button>
-              <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
-              <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
-              </form>
 
             </div>
         </section>
