@@ -8689,7 +8689,8 @@ body.tablet-mode .expense-history-heading {
   .client360-panel,
   .admin-hero,
   .admin-log-panel,
-  .admin-expense-panel {
+  .admin-expense-panel,
+  .executive-expenses-panel {
     padding: 16px !important;
   }
 
@@ -9074,6 +9075,268 @@ body.tablet-mode .expense-history-heading {
   #expensesView .expense-history-list {
     display: grid !important;
     gap: 10px;
+  }
+}
+
+/* Frais dirigeants mobile : saisie admin lisible sur téléphone. */
+@media (max-width: 860px) {
+  body:not(.tablet-mode) #adminExecutiveExpensesView {
+    padding: 12px 10px 28px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-panel {
+    gap: 12px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .panel-heading {
+    gap: 10px;
+    padding: 16px !important;
+    background: #fff !important;
+    border: 1px solid var(--line);
+    border-radius: 16px !important;
+    box-shadow: var(--shadow);
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .panel-heading h2 {
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .panel-heading .helper-text {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.38;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .status-pill {
+    justify-content: center;
+    width: 100%;
+    min-height: 38px;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expense-rules {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expense-rules article {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expense-rules strong {
+    font-size: 14px;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expense-rules span {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-meta {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 14px !important;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-meta label {
+    gap: 6px;
+    color: #374151;
+    font-size: 13px;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-meta input,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table input,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table select {
+    min-height: 50px !important;
+    width: 100% !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expenses-table-wrap {
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tbody,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tr,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table thead {
+    display: none !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tbody {
+    display: grid !important;
+    gap: 12px !important;
+    counter-reset: executive-expense-line;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tr {
+    position: relative;
+    display: grid !important;
+    gap: 10px !important;
+    padding: 52px 14px 14px !important;
+    background: #fff !important;
+    border: 1px solid #e1e5eb !important;
+    border-radius: 18px !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .08) !important;
+    counter-increment: executive-expense-line;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tr::before {
+    content: "Frais dirigeant " counter(executive-expense-line);
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    color: #fff;
+    background: #e30613;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td {
+    display: grid !important;
+    gap: 6px !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td::before {
+    display: block !important;
+    margin: 0 !important;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(1)::before { content: "Date"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(2)::before { content: "Type de frais"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(3)::before { content: "Précision"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(4)::before { content: "Montant TTC"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(5)::before { content: "Dont TVA"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(6)::before { content: "Justificatif"; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(7)::before {
+    content: "";
+    display: none !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(4),
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(5) {
+    padding: 10px !important;
+    background: #f8fafc;
+    border-radius: 14px;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-upload span {
+    min-height: 72px !important;
+    padding: 14px !important;
+    border-width: 1px !important;
+    border-radius: 14px !important;
+    font-size: 15px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-upload span::before {
+    display: none;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table .icon-button {
+    min-height: 48px !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    background: #fff1f2;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 18;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-inline: -10px;
+    padding: 12px 10px calc(12px + env(safe-area-inset-bottom)) !important;
+    background: rgba(245, 246, 248, .94);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(14px);
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary div {
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary dt {
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary dd {
+    margin-top: 5px;
+    font-size: 16px;
+    line-height: 1.15;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions > .ghost-button,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions > .primary-button {
+    min-height: 50px !important;
+    width: 100%;
+  }
+
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions .tarif-send-status {
+    min-height: 0;
+    font-size: 13px;
+  }
+
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .panel-heading,
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-meta,
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tr {
+    background: #101827 !important;
+    border-color: rgba(148, 163, 184, .22) !important;
+    color: #eaf2ff !important;
+  }
+
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(4),
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(5) {
+    background: #0d1421 !important;
+  }
+
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions {
+    background: rgba(7, 10, 15, .94) !important;
   }
 }
 
