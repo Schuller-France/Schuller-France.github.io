@@ -1324,13 +1324,6 @@
             <article><strong>Envoi automatique</strong><span>Le tableau complet part &agrave; l'adresse configur&eacute;e : france@schuller.eu.</span></article>
           </section>
 
-          <div class="executive-draft-card is-hidden" id="executiveExpenseDraftCard" aria-live="polite">
-            <div>
-              <strong>Brouillon enregistr&eacute;</strong>
-              <span id="executiveExpenseDraftMeta">Derni&egrave;re sauvegarde locale disponible.</span>
-            </div>
-          </div>
-
           <div class="expenses-meta executive-expenses-meta">
             <label>
               Dirigeant / cadre
@@ -1374,6 +1367,17 @@
             <button class="primary-button" type="button" id="sendExecutiveExpenseReport">Envoyer les frais dirigeants</button>
             <p class="tarif-send-status" id="executiveExpensesSendStatus"></p>
           </div>
+
+          <section class="expense-history-card" aria-labelledby="executiveExpenseHistoryTitle">
+            <div class="expense-history-heading">
+              <div>
+                <p class="step">Notes enregistrées</p>
+                <h3 id="executiveExpenseHistoryTitle">Historique des frais dirigeants</h3>
+              </div>
+              <input id="executiveExpenseHistorySearch" type="search" autocomplete="off" placeholder="Rechercher un dirigeant, une période, une note..." />
+            </div>
+            <div class="expense-history-list" id="executiveExpenseHistoryList"></div>
+          </section>
         </section>
       </main>
 
