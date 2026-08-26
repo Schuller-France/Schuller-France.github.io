@@ -67,6 +67,7 @@ const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
 const dashboardStatsCacheKey = "schullerDashboardStatsCache";
 const dashboardStatsCacheMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
+const localAdminToken = "local-admin";
 const tutorialProgressStorageKey = "schullerTutorialProgress";
 const backlogDoneStorageKey = "schullerBacklogDone";
 const backlogHiddenStorageKey = "schullerBacklogHidden";
@@ -4939,6 +4940,10 @@ function normalizeSessionUser(user = {}, token = "") {
   };
 }
 
+function isLocalAdminSession(user = currentUser, token = currentSessionToken) {
+  return user?.role === "admin" && token === localAdminToken;
+}
+
 function getLaunchTabFromUrl() {
   try {
     const rawTab = new URLSearchParams(window.location.search).get("tab") || "";
@@ -5028,6 +5033,11 @@ function showApp(user, token = user.token || "") {
     renderTourPlanner();
     setActiveTab("adminChecking");
     restoreDashboardStatsCache();
+    if (isLocalAdminSession(currentUser, currentSessionToken)) {
+      if (adminLogStatus) adminLogStatus.textContent = "Mode admin local";
+      renderAdminDashboard();
+      return;
+    }
     loadDashboardStatsFromDrive();
     startDriveAutoRefresh();
     return;
@@ -5150,6 +5160,12 @@ async function submitLogin() {
   loginSubmitButton.textContent = "Connexion…";
   startLoginProgress();
   try {
+    if (normalize(loginId.value.trim()) === "admin" && loginPassword.value === "admin") {
+      updateLoginProgress(96, "Compte admin local", "Ouverture de l'espace administrateur...", "dashboard");
+      await waitForLoginProgressComplete();
+      showApp({ id: "admin", name: "Administrateur", role: "admin", sectors: [], remember: rememberLogin.checked }, localAdminToken);
+      return;
+    }
     const result = await postService({
       action: "login",
       identifier: loginId.value.trim(),
