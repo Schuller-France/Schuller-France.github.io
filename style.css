@@ -5993,6 +5993,22 @@ body.tablet-mode .sidebar-brand {
   letter-spacing: -.02em;
 }
 
+/* Correctif : en mode tablette sur grand ecran (PC), le JS deplace .header-actions
+   (dont le bouton "Mode PC") a l'interieur de .app-tabs. Sans cette regle, il se
+   retrouve en simple flux apres tous les onglets et finit hors champ, sous la
+   zone visible du panneau scrollable — d'ou l'impression qu'il "disparait". On
+   l'ancre en bas, toujours visible, sans avoir a faire defiler la barre laterale. */
+body.tablet-mode .app-tabs > .header-actions {
+  margin-top: auto;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+}
+
 body.tablet-mode .sidebar-logo {
   display: grid;
   place-items: center;
