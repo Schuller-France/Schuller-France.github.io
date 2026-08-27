@@ -1,4 +1,4 @@
-﻿const APP_BUILD_VERSION = "2026-08-27.2";
+﻿const APP_BUILD_VERSION = "2026-08-27.3";
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("#appBuildVersion, #appBuildVersionMenu").forEach((el) => {
     el.textContent = `Version ${APP_BUILD_VERSION}`;
@@ -138,6 +138,24 @@ const prospectionStatusOptions = {
 };
 
 const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number"]);
+const prospectionSectorList = [...new Set(adminCommercials.flatMap((commercial) => commercial.sectors || []))];
+
+function resolveUserForSector(sector) {
+  if (!sector) return null;
+  const target = normalize(sector);
+  return adminCommercials.find((commercial) => (commercial.sectors || []).some((item) => normalize(item) === target)) || null;
+}
+
+function getIsoWeekKey(date = new Date()) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNumber + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const firstDayNumber = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNumber + 3);
+  const week = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+  return `${target.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
 const initialProspectionRows = [
   ["Grusson Matériaux", "59100", "ROUBAIX", "0320758834", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
   ["Durand Matériaux", "62350", "BUSNES", "0321275361", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
@@ -585,6 +603,8 @@ const prospectionProgressBar = document.querySelector("#prospectionProgressBar")
 const prospectionWeekLabel = document.querySelector("#prospectionWeekLabel");
 const prospectionCommercialFilterWrap = document.querySelector("#prospectionCommercialFilterWrap");
 const prospectionCommercialFilter = document.querySelector("#prospectionCommercialFilter");
+const prospectionSectorSelectWrap = document.querySelector("#prospectionSectorSelectWrap");
+const prospectionSectorSelect = document.querySelector("#prospectionSectorSelect");
 const prospectionStatusFilter = document.querySelector("#prospectionStatusFilter");
 const prospectionCompany = document.querySelector("#prospectionCompany");
 const prospectionCity = document.querySelector("#prospectionCity");
@@ -8961,16 +8981,18 @@ function getVisibleProspectionRecords() {
 function updateProspectionProgress() {
   const scope = currentUser?.role === "admin" ? prospectionCommercialFilter.value : currentUser?.id;
   const scopedRecords = prospectionRecords.filter((record) => scope === "all" || record.userId === scope);
-  const completed = scopedRecords.filter(isProspectionComplete).length;
+  const currentWeekKey = getIsoWeekKey();
+  const isCompletedThisWeek = (record) => isProspectionComplete(record) && record.completedWeekKey === currentWeekKey;
   const userCount = currentUser?.role === "admin" && prospectionCommercialFilter.value === "all"
     ? Math.max(1, prospectionUsers.length)
     : 1;
-  const goal = currentUser?.role === "admin" ? Math.max(1, scopedRecords.length) : Math.max(5, scopedRecords.length);
+  const completed = scopedRecords.filter(isCompletedThisWeek).length;
+  const goal = currentUser?.role === "admin" ? Math.max(1, 5 * userCount) : 5;
   prospectionProgressValue.textContent = `${completed} / ${goal}`;
   prospectionProgressBar.style.width = `${Math.min(100, Math.round((completed / goal) * 100))}%`;
   prospectionWeekLabel.textContent = currentUser?.role === "admin"
-    ? `${userCount} commercial${userCount > 1 ? "aux" : ""}`
-    : "Prospects du secteur";
+    ? `${userCount} commercial${userCount > 1 ? "aux" : ""} · semaine en cours`
+    : "Cette semaine";
 }
 
 function renderProspectionAdminSummary() {
@@ -9023,13 +9045,6 @@ function renderProspectionRecords() {
         <label>Date de relance<input data-prospect-field="callbackDate" type="date" value="${escapeHtml(record.callbackDate || "")}" /></label>
         <label>Prochaine action<input data-prospect-field="nextAction" value="${escapeHtml(record.nextAction || "")}" placeholder="Ex. rappeler mardi, envoyer tarifs..." /></label>
         <label class="prospection-notes">Compte-rendu<textarea data-prospect-field="notes" rows="3" placeholder="Réponse du prospect, besoin, prochaine action...">${escapeHtml(record.notes || "")}</textarea></label>
-        <div class="prospection-quick-actions">
-          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="no_answer">Pas de réponse</button>
-          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="callback">À relancer</button>
-          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="done">Rappel fait</button>
-          <button class="ghost-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="not_interested">Pas intéressé</button>
-          <button class="primary-button" type="button" data-prospect-quick="${escapeHtml(record.id)}" data-status="interested">Intéressé</button>
-        </div>
         <button class="primary-button" type="button" data-save-prospect="${escapeHtml(record.id)}">Enregistrer</button>
       </div>
     </details>`).join("");
@@ -9045,12 +9060,17 @@ async function loadProspectionData() {
     prospectionWeekKey = result.weekKey || "";
     const admin = currentUser.role === "admin";
     prospectionCommercialFilterWrap.classList.toggle("is-hidden", !admin);
+    prospectionSectorSelectWrap?.classList.toggle("is-hidden", !admin);
     prospectionExportButton.classList.toggle("is-hidden", !admin);
     prospectionImportWrap?.classList.toggle("is-hidden", !admin);
     if (admin) {
       const selected = prospectionCommercialFilter.value || "all";
       prospectionCommercialFilter.innerHTML = `<option value="all">Tous les commerciaux</option>${prospectionUsers.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)}</option>`).join("")}`;
       prospectionCommercialFilter.value = prospectionUsers.some((user) => user.id === selected) ? selected : "all";
+      if (prospectionSectorSelect && !prospectionSectorSelect.dataset.filled) {
+        prospectionSectorSelect.innerHTML = prospectionSectorList.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(sector)}</option>`).join("");
+        prospectionSectorSelect.dataset.filled = "1";
+      }
     }
     prospectionStatus.textContent = `${prospectionRecords.length} prospects prêts à traiter.`;
     renderProspectionRecords();
@@ -9064,12 +9084,19 @@ async function loadProspectionData() {
 
 async function saveProspectionRecord(record) {
   prospectionStatus.textContent = "Enregistrement…";
+  const previous = prospectionRecords.find((item) => item.id === record.id);
+  const wasCompleteBefore = previous ? isProspectionComplete(previous) : false;
   const completeRecord = normalizeProspectionRecord({
-    ...(prospectionRecords.find((item) => item.id === record.id) || {}),
+    ...(previous || {}),
     ...record,
     updatedAt: new Date().toISOString(),
   });
   completeRecord.completed = isProspectionComplete(completeRecord);
+  if (completeRecord.completed) {
+    completeRecord.completedWeekKey = wasCompleteBefore && previous?.completedWeekKey ? previous.completedWeekKey : getIsoWeekKey();
+  } else {
+    completeRecord.completedWeekKey = "";
+  }
   saveProspectionLocalFollowup(completeRecord);
   prospectionRecords = prospectionRecords.map((item) => item.id === completeRecord.id ? completeRecord : item);
   renderProspectionRecords();
@@ -9090,11 +9117,18 @@ function addProspectionRecord() {
     prospectionCompany.focus();
     return;
   }
-  const userId = currentUser.role === "admin" && prospectionCommercialFilter.value !== "all"
-    ? prospectionCommercialFilter.value
-    : currentUser.id;
-  const user = prospectionUsers.find((item) => item.id === userId);
-  saveProspectionRecord({ company, city, userId, userName: user?.name || prospectionUserName(userId), status: "to_call" });
+  let sector = "";
+  let userId = currentUser.id;
+  let userName = currentUser.name;
+  if (currentUser.role === "admin") {
+    sector = prospectionSectorSelect?.value || "";
+    const match = resolveUserForSector(sector);
+    userId = match?.id || currentUser.id;
+    userName = match?.name || prospectionUserName(userId);
+  } else {
+    sector = currentUser.sectors?.[0] || "";
+  }
+  saveProspectionRecord({ company, city, sector, userId, userName, status: "to_call" });
   prospectionCompany.value = "";
   prospectionCity.value = "";
 }
@@ -9105,15 +9139,6 @@ function saveProspectionCard(button) {
   if (!source) return;
   const value = (field) => card.querySelector(`[data-prospect-field="${field}"]`)?.value.trim() || "";
   saveProspectionRecord({ id: source.id, userId: source.userId, userName: source.userName, company: source.company, city: source.city, zip: source.zip, sector: source.sector, manager: value("manager"), phone: value("phone"), email: value("email"), status: value("status"), callbackDate: value("callbackDate"), nextAction: value("nextAction"), notes: value("notes") });
-}
-
-function quickUpdateProspection(button) {
-  const card = button.closest("[data-prospection-card]");
-  const source = prospectionRecords.find((record) => record.id === card?.dataset.prospectionCard);
-  if (!source) return;
-  const status = button.dataset.status || "to_call";
-  const note = card.querySelector(`[data-prospect-field="notes"]`)?.value.trim() || source.notes || "";
-  saveProspectionRecord({ ...source, status, notes: note, nextAction: status === "callback" ? "Relancer" : prospectionStatusLabel(status) });
 }
 
 function exportProspectionRecords() {
@@ -10260,8 +10285,6 @@ prospectionImportFile?.addEventListener("change", importProspectionFile);
 prospectionList.addEventListener("click", (event) => {
   const saveButton = event.target.closest("[data-save-prospect]");
   if (saveButton) saveProspectionCard(saveButton);
-  const quickButton = event.target.closest("[data-prospect-quick]");
-  if (quickButton) quickUpdateProspection(quickButton);
 });
 tarifSendForm.addEventListener("submit", sendTarif);
 tarifClientSearch?.addEventListener("input", (event) => handleTarifClientSearch(event.target.value));

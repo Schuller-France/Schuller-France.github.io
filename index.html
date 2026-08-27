@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260827b" />
+    <link rel="stylesheet" href="style.css?v=20260827c" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1168,6 +1168,9 @@
             <label class="is-hidden" id="prospectionCommercialFilterWrap">Commercial
               <select id="prospectionCommercialFilter"><option value="all">Tous les commerciaux</option></select>
             </label>
+            <label class="is-hidden" id="prospectionSectorSelectWrap">Secteur à attribuer
+              <select id="prospectionSectorSelect"></select>
+            </label>
             <label>Suivi
               <select id="prospectionStatusFilter">
                 <option value="active">À traiter</option>
@@ -1536,9 +1539,9 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260827b" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260827c" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260827b" charset="UTF-8"></script>
+    <script src="script.js?v=20260827c" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
