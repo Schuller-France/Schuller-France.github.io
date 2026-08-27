@@ -86,6 +86,7 @@ const sampleHistoryStorageKey = "schullerSampleHistory";
 const expenseDraftStorageKey = "schullerExpenseDrafts";
 const executiveExpenseDraftStorageKey = "schullerExecutiveExpenseDraft";
 const prospectionLocalStorageKey = "schullerProspectionFollowup";
+const prospectionDismissedStorageKey = "schullerProspectionDismissed";
 const orderDraftStorageKey = "schullerOrderDraft";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
 
@@ -135,10 +136,9 @@ const prospectionStatusOptions = {
   interested: "Intéressé",
   not_interested: "Pas intéressé",
   wrong_number: "Numéro faux",
-  already_client: "Déjà client",
 };
 
-const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number", "already_client"]);
+const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number"]);
 const prospectionSectorList = [...new Set(adminCommercials.flatMap((commercial) => commercial.sectors || []))];
 
 function resolveUserForSector(sector) {
@@ -8919,6 +8919,24 @@ function saveProspectionLocalFollowup(record) {
   localStorage.setItem(prospectionLocalStorageKey, JSON.stringify(stored));
 }
 
+function loadDismissedProspectionIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(prospectionDismissedStorageKey) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markProspectionDismissed(id) {
+  const dismissed = loadDismissedProspectionIds();
+  dismissed.add(id);
+  localStorage.setItem(prospectionDismissedStorageKey, JSON.stringify([...dismissed]));
+  const followup = loadProspectionLocalFollowup();
+  delete followup[id];
+  localStorage.setItem(prospectionLocalStorageKey, JSON.stringify(followup));
+}
+
 function normalizeProspectionRecord(record) {
   const status = record.status || (record.completed ? "interested" : "to_call");
   return {
@@ -8954,6 +8972,8 @@ function mergeProspectionRecords(serviceRecords = []) {
   Object.entries(localFollowup).forEach(([id, record]) => {
     merged.set(id, normalizeProspectionRecord({ ...(merged.get(id) || {}), ...record, id }));
   });
+  const dismissed = loadDismissedProspectionIds();
+  dismissed.forEach((id) => merged.delete(id));
   return [...merged.values()];
 }
 
@@ -9148,22 +9168,15 @@ function saveProspectionCard(button) {
 function dismissProspectionCard(id) {
   const source = prospectionRecords.find((record) => record.id === id);
   if (!source) return;
-  if (!confirm(`Retirer "${source.company}" de la liste des prospects (déjà client) ?`)) return;
-  saveProspectionRecord({
-    id: source.id,
-    userId: source.userId,
-    userName: source.userName,
-    company: source.company,
-    city: source.city,
-    zip: source.zip,
-    sector: source.sector,
-    manager: source.manager || "",
-    phone: source.phone || "",
-    email: source.email || "",
-    status: "already_client",
-    callbackDate: source.callbackDate || "",
-    nextAction: "",
-    notes: source.notes || "",
+  if (!confirm(`Retirer définitivement "${source.company}" de la liste des prospects (déjà client) ?`)) return;
+  // Suppression définitive : le prospect ne compte pas pour l'objectif hebdomadaire
+  // (seul le bouton "Enregistrer" fait progresser l'objectif) et ne réapparaîtra plus,
+  // même après un rechargement de la page.
+  markProspectionDismissed(id);
+  prospectionRecords = prospectionRecords.filter((record) => record.id !== id);
+  renderProspectionRecords();
+  postService({ action: "deleteProspection", id }).catch(() => {
+    // Suppression déjà appliquée localement ; la synchro Drive sera à vérifier si hors ligne.
   });
 }
 
