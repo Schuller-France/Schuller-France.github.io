@@ -457,6 +457,27 @@ body {
 .is-neutral { color: var(--muted) !important; }
 
 .stats-panel { display: grid; gap: 18px; padding: 24px; }
+.stats-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stats-send-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 14px;
+  align-items: end;
+  border: 1px solid #e1e5eb;
+  border-radius: 14px;
+  background: #fbfcfe;
+  padding: 16px 18px;
+}
+.stats-send-panel label { display: grid; gap: 7px; font-weight: 700; color: #313844; }
+.stats-send-panel input {
+  width: 100%;
+  border: 1px solid #cfd5dd;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+}
+.stats-send-panel input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: #e30613; }
+.stats-send-panel .tarif-send-status { grid-column: 1 / -1; }
 .stats-filter-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;

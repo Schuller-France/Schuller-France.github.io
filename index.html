@@ -336,8 +336,21 @@
               <h2 id="statsTitle">Statistiques</h2>
               <p class="helper-text">Filtrez par client, référence ou article pour retrouver les quantités et le chiffre d'affaires N / N-1.</p>
             </div>
-            <span class="status-pill" id="statsSourceBadge">Drive</span>
+            <div class="stats-header-actions">
+              <span class="status-pill" id="statsSourceBadge">Drive</span>
+              <button class="ghost-button compact" type="button" id="previewStatsReport">Aperçu</button>
+              <button class="ghost-button compact" type="button" id="toggleStatsSendPanel">Envoi</button>
+            </div>
           </div>
+
+          <section class="stats-send-panel is-hidden" id="statsSendPanel" aria-label="Envoyer l'analyse client par e-mail">
+            <label>
+              Destinataire
+              <input id="statsReportRecipient" type="email" autocomplete="off" placeholder="adresse@email.com" />
+            </label>
+            <button class="primary-button" type="button" id="sendStatsReport">Envoyer l'analyse PDF</button>
+            <p class="tarif-send-status" id="statsReportStatus"></p>
+          </section>
 
           <section class="stats-filter-grid" aria-label="Filtres statistiques">
             <label class="stats-client-field">
