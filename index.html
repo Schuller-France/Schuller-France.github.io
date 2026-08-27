@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260827a" />
+    <link rel="stylesheet" href="style.css?v=20260827b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1306,19 +1306,32 @@
             </table>
           </div>
         </section>
-        <section class="admin-dashboard-grid">
-          <article class="panel admin-feed-panel">
-            <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activité récente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
-            <div id="adminActivityFeed" class="admin-activity-feed"></div>
-          </article>
-          <aside class="panel admin-summary-panel">
-            <div class="panel-heading"><div><p class="step">Synthèse</p><h2>Par type</h2></div></div>
-            <div id="adminTypeSummary" class="admin-type-summary"></div>
-          </aside>
+        <section class="panel admin-feed-panel">
+          <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activité récente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
+          <div id="adminActivityFeed" class="admin-activity-feed"></div>
         </section>
-        <section class="panel admin-log-panel">
-          <div class="panel-heading"><div><p class="step">Détail</p><h2>Table complète</h2></div></div>
-          <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>Détail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
+        <section class="panel admin-send-history-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Suivi envois</p>
+              <h2>Historique d'envoi</h2>
+              <p class="helper-text">Derniers envois aux clients, du plus récent au plus ancien.</p>
+            </div>
+            <span class="status-pill" id="adminSendHistoryTotal">0 envoi</span>
+          </div>
+          <div class="send-history-filters" id="adminSendHistoryFilters">
+            <button class="send-history-tag is-active" type="button" data-category="all">Tous</button>
+            <button class="send-history-tag tag-tarifs" type="button" data-category="tarifs">Tarifs et documents</button>
+            <button class="send-history-tag tag-promotions" type="button" data-category="promotions">Promotions</button>
+            <button class="send-history-tag tag-prenets" type="button" data-category="prenets">Prix nets</button>
+            <button class="send-history-tag tag-statistiques" type="button" data-category="statistiques">Statistiques</button>
+          </div>
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-send-history-table">
+              <thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Catégorie</th><th>Détail</th></tr></thead>
+              <tbody id="adminSendHistoryBody"></tbody>
+            </table>
+          </div>
         </section>
       </main>
 
@@ -1523,9 +1536,9 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260827a" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260827b" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260827a" charset="UTF-8"></script>
+    <script src="script.js?v=20260827b" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

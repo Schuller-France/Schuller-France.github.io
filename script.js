@@ -1,4 +1,4 @@
-﻿const APP_BUILD_VERSION = "2026-08-27.1";
+﻿const APP_BUILD_VERSION = "2026-08-27.2";
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("#appBuildVersion, #appBuildVersionMenu").forEach((el) => {
     el.textContent = `Version ${APP_BUILD_VERSION}`;
@@ -391,8 +391,10 @@ const adminCheckingView = document.querySelector("#adminCheckingView");
 const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
 const adminPrenetView = document.querySelector("#adminPrenetView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
-const adminLogBody = document.querySelector("#adminLogBody");
 const adminLogStatus = document.querySelector("#adminLogStatus");
+const adminSendHistoryBody = document.querySelector("#adminSendHistoryBody");
+const adminSendHistoryTotal = document.querySelector("#adminSendHistoryTotal");
+const adminSendHistoryFilters = document.querySelector("#adminSendHistoryFilters");
 const adminActivityCount = document.querySelector("#adminActivityCount");
 const adminOrderCount = document.querySelector("#adminOrderCount");
 const adminDocumentCount = document.querySelector("#adminDocumentCount");
@@ -410,7 +412,6 @@ const adminSampleExport = document.querySelector("#adminSampleExport");
 const adminSampleAnalysis = document.querySelector("#adminSampleAnalysis");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
-const adminTypeSummary = document.querySelector("#adminTypeSummary");
 const resetAdminDashboard = document.querySelector("#resetAdminDashboard");
 const refreshAdminChecking = document.querySelector("#refreshAdminChecking");
 const adminCheckingBody = document.querySelector("#adminCheckingBody");
@@ -660,6 +661,20 @@ function setSyncStatus(state, message) {
 
 let adminLogsCache = [];
 let adminExpenseReportsCache = [];
+let adminSendHistoryCategoryFilter = "all";
+
+const SEND_HISTORY_CATEGORY_BY_TYPE = {
+  "Document envoyé": "tarifs",
+  "Promotion envoyée": "promotions",
+  "Prix nets envoyés": "prenets",
+  "Analyse client envoyée": "statistiques",
+};
+const SEND_HISTORY_CATEGORY_LABELS = {
+  tarifs: "Tarifs et documents",
+  promotions: "Promotions",
+  prenets: "Prix nets",
+  statistiques: "Statistiques",
+};
 
 const POST_SERVICE_TIMEOUT_MS = 25000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
@@ -991,7 +1006,7 @@ async function loadAdminLogs() {
       return;
     }
     adminLogStatus.textContent = "Erreur d’actualisation";
-    adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
+    if (adminSendHistoryBody) adminSendHistoryBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger l’historique. Reconnectez-vous.</td></tr>';
     adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
     adminExpenseBody.innerHTML = '<tr><td colspan="7" class="admin-empty">Impossible de charger les frais. Reconnectez-vous.</td></tr>';
     if (adminSampleBody) adminSampleBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger les demandes d’échantillons. Reconnectez-vous.</td></tr>';
@@ -1246,14 +1261,6 @@ function renderAdminDashboard() {
   renderAdminExpenses();
   renderAdminSampleRequests();
 
-  adminTypeSummary.innerHTML = Object.keys(counts).length
-    ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
-      <div class="admin-type-row">
-        <span class="admin-action-badge ${adminActionClass(type)}">${escapeHtml(type)}</span>
-        <strong>${count}</strong>
-      </div>`).join("")
-    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
-
   adminActivityFeed.innerHTML = logs.length
     ? logs.slice(0, 40).map((log) => `
       <article class="admin-feed-item">
@@ -1267,14 +1274,39 @@ function renderAdminDashboard() {
       </article>`).join("")
     : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
 
-  adminLogBody.innerHTML = logs.length ? logs.map((log) => `
+  renderAdminSendHistory();
+}
+
+function getSendHistoryCategory(type = "") {
+  return SEND_HISTORY_CATEGORY_BY_TYPE[type] || null;
+}
+
+function getFilteredSendHistory() {
+  const logs = getFilteredAdminLogs()
+    .map((log) => ({ ...log, sendCategory: getSendHistoryCategory(log.type) }))
+    .filter((log) => log.sendCategory);
+  const sorted = [...logs].sort((a, b) => parseFrenchDateTime(b.date) - parseFrenchDateTime(a.date));
+  if (adminSendHistoryCategoryFilter === "all") return sorted;
+  return sorted.filter((log) => log.sendCategory === adminSendHistoryCategoryFilter);
+}
+
+function renderAdminSendHistory() {
+  if (!adminSendHistoryBody) return;
+  const rows = getFilteredSendHistory();
+  if (adminSendHistoryTotal) adminSendHistoryTotal.textContent = `${rows.length} envoi${rows.length > 1 ? "s" : ""}`;
+  if (adminSendHistoryFilters) {
+    adminSendHistoryFilters.querySelectorAll(".send-history-tag").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.category === adminSendHistoryCategoryFilter);
+    });
+  }
+  adminSendHistoryBody.innerHTML = rows.length ? rows.map((log) => `
     <tr>
       <td>${escapeHtml(log.date || "-")}</td>
       <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
       <td>${escapeHtml(log.sectors || "-")}</td>
-      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
+      <td><span class="send-history-badge tag-${log.sendCategory}">${escapeHtml(SEND_HISTORY_CATEGORY_LABELS[log.sendCategory] || log.sendCategory)}</span></td>
       <td>${escapeHtml(log.detail || "-")}</td>
-    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucun envoi enregistré pour ce filtre.</td></tr>';
 }
 
 function renderAdminSampleRequests() {
@@ -9866,6 +9898,12 @@ adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
+adminSendHistoryFilters?.addEventListener("click", (event) => {
+  const button = event.target.closest(".send-history-tag");
+  if (!button) return;
+  adminSendHistoryCategoryFilter = button.dataset.category || "all";
+  renderAdminSendHistory();
+});
 adminSampleAnalyze?.addEventListener("click", renderAdminSampleAnalysis);
 adminSampleExport?.addEventListener("click", exportAdminSampleRows);
 refreshAdminChecking.addEventListener("click", () => loadDashboardStatsFromDrive({ force: true }));
