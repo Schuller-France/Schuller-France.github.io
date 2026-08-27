@@ -1,4 +1,11 @@
-﻿let allClients = [];
+﻿const APP_BUILD_VERSION = "2026-08-27.1";
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("#appBuildVersion, #appBuildVersionMenu").forEach((el) => {
+    el.textContent = `Version ${APP_BUILD_VERSION}`;
+  });
+});
+
+let allClients = [];
 let products = [];
 let prenetClients = [];
 let tariffConfig = { ...(window.TARIF_CONFIG || {}) };

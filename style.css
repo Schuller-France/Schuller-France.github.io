@@ -1314,6 +1314,19 @@ body.theme-dark .stats-table td strong {
   line-height: 1.25;
 }
 
+.app-build-version {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted, #8a93a0);
+  opacity: 0.75;
+}
+
+.login-card .app-build-version {
+  margin-top: 10px;
+  text-align: center;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
