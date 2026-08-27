@@ -8295,6 +8295,27 @@ body.dark-theme .promotion-preview-fallback strong {
 .prospection-card summary small { color: #667085; font-weight: 500; }
 .prospection-card summary em { padding: 6px 10px; border-radius: 999px; background: #fff0f1; color: #b8000d; font-style: normal; font-weight: 800; }
 .prospection-card.is-complete summary em { background: #e9f8ef; color: #087a37; }
+.prospection-card summary .prospection-summary-actions { display: flex !important; align-items: center; gap: 10px; flex-shrink: 0; }
+.prospection-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #f3c2c2;
+  background: #fff5f5;
+  color: #b8000d;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.prospection-dismiss:hover { background: #ffe1e1; }
+.prospection-dismiss:active { transform: scale(0.92); }
+body.dark-theme .prospection-dismiss { background: #3a1f22; border-color: #6b2a2a; color: #ff9d9d; }
+body.dark-theme .prospection-dismiss:hover { background: #4a2528; }
 .prospection-contact-row { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 18px 16px; }
 .prospection-contact-row .primary-button,
 .prospection-contact-row .ghost-button { min-height: 42px; text-decoration: none; }

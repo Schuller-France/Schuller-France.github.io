@@ -135,9 +135,10 @@ const prospectionStatusOptions = {
   interested: "Intéressé",
   not_interested: "Pas intéressé",
   wrong_number: "Numéro faux",
+  already_client: "Déjà client",
 };
 
-const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number"]);
+const completedProspectionStatuses = new Set(["done", "interested", "not_interested", "wrong_number", "already_client"]);
 const prospectionSectorList = [...new Set(adminCommercials.flatMap((commercial) => commercial.sectors || []))];
 
 function resolveUserForSector(sector) {
@@ -9025,7 +9026,10 @@ function renderProspectionRecords() {
     <details class="prospection-card ${isProspectionComplete(record) ? "is-complete" : ""}" data-prospection-card="${escapeHtml(record.id)}">
       <summary>
         <span><strong>${escapeHtml(record.company)}</strong><small>${escapeHtml([record.zip, record.city].filter(Boolean).join(" "))} · ${escapeHtml(record.sector || "")}${currentUser?.role === "admin" ? ` · ${escapeHtml(record.userName || prospectionUserName(record.userId))}` : ""}</small></span>
-        <span class="status-pill">${escapeHtml(prospectionStatusLabel(record.status))}</span>
+        <span class="prospection-summary-actions">
+          <span class="status-pill">${escapeHtml(prospectionStatusLabel(record.status))}</span>
+          <button type="button" class="prospection-dismiss" data-dismiss-prospect="${escapeHtml(record.id)}" title="Déjà client / me connaît déjà - retirer de la liste" aria-label="Retirer ${escapeHtml(record.company)} de la liste des prospects">✕</button>
+        </span>
       </summary>
       <div class="prospection-contact-row">
         ${record.phone ? `<span class="prospection-phone"><small>Numéro</small><strong>${escapeHtml(record.phone)}</strong></span>` : `<span class="prospection-muted">Téléphone manquant</span>`}
@@ -9139,6 +9143,28 @@ function saveProspectionCard(button) {
   if (!source) return;
   const value = (field) => card.querySelector(`[data-prospect-field="${field}"]`)?.value.trim() || "";
   saveProspectionRecord({ id: source.id, userId: source.userId, userName: source.userName, company: source.company, city: source.city, zip: source.zip, sector: source.sector, manager: value("manager"), phone: value("phone"), email: value("email"), status: value("status"), callbackDate: value("callbackDate"), nextAction: value("nextAction"), notes: value("notes") });
+}
+
+function dismissProspectionCard(id) {
+  const source = prospectionRecords.find((record) => record.id === id);
+  if (!source) return;
+  if (!confirm(`Retirer "${source.company}" de la liste des prospects (déjà client) ?`)) return;
+  saveProspectionRecord({
+    id: source.id,
+    userId: source.userId,
+    userName: source.userName,
+    company: source.company,
+    city: source.city,
+    zip: source.zip,
+    sector: source.sector,
+    manager: source.manager || "",
+    phone: source.phone || "",
+    email: source.email || "",
+    status: "already_client",
+    callbackDate: source.callbackDate || "",
+    nextAction: "",
+    notes: source.notes || "",
+  });
 }
 
 function exportProspectionRecords() {
@@ -10283,6 +10309,13 @@ prospectionAddButton.addEventListener("click", addProspectionRecord);
 prospectionExportButton.addEventListener("click", exportProspectionRecords);
 prospectionImportFile?.addEventListener("change", importProspectionFile);
 prospectionList.addEventListener("click", (event) => {
+  const dismissButton = event.target.closest("[data-dismiss-prospect]");
+  if (dismissButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    dismissProspectionCard(dismissButton.dataset.dismissProspect);
+    return;
+  }
   const saveButton = event.target.closest("[data-save-prospect]");
   if (saveButton) saveProspectionCard(saveButton);
 });
