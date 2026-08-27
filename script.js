@@ -5223,11 +5223,6 @@ function showApp(user, token = user.token || "") {
     renderTourPlanner();
     setActiveTab("adminChecking");
     restoreDashboardStatsCache();
-    if (isLocalAdminSession(currentUser, currentSessionToken)) {
-      if (adminLogStatus) adminLogStatus.textContent = "Mode admin local";
-      renderAdminDashboard();
-      return;
-    }
     loadDashboardStatsFromDrive();
     startDriveAutoRefresh();
     return;
@@ -5351,12 +5346,6 @@ async function submitLogin() {
   loginSubmitButton.textContent = "Connexion…";
   startLoginProgress();
   try {
-    if (normalize(loginId.value.trim()) === "admin" && loginPassword.value === "admin") {
-      updateLoginProgress(96, "Compte admin local", "Ouverture de l'espace administrateur...", "dashboard");
-      await waitForLoginProgressComplete();
-      showApp({ id: "admin", name: "Administrateur", role: "admin", sectors: [], remember: true }, localAdminToken);
-      return;
-    }
     const result = await postService({
       action: "login",
       identifier: loginId.value.trim(),
@@ -5466,10 +5455,6 @@ async function restoreSession() {
       rememberLogin.checked = Boolean(savedUser.remember);
       loginError.textContent = "Reconnexion sécurisée...";
       loginError.className = "login-error";
-      if (savedUser.role === "admin" && savedUser.token === localAdminToken) {
-        showApp({ ...savedUser, remember: true }, localAdminToken);
-        return;
-      }
       const cached = restoreSecureDataCache(savedUser.id);
       if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
       showApp(savedUser, savedUser.token || "");
