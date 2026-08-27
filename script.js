@@ -3872,14 +3872,14 @@ function summarizeClientStatsReport(rows) {
   if (gapCaTotal >= 0) {
     points.push({ tone: "up", text: `Chiffre d'affaires en progression de ${formatPercentDelta(percentDelta(totalCa, totalPreviousCa))} sur la période (${formatWholeCurrencyDelta(gapCaTotal)})` + (topCurrent[0] ? `, porté notamment par ${topCurrent[0].articleName}.` : ".") });
   } else {
-    points.push({ tone: "down", text: `Chiffre d'affaires en retrait de ${formatPercentDelta(percentDelta(totalCa, totalPreviousCa)).replace("+", "")} sur la période (${formatWholeCurrencyDelta(gapCaTotal)}) — un point à échanger ensemble pour identifier les besoins actuels.` });
+    points.push({ tone: "down", text: `Chiffre d'affaires en retrait de ${formatPercentDelta(percentDelta(totalCa, totalPreviousCa)).replace("+", "")} sur la période (${formatWholeCurrencyDelta(gapCaTotal)}).` });
   }
   if (progress[0]) points.push({ tone: "up", text: `${progress[0].articleName} est la référence en plus forte progression : ${formatWholeCurrencyDelta(progress[0].gapCa)} (${formatNumberDelta(progress[0].gapQuantity)} unités).` });
   if (newRefs.length) points.push({ tone: "up", text: `${newRefs.length} nouvelle(s) référence(s) commandée(s) cette année, signe d'un élargissement de la gamme utilisée.` });
-  if (declines[0]) points.push({ tone: "down", text: `${declines[0].articleName} concentre la plus forte baisse : ${formatWholeCurrencyDelta(declines[0].gapCa)} (${formatNumberDelta(declines[0].gapQuantity)} unités) — à évoquer pour comprendre l'évolution du besoin.` });
-  if (lostRefs.length) points.push({ tone: "down", text: `${lostRefs.length} référence(s) commandée(s) l'an dernier n'apparaissent plus cette année : l'occasion de faire un point sur les besoins actuels et les éventuelles alternatives.` });
+  if (declines[0]) points.push({ tone: "down", text: `${declines[0].articleName} concentre la plus forte baisse : ${formatWholeCurrencyDelta(declines[0].gapCa)} (${formatNumberDelta(declines[0].gapQuantity)} unités).` });
+  if (lostRefs.length) points.push({ tone: "down", text: `${lostRefs.length} référence(s) commandée(s) l'an dernier n'apparaissent plus cette année.` });
   if (bestFamily) points.push({ tone: "up", text: `La famille "${bestFamily.family}" est le principal moteur de croissance (${formatWholeCurrencyDelta(bestFamily.gapCa)}).` });
-  else if (weakFamily) points.push({ tone: "down", text: `Famille à aborder en rendez-vous : ${weakFamily.family} (${formatWholeCurrencyDelta(weakFamily.gapCa)}).` });
+  else if (weakFamily) points.push({ tone: "down", text: `Famille en retrait : ${weakFamily.family} (${formatWholeCurrencyDelta(weakFamily.gapCa)}).` });
   return { totalCa, totalPreviousCa, totalQty, totalPreviousQty, activeRefs, previousRefs, newRefs, lostRefs, topCurrent, topPrevious, progress, declines, families, points: points.slice(0, 6) };
 }
 
