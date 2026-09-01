@@ -1,0 +1,34 @@
+name: Vérifications frontend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Vérifier la syntaxe JavaScript
+        run: |
+          node --check script.js
+          node --check sw.js
+          node --check tarifs.js
+      - name: Vérifier la version du cache
+        shell: pwsh
+        run: |
+          $version = [regex]::Match((Get-Content sw.js -Raw), 'CACHE_NAME = "schuller-france-app-v([^\"]+)"').Groups[1].Value
+          if (-not $version) { throw "Version du cache introuvable" }
+          $html = Get-Content index.html -Raw
+          $worker = Get-Content sw.js -Raw
+          foreach ($asset in @('style.css', 'script.js', 'tarifs.js')) {
+            if ($html -notmatch [regex]::Escape("$asset`?v=$version")) { throw "Version incohérente pour $asset dans index.html" }
+            if ($worker -notmatch [regex]::Escape("$asset`?v=$version")) { throw "Version incohérente pour $asset dans sw.js" }
+          }

@@ -700,7 +700,7 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 const POST_SERVICE_TIMEOUT_MS = 25000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
-const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "login"]);
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "login", "session"]);
 
 async function postService(parameters) {
   setSyncStatus("syncing", "Synchro...");
@@ -799,9 +799,10 @@ function secureDataCacheKey(userId) {
 function saveSecureDataCache(userId, result) {
   if (!userId || !result?.appData) return;
   try {
-    localStorage.setItem(secureDataCacheKey(userId), JSON.stringify({ savedAt: Date.now(), result }));
-  } catch (error) {
     localStorage.removeItem(secureDataCacheKey(userId));
+    sessionStorage.setItem(secureDataCacheKey(userId), JSON.stringify({ savedAt: Date.now(), result }));
+  } catch (error) {
+    sessionStorage.removeItem(secureDataCacheKey(userId));
   }
 }
 
@@ -809,7 +810,7 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
   if (!userId || !updatedTariffConfig) return;
   try {
     const key = secureDataCacheKey(userId);
-    const cached = JSON.parse(localStorage.getItem(key) || "null");
+    const cached = JSON.parse(sessionStorage.getItem(key) || "null");
     if (!cached?.result) return;
     cached.savedAt = Date.now();
     cached.result.tariffConfig = {
@@ -817,7 +818,7 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
       ...updatedTariffConfig,
       endpoint: cached.result.tariffConfig?.endpoint || tariffConfig.endpoint || "",
     };
-    localStorage.setItem(key, JSON.stringify(cached));
+    sessionStorage.setItem(key, JSON.stringify(cached));
   } catch (error) {
     // Le cache local n'est qu'un accélérateur : s'il est invalide, Drive reste la source.
   }
@@ -825,12 +826,13 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
 
 function restoreSecureDataCache(userId) {
   try {
-    const cached = JSON.parse(localStorage.getItem(secureDataCacheKey(userId)) || "null");
+    localStorage.removeItem(secureDataCacheKey(userId));
+    const cached = JSON.parse(sessionStorage.getItem(secureDataCacheKey(userId)) || "null");
     if (!cached?.result || Date.now() - Number(cached.savedAt || 0) > secureDataCacheMaxAgeMs) return false;
     applySecureAppData(cached.result);
     return true;
   } catch (error) {
-    localStorage.removeItem(secureDataCacheKey(userId));
+    sessionStorage.removeItem(secureDataCacheKey(userId));
     return false;
   }
 }
@@ -916,6 +918,11 @@ function stopPromotionsAutoRefresh() {
 }
 
 function clearSecureAppData() {
+  const userId = currentUser?.id || "";
+  if (userId) {
+    sessionStorage.removeItem(secureDataCacheKey(userId));
+    localStorage.removeItem(secureDataCacheKey(userId));
+  }
   allClients = [];
   products = [];
   prenetClients = [];
@@ -927,6 +934,18 @@ function clearSecureAppData() {
   tariffConfig = { endpoint: tariffConfig.endpoint || "" };
   secureDataLoaded = false;
   populateProductRefs();
+}
+
+async function logoutCurrentSession() {
+  const token = currentSessionToken;
+  if (token) {
+    try {
+      await postService({ action: "logout", token });
+    } catch (error) {
+      // La déconnexion locale reste prioritaire si Google est indisponible.
+    }
+  }
+  showLogin();
 }
 
 function recordActivity(type, detail = "") {
@@ -1426,25 +1445,27 @@ function sumCommercialStat(commercial, getter) {
 function saveDashboardStatsCache() {
   if (!dashboardStatsOverride) return;
   try {
-    localStorage.setItem(dashboardStatsCacheKey, JSON.stringify({
+    localStorage.removeItem(dashboardStatsCacheKey);
+    sessionStorage.setItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`, JSON.stringify({
       savedAt: Date.now(),
       sourceFile: dashboardStatsOverride.sourceFile || "",
       updatedAt: dashboardStatsOverride.updatedAt || "",
       stats: dashboardStatsOverride,
     }));
   } catch (error) {
-    localStorage.removeItem(dashboardStatsCacheKey);
+    sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
   }
 }
 
 function restoreDashboardStatsCache() {
   try {
-    const cached = JSON.parse(localStorage.getItem(dashboardStatsCacheKey) || "null");
+    localStorage.removeItem(dashboardStatsCacheKey);
+    const cached = JSON.parse(sessionStorage.getItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`) || "null");
     if (!cached?.stats || Date.now() - Number(cached.savedAt || 0) > dashboardStatsCacheMaxAgeMs) return false;
     dashboardStatsOverride = cached.stats;
     return true;
   } catch (error) {
-    localStorage.removeItem(dashboardStatsCacheKey);
+    sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
     return false;
   }
 }
@@ -1453,6 +1474,7 @@ function clearDashboardStatsCache() {
   dashboardStatsOverride = null;
   try {
     localStorage.removeItem(dashboardStatsCacheKey);
+    sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
   } catch (error) {}
 }
 
@@ -5112,6 +5134,12 @@ function openPasswordReset() {
 }
 
 function showLogin() {
+  const previousUserId = currentUser?.id || "";
+  if (previousUserId) {
+    sessionStorage.removeItem(secureDataCacheKey(previousUserId));
+    sessionStorage.removeItem(`${dashboardStatsCacheKey}:${previousUserId}`);
+    localStorage.removeItem(secureDataCacheKey(previousUserId));
+  }
   stopDriveAutoRefresh();
   currentUser = null;
   currentSessionToken = "";
@@ -5296,6 +5324,8 @@ function showApp(user, token = user.token || "") {
   }
   renderDashboard(currentUser);
   loadDashboardStatsFromDrive();
+  loadClientArticleStatsFromDrive();
+  refreshPromotionsFromDrive();
   startDriveAutoRefresh();
   renderHomeReminders();
   resetQuoteRequest();
@@ -5515,10 +5545,12 @@ async function restoreSession() {
       rememberLogin.checked = Boolean(savedUser.remember);
       loginError.textContent = "Reconnexion sécurisée...";
       loginError.className = "login-error";
-      const cached = restoreSecureDataCache(savedUser.id);
-      if (!cached) await loadSecureAppData(savedUser.token || "", savedUser.id);
-      showApp(savedUser, savedUser.token || "");
-      if (cached) refreshSecureAppDataInBackground(savedUser.token || "", savedUser.id);
+      const restored = await postService({ action: "session", token: savedUser.token || "" });
+      const verifiedUser = { ...restored.user, remember: Boolean(savedUser.remember) };
+      const cached = restoreSecureDataCache(verifiedUser.id);
+      if (!cached) await loadSecureAppData(restored.token || "", verifiedUser.id);
+      showApp(verifiedUser, restored.token || "");
+      if (cached) refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id);
       return;
     }
   } catch (error) {
@@ -10396,7 +10428,7 @@ globalSearchInput?.addEventListener("keydown", (event) => {
   openGlobalSearchResult(0);
 });
 visitNextAction?.addEventListener("change", setVisitActionVisibility);
-logoutButton.addEventListener("click", showLogin);
+logoutButton.addEventListener("click", logoutCurrentSession);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   submitLogin();
