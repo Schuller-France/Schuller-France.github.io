@@ -655,6 +655,7 @@ const prospectionStatus = document.querySelector("#prospectionStatus");
 const prospectionAdminSummary = document.querySelector("#prospectionAdminSummary");
 const prospectionList = document.querySelector("#prospectionList");
 let centralesRecords = [];
+let centralesBusy = false;
 let prospectionRecords = [];
 let prospectionUsers = [];
 let prospectionWeekKey = "";
@@ -9642,12 +9643,15 @@ function toggleCentralesNewForm(show) {
 }
 
 async function submitNewCentrale() {
+  if (centralesBusy) return;
   const company = centralesNewCompany.value.trim();
   if (!company) {
     centralesStatus.textContent = "Saisissez le nom de la centrale.";
     centralesNewCompany.focus();
     return;
   }
+  centralesBusy = true;
+  centralesNewSubmit?.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Création…";
   try {
     await postService({
@@ -9663,18 +9667,24 @@ async function submitNewCentrale() {
     centralesNewContactEmail.value = "";
     toggleCentralesNewForm(false);
     centralesStatus.textContent = "Centrale créée.";
-    await loadCentralesData();
   } catch (error) {
-    centralesStatus.textContent = error?.message || "Erreur lors de la création. Réessayez.";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    centralesNewSubmit?.removeAttribute("disabled");
+    await loadCentralesData();
+    centralesBusy = false;
   }
 }
 
 async function saveCentraleCard(button) {
+  if (centralesBusy) return;
   const card = button.closest("[data-centrale-card]");
   const id = card?.dataset.centraleCard;
   const source = centralesRecords.find((record) => record.id === id);
   if (!source) return;
   const value = (field) => card.querySelector(`[data-centrale-field="${field}"]`)?.value.trim() || "";
+  centralesBusy = true;
+  button.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Enregistrement…";
   try {
     await postService({
@@ -9687,13 +9697,16 @@ async function saveCentraleCard(button) {
       relanceDate: value("relanceDate"),
     });
     centralesStatus.textContent = "Fiche enregistrée.";
-    await loadCentralesData();
   } catch (error) {
-    centralesStatus.textContent = error?.message || "Erreur lors de l'enregistrement. Réessayez.";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
   }
 }
 
 async function addCentraleEntryFromCard(button) {
+  if (centralesBusy) return;
   const id = button.dataset.addCentraleEntry;
   const card = button.closest("[data-centrale-card]");
   const date = card?.querySelector(`[data-centrale-new-entry-date="${id}"]`)?.value || "";
@@ -9703,37 +9716,49 @@ async function addCentraleEntryFromCard(button) {
     centralesStatus.textContent = "Choisissez une date pour cette entrée.";
     return;
   }
+  centralesBusy = true;
+  button.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Ajout à l'historique…";
   try {
     await postService({ action: "addCentraleEntry", id, date, type, notes });
     centralesStatus.textContent = "Historique mis à jour.";
-    await loadCentralesData();
   } catch (error) {
-    centralesStatus.textContent = error?.message || "Erreur lors de l'ajout. Réessayez.";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
   }
 }
 
 async function deleteCentraleEntryFromCard(button) {
+  if (centralesBusy) return;
   const id = button.dataset.deleteCentraleEntry;
   const entryId = button.dataset.entryId;
   if (!confirm("Supprimer cette entrée de l'historique ?")) return;
+  centralesBusy = true;
   try {
     await postService({ action: "deleteCentraleEntry", id, entryId });
-    await loadCentralesData();
   } catch (error) {
-    centralesStatus.textContent = error?.message || "Erreur lors de la suppression. Réessayez.";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
   }
 }
 
 async function deleteCentraleRecordCard(id) {
+  if (centralesBusy) return;
   const source = centralesRecords.find((record) => record.id === id);
   if (!source) return;
   if (!confirm(`Supprimer définitivement la fiche "${source.company}" et tout son historique ?`)) return;
+  centralesBusy = true;
   try {
     await postService({ action: "deleteCentraleRecord", id });
-    await loadCentralesData();
   } catch (error) {
-    centralesStatus.textContent = error?.message || "Erreur lors de la suppression. Réessayez.";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
   }
 }
 
