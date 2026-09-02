@@ -1,4 +1,4 @@
-const CACHE_NAME = "schuller-france-app-v20260902hardening10";
+const CACHE_NAME = "schuller-france-app-v20260902hardening11";
 const APP_SHELL = [
   "./",
   "./index.html",

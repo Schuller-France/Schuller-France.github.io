@@ -398,6 +398,8 @@ const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminExecutiveExpensesTab = document.querySelector("#adminExecutiveExpensesTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const adminPurchaseTab = document.querySelector("#adminPurchaseTab");
+const adminCentralesTab = document.querySelector("#adminCentralesTab");
+const centralesReminderBadge = document.querySelector("#centralesReminderBadge");
 const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
@@ -419,6 +421,19 @@ const adminCheckingView = document.querySelector("#adminCheckingView");
 const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
 const adminPrenetView = document.querySelector("#adminPrenetView");
 const adminPurchaseView = document.querySelector("#adminPurchaseView");
+const adminCentralesView = document.querySelector("#adminCentralesView");
+const centralesRelanceCount = document.querySelector("#centralesRelanceCount");
+const centralesSearch = document.querySelector("#centralesSearch");
+const centralesAddButton = document.querySelector("#centralesAddButton");
+const centralesNewForm = document.querySelector("#centralesNewForm");
+const centralesNewCompany = document.querySelector("#centralesNewCompany");
+const centralesNewContactName = document.querySelector("#centralesNewContactName");
+const centralesNewContactPhone = document.querySelector("#centralesNewContactPhone");
+const centralesNewContactEmail = document.querySelector("#centralesNewContactEmail");
+const centralesNewSubmit = document.querySelector("#centralesNewSubmit");
+const centralesNewCancel = document.querySelector("#centralesNewCancel");
+const centralesStatus = document.querySelector("#centralesStatus");
+const centralesList = document.querySelector("#centralesList");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogStatus = document.querySelector("#adminLogStatus");
 const adminSendHistoryBody = document.querySelector("#adminSendHistoryBody");
@@ -639,6 +654,7 @@ const prospectionImportFile = document.querySelector("#prospectionImportFile");
 const prospectionStatus = document.querySelector("#prospectionStatus");
 const prospectionAdminSummary = document.querySelector("#prospectionAdminSummary");
 const prospectionList = document.querySelector("#prospectionList");
+let centralesRecords = [];
 let prospectionRecords = [];
 let prospectionUsers = [];
 let prospectionWeekKey = "";
@@ -5187,6 +5203,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminPrenetTab, prospectionTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPurchaseTab.nextSibling);
+    appTabs.insertBefore(adminCentralesTab, adminPurchaseTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminCentralesTab.nextSibling);
     appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
     return;
   }
@@ -5618,6 +5636,7 @@ function showApp(user, token = user.token || "") {
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
+  adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
   prospectionUsers = buildProspectionUsers(prospectionUsers);
   if (isAdmin) {
@@ -9526,6 +9545,226 @@ function dismissProspectionCard(id) {
   });
 }
 
+// --- Centrales d'achat (rétroplanning de prospection grands comptes, admin uniquement) ---
+
+function centraleIsDue(record) {
+  if (!record.relanceDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(record.relanceDate + "T00:00:00");
+  return target.getTime() <= today.getTime();
+}
+
+function renderCentralesRecords() {
+  const query = (centralesSearch?.value || "").trim().toLowerCase();
+  const filtered = centralesRecords.filter((record) => {
+    if (!query) return true;
+    return record.company.toLowerCase().includes(query) || (record.contactName || "").toLowerCase().includes(query);
+  });
+  const dueCount = centralesRecords.filter(centraleIsDue).length;
+  if (centralesRelanceCount) centralesRelanceCount.textContent = `${dueCount} à relancer`;
+  if (centralesReminderBadge) {
+    centralesReminderBadge.textContent = String(dueCount);
+    centralesReminderBadge.classList.toggle("is-hidden", dueCount === 0);
+  }
+  const records = filtered.slice().sort((a, b) => {
+    const aDue = centraleIsDue(a) ? 0 : 1;
+    const bDue = centraleIsDue(b) ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  });
+  if (!records.length) {
+    centralesList.innerHTML = `<div class="empty-state">${query ? "Aucune centrale ne correspond à la recherche." : "Aucune centrale enregistrée pour le moment. Cliquez sur « + Nouvelle centrale » pour commencer."}</div>`;
+    return;
+  }
+  centralesList.innerHTML = records.map((record) => {
+    const due = centraleIsDue(record);
+    const entries = (record.entries || []).slice().sort((a, b) => {
+      return String(a.date || "").localeCompare(String(b.date || "")) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+    });
+    return `
+    <details class="centrale-card ${due ? "is-due" : ""}" data-centrale-card="${escapeHtml(record.id)}" open>
+      <summary>
+        <span><strong>${escapeHtml(record.company)}</strong>${record.contactName ? `<small>${escapeHtml(record.contactName)}</small>` : ""}</span>
+        <span class="centrale-summary-actions">
+          ${due ? `<span class="centrale-alert-pill">🔔 Relance</span>` : ""}
+          <button type="button" class="prospection-dismiss" data-delete-centrale="${escapeHtml(record.id)}" title="Supprimer cette fiche" aria-label="Supprimer ${escapeHtml(record.company)}">✕</button>
+        </span>
+      </summary>
+      <div class="centrale-contact-row">
+        <label>Interlocuteur<input data-centrale-field="contactName" value="${escapeHtml(record.contactName || "")}" placeholder="Prénom Nom" /></label>
+        <label>Téléphone<input data-centrale-field="contactPhone" value="${escapeHtml(record.contactPhone || "")}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
+        <label>E-mail<input data-centrale-field="contactEmail" value="${escapeHtml(record.contactEmail || "")}" inputmode="email" placeholder="contact@centrale.fr" /></label>
+        <label>Date de relance<input data-centrale-field="relanceDate" type="date" value="${escapeHtml(record.relanceDate || "")}" /></label>
+        <button class="ghost-button" type="button" data-save-centrale="${escapeHtml(record.id)}">Enregistrer la fiche</button>
+      </div>
+
+      <div class="centrale-timeline">
+        ${entries.length ? entries.map((entry) => `
+          <div class="centrale-entry">
+            <div class="centrale-entry-date">${escapeHtml(new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR"))}<span class="centrale-entry-type">${entry.type === "rdv" ? "Rendez-vous" : "Appel"}</span></div>
+            <div class="centrale-entry-notes">${escapeHtml(entry.notes || "").replace(/\n/g, "<br>")}</div>
+            <button type="button" class="centrale-entry-delete" data-delete-centrale-entry="${escapeHtml(record.id)}" data-entry-id="${escapeHtml(entry.id)}" aria-label="Supprimer cette entrée">✕</button>
+          </div>`).join("") : `<p class="centrale-empty-timeline">Aucun échange enregistré pour le moment.</p>`}
+      </div>
+
+      <div class="centrale-add-entry">
+        <label>Date<input data-centrale-new-entry-date="${escapeHtml(record.id)}" type="date" value="${new Date().toISOString().slice(0, 10)}" /></label>
+        <label>Type
+          <select data-centrale-new-entry-type="${escapeHtml(record.id)}">
+            <option value="appel">Appel</option>
+            <option value="rdv">Rendez-vous</option>
+          </select>
+        </label>
+        <label class="centrale-add-entry-notes">Notes<textarea data-centrale-new-entry-notes="${escapeHtml(record.id)}" rows="2" placeholder="Ce qui a été dit..."></textarea></label>
+        <button class="primary-button" type="button" data-add-centrale-entry="${escapeHtml(record.id)}">+ Ajouter à l'historique</button>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+async function loadCentralesData() {
+  if (!currentUser || currentUser.role !== "admin") return;
+  centralesStatus.textContent = "Chargement…";
+  try {
+    const result = await postService({ action: "getCentralesData" });
+    centralesRecords = Array.isArray(result.records) ? result.records : [];
+    centralesStatus.textContent = "";
+    renderCentralesRecords();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Impossible de charger les centrales pour le moment.";
+  }
+}
+
+function toggleCentralesNewForm(show) {
+  centralesNewForm?.classList.toggle("is-hidden", !show);
+  if (show) requestAnimationFrame(() => centralesNewCompany?.focus());
+}
+
+async function submitNewCentrale() {
+  const company = centralesNewCompany.value.trim();
+  if (!company) {
+    centralesStatus.textContent = "Saisissez le nom de la centrale.";
+    centralesNewCompany.focus();
+    return;
+  }
+  centralesStatus.textContent = "Création…";
+  try {
+    await postService({
+      action: "saveCentraleRecord",
+      company,
+      contactName: centralesNewContactName.value.trim(),
+      contactPhone: centralesNewContactPhone.value.trim(),
+      contactEmail: centralesNewContactEmail.value.trim(),
+    });
+    centralesNewCompany.value = "";
+    centralesNewContactName.value = "";
+    centralesNewContactPhone.value = "";
+    centralesNewContactEmail.value = "";
+    toggleCentralesNewForm(false);
+    centralesStatus.textContent = "Centrale créée.";
+    await loadCentralesData();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Erreur lors de la création. Réessayez.";
+  }
+}
+
+async function saveCentraleCard(button) {
+  const card = button.closest("[data-centrale-card]");
+  const id = card?.dataset.centraleCard;
+  const source = centralesRecords.find((record) => record.id === id);
+  if (!source) return;
+  const value = (field) => card.querySelector(`[data-centrale-field="${field}"]`)?.value.trim() || "";
+  centralesStatus.textContent = "Enregistrement…";
+  try {
+    await postService({
+      action: "saveCentraleRecord",
+      id,
+      company: source.company,
+      contactName: value("contactName"),
+      contactPhone: value("contactPhone"),
+      contactEmail: value("contactEmail"),
+      relanceDate: value("relanceDate"),
+    });
+    centralesStatus.textContent = "Fiche enregistrée.";
+    await loadCentralesData();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Erreur lors de l'enregistrement. Réessayez.";
+  }
+}
+
+async function addCentraleEntryFromCard(button) {
+  const id = button.dataset.addCentraleEntry;
+  const card = button.closest("[data-centrale-card]");
+  const date = card?.querySelector(`[data-centrale-new-entry-date="${id}"]`)?.value || "";
+  const type = card?.querySelector(`[data-centrale-new-entry-type="${id}"]`)?.value || "appel";
+  const notes = card?.querySelector(`[data-centrale-new-entry-notes="${id}"]`)?.value.trim() || "";
+  if (!date) {
+    centralesStatus.textContent = "Choisissez une date pour cette entrée.";
+    return;
+  }
+  centralesStatus.textContent = "Ajout à l'historique…";
+  try {
+    await postService({ action: "addCentraleEntry", id, date, type, notes });
+    centralesStatus.textContent = "Historique mis à jour.";
+    await loadCentralesData();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Erreur lors de l'ajout. Réessayez.";
+  }
+}
+
+async function deleteCentraleEntryFromCard(button) {
+  const id = button.dataset.deleteCentraleEntry;
+  const entryId = button.dataset.entryId;
+  if (!confirm("Supprimer cette entrée de l'historique ?")) return;
+  try {
+    await postService({ action: "deleteCentraleEntry", id, entryId });
+    await loadCentralesData();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Erreur lors de la suppression. Réessayez.";
+  }
+}
+
+async function deleteCentraleRecordCard(id) {
+  const source = centralesRecords.find((record) => record.id === id);
+  if (!source) return;
+  if (!confirm(`Supprimer définitivement la fiche "${source.company}" et tout son historique ?`)) return;
+  try {
+    await postService({ action: "deleteCentraleRecord", id });
+    await loadCentralesData();
+  } catch (error) {
+    centralesStatus.textContent = error?.message || "Erreur lors de la suppression. Réessayez.";
+  }
+}
+
+centralesAddButton?.addEventListener("click", () => toggleCentralesNewForm(centralesNewForm?.classList.contains("is-hidden")));
+centralesNewCancel?.addEventListener("click", () => toggleCentralesNewForm(false));
+centralesNewSubmit?.addEventListener("click", submitNewCentrale);
+centralesSearch?.addEventListener("input", renderCentralesRecords);
+centralesList?.addEventListener("click", (event) => {
+  const deleteRecordButton = event.target.closest("[data-delete-centrale]");
+  if (deleteRecordButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    deleteCentraleRecordCard(deleteRecordButton.dataset.deleteCentrale);
+    return;
+  }
+  const deleteEntryButton = event.target.closest("[data-delete-centrale-entry]");
+  if (deleteEntryButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    deleteCentraleEntryFromCard(deleteEntryButton);
+    return;
+  }
+  const addEntryButton = event.target.closest("[data-add-centrale-entry]");
+  if (addEntryButton) {
+    addCentraleEntryFromCard(addEntryButton);
+    return;
+  }
+  const saveButton = event.target.closest("[data-save-centrale]");
+  if (saveButton) saveCentraleCard(saveButton);
+});
+
 function exportProspectionRecords() {
   const rows = [["Commercial", "Secteur", "Entreprise", "Code postal", "Ville", "Dirigeant", "Téléphone", "E-mail", "Réponse", "Date relance", "Prochaine action", "Notes", "À vérifier"]];
   getVisibleProspectionRecords().forEach((record) => rows.push([
@@ -9630,6 +9869,7 @@ function setActiveTab(tabName) {
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
   const showAdminPrenet = tabName === "adminPrenet";
   const showAdminPurchase = tabName === "adminPurchase";
+  const showAdminCentrales = tabName === "adminCentrales";
   tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
@@ -9651,6 +9891,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
+  adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
@@ -9672,6 +9913,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
   adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
+  adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
@@ -9749,6 +9991,11 @@ function setActiveTab(tabName) {
   if (showAdminPurchase) {
     loadPurchaseComparatif();
     requestAnimationFrame(() => adminPurchaseSearch?.focus());
+  }
+
+  if (showAdminCentrales) {
+    loadCentralesData();
+    requestAnimationFrame(() => centralesSearch?.focus());
   }
 
   if (showAdmin) loadAdminLogs();
@@ -10314,6 +10561,7 @@ adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
+adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales"));
 
 adminPurchaseFileInput?.addEventListener("change", () => {
   const file = adminPurchaseFileInput.files?.[0];

@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260902hardening10" />
+    <link rel="stylesheet" href="style.css?v=20260902hardening11" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -157,6 +157,7 @@
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
+        <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🏢">Centrales d'achat <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
         </nav>
       </div>
@@ -1613,7 +1614,39 @@
                 <tr><td colspan="8" class="admin-empty">Déposez votre export Schuller ci-dessus pour lancer le premier comparatif.</td></tr>
               </tbody>
             </table>
+      <main class="app-shell admin-shell is-hidden" id="adminCentralesView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Prospection grands comptes</p>
+            <h2>Centrales d'achat</h2>
+            <p>Suivez vos d&eacute;marches aupr&egrave;s des centrales d'achat : historique des appels et rendez-vous, notes, et dates de relance.</p>
           </div>
+          <span class="status-pill" id="centralesRelanceCount">0 &agrave; relancer</span>
+        </section>
+
+        <section class="panel centrales-panel">
+          <div class="centrales-topbar">
+            <label class="centrales-search-label">
+              Rechercher une centrale
+              <input id="centralesSearch" type="search" autocomplete="off" placeholder="Nom de la soci&eacute;t&eacute;&hellip;" />
+            </label>
+            <button class="primary-button" type="button" id="centralesAddButton">+ Nouvelle centrale</button>
+          </div>
+
+          <div class="centrales-new-form is-hidden" id="centralesNewForm">
+            <label>Soci&eacute;t&eacute;<input id="centralesNewCompany" type="text" placeholder="Nom de la centrale" /></label>
+            <label>Interlocuteur<input id="centralesNewContactName" type="text" placeholder="Pr&eacute;nom Nom" /></label>
+            <label>T&eacute;l&eacute;phone<input id="centralesNewContactPhone" type="tel" placeholder="06 00 00 00 00" /></label>
+            <label>E-mail<input id="centralesNewContactEmail" type="email" placeholder="contact@centrale.fr" /></label>
+            <div class="centrales-new-form-actions">
+              <button class="primary-button" type="button" id="centralesNewSubmit">Cr&eacute;er la fiche</button>
+              <button class="ghost-button" type="button" id="centralesNewCancel">Annuler</button>
+            </div>
+          </div>
+
+          <p class="admin-prenet-status" id="centralesStatus"></p>
+
+          <div class="centrales-list" id="centralesList"></div>
         </section>
       </main>
     </div>
@@ -1627,10 +1660,10 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260902hardening10" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260902hardening11" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="script.js?v=20260902hardening10" charset="UTF-8"></script>
+    <script src="script.js?v=20260902hardening11" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

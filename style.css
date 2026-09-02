@@ -8595,6 +8595,69 @@ body.dark-theme .prospection-dismiss:hover { background: #4a2528; }
 .prospection-quick-actions { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; }
 .prospection-fields .primary-button { grid-column: 1 / -1; justify-self: end; }
 
+/* --- Centrales d'achat --- */
+.centrales-panel { display: grid; gap: 16px; }
+.centrales-topbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.centrales-search-label { display: grid; gap: 6px; font-weight: 700; min-width: 260px; flex: 1; }
+.centrales-search-label input { width: 100%; }
+.centrales-new-form { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; padding: 16px; border: 1px solid #dfe3e8; border-radius: 12px; background: #f8fafc; }
+.centrales-new-form label { display: grid; gap: 6px; font-weight: 700; }
+.centrales-new-form-actions { grid-column: 1 / -1; display: flex; gap: 10px; justify-content: end; }
+.centrales-list { display: grid; gap: 14px; }
+.centrale-card { border: 1px solid #dfe3e8; border-radius: 12px; background: #fff; overflow: hidden; }
+.centrale-card.is-due { border-color: #f3b7b7; box-shadow: inset 4px 0 #b8000d; }
+.centrale-card summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; cursor: pointer; list-style: none; }
+.centrale-card summary::-webkit-details-marker { display: none; }
+.centrale-card summary span { display: grid; gap: 3px; }
+.centrale-card summary small { color: #667085; font-weight: 500; }
+.centrale-summary-actions { display: flex !important; align-items: center; gap: 10px; flex-shrink: 0; }
+.centrale-alert-pill { padding: 6px 10px; border-radius: 999px; background: #fff0f1; color: #b8000d; font-weight: 800; white-space: nowrap; }
+.centrale-contact-row { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; padding: 0 18px 16px; border-top: 1px solid #edf0f2; }
+.centrale-contact-row label { display: grid; gap: 6px; padding-top: 16px; font-weight: 700; font-size: 13px; }
+.centrale-contact-row input { width: 100%; }
+.centrale-contact-row button { grid-column: 1 / -1; justify-self: end; }
+.centrale-timeline { display: grid; gap: 10px; padding: 0 18px 16px; }
+.centrale-empty-timeline { color: #667085; font-style: italic; margin: 0; }
+.centrale-entry { position: relative; display: grid; gap: 6px; padding: 12px 36px 12px 14px; border-left: 3px solid #2f5fd6; background: #f6f8fc; border-radius: 8px; }
+.centrale-entry-date { font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.centrale-entry-type { padding: 2px 8px; border-radius: 999px; background: #e7edfb; color: #2f5fd6; font-weight: 700; font-size: 12px; }
+.centrale-entry-notes { white-space: pre-wrap; color: #344054; }
+.centrale-entry-delete { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #f1d4d4; background: #fff5f5; color: #b8000d; cursor: pointer; }
+.centrale-entry-delete:hover { background: #ffe1e1; }
+.centrale-add-entry { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; padding: 14px 18px 18px; border-top: 1px dashed #dfe3e8; }
+.centrale-add-entry label { display: grid; gap: 6px; font-weight: 700; font-size: 13px; }
+.centrale-add-entry-notes { grid-column: span 2; }
+.centrale-add-entry button { grid-column: 1 / -1; justify-self: end; }
+
+body.dark-theme .centrale-card,
+body.dark-theme .centrales-new-form { background: #101826; border-color: rgba(158,197,255,.24); color: #f8fbff; }
+body.dark-theme .centrale-card summary { color: #f8fbff; }
+body.dark-theme .centrale-entry { background: rgba(47, 95, 214, 0.12); }
+body.dark-theme .centrale-entry-notes { color: #dbe4f3; }
+
+body.tablet-mode .centrale-card summary { min-height: 72px; font-size: 17px; }
+body.tablet-mode .centrales-new-form,
+body.tablet-mode .centrale-contact-row,
+body.tablet-mode .centrale-add-entry { grid-template-columns: 1fr 1fr; }
+body.tablet-mode .centrales-new-form input,
+body.tablet-mode .centrale-contact-row input,
+body.tablet-mode .centrale-add-entry input,
+body.tablet-mode .centrale-add-entry select,
+body.tablet-mode .centrale-add-entry textarea,
+body.tablet-mode .centrale-add-entry button { min-height: 58px; font-size: 17px; }
+
+@media (max-width: 760px) {
+  .centrales-new-form,
+  .centrale-contact-row,
+  .centrale-add-entry,
+  body.tablet-mode .centrales-new-form,
+  body.tablet-mode .centrale-contact-row,
+  body.tablet-mode .centrale-add-entry { grid-template-columns: 1fr; }
+  .centrale-add-entry-notes { grid-column: 1; }
+  .centrale-card summary { align-items: stretch; flex-direction: column; }
+}
+
+
 body.dark-theme .prospection-goal,
 body.dark-theme .prospection-card,
 body.dark-theme .prospection-admin-summary article { background: #101826; border-color: rgba(158,197,255,.24); color: #f8fbff; }
