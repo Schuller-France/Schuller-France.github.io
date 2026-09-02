@@ -11030,9 +11030,12 @@ offrePrixLines?.addEventListener("input", (event) => {
   const row = event.target.closest("[data-offre-line]");
   const field = event.target.dataset.offreField;
   if (!row || !field) return;
-  const id = row.dataset.offreLine;
-  if (field === "ref") applyOffrePrixReference(id, event.target.value);
-  else updateOffrePrixLine(id, field, event.target.value);
+  updateOffrePrixLine(row.dataset.offreLine, field, event.target.value);
+});
+offrePrixLines?.addEventListener("change", (event) => {
+  const row = event.target.closest("[data-offre-line]");
+  if (!row || event.target.dataset.offreField !== "ref") return;
+  applyOffrePrixReference(row.dataset.offreLine, event.target.value);
 });
 offrePrixLines?.addEventListener("click", (event) => {
   const removeId = event.target.closest("[data-remove-offre-line]")?.dataset.removeOffreLine;
