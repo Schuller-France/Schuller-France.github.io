@@ -27,6 +27,8 @@ let selectedSampleClient = null;
 let selectedPrenetClient = null;
 let selectedAdminPrenetClient = null;
 let selectedAdminPrenetRefs = [];
+let adminPrenetSortField = null; // "quantity" | "price" | null (tri par defaut : commercial/client/reference)
+let adminPrenetSortDirection = "asc"; // "asc" | "desc"
 let lines = [];
 let quoteLineItems = [];
 let sampleLineItems = [];
@@ -2755,14 +2757,44 @@ function getAdminPrenetRows() {
     });
   }
 
-  rows.sort((a, b) => {
-    const commercialCompare = a.commercial.localeCompare(b.commercial, "fr", { numeric: true });
-    if (commercialCompare) return commercialCompare;
-    const clientCompare = a.clientName.localeCompare(b.clientName, "fr", { numeric: true });
-    if (clientCompare) return clientCompare;
-    return a.ref.localeCompare(b.ref, "fr", { numeric: true });
-  });
+  if (adminPrenetSortField === "quantity" || adminPrenetSortField === "price") {
+    const direction = adminPrenetSortDirection === "desc" ? -1 : 1;
+    rows.sort((a, b) => {
+      const diff = (Number(a[adminPrenetSortField]) || 0) - (Number(b[adminPrenetSortField]) || 0);
+      if (diff) return diff * direction;
+      // A egalite, on garde un tri secondaire stable par client puis reference.
+      const clientCompare = a.clientName.localeCompare(b.clientName, "fr", { numeric: true });
+      if (clientCompare) return clientCompare;
+      return a.ref.localeCompare(b.ref, "fr", { numeric: true });
+    });
+  } else {
+    rows.sort((a, b) => {
+      const commercialCompare = a.commercial.localeCompare(b.commercial, "fr", { numeric: true });
+      if (commercialCompare) return commercialCompare;
+      const clientCompare = a.clientName.localeCompare(b.clientName, "fr", { numeric: true });
+      if (clientCompare) return clientCompare;
+      return a.ref.localeCompare(b.ref, "fr", { numeric: true });
+    });
+  }
   return rows;
+}
+
+function setAdminPrenetSort(field) {
+  if (adminPrenetSortField === field) {
+    adminPrenetSortDirection = adminPrenetSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    adminPrenetSortField = field;
+    adminPrenetSortDirection = "asc";
+  }
+  renderAdminPrenets();
+}
+
+function renderAdminPrenetSortIcons() {
+  document.querySelectorAll("[data-admin-prenet-sort-icon]").forEach((icon) => {
+    const field = icon.dataset.adminPrenetSortIcon;
+    icon.classList.remove("is-asc", "is-desc");
+    if (adminPrenetSortField === field) icon.classList.add(adminPrenetSortDirection === "desc" ? "is-desc" : "is-asc");
+  });
 }
 
 function renderAdminPrenets() {
@@ -2772,6 +2804,7 @@ function renderAdminPrenets() {
   renderAdminPrenetReferenceChips();
   renderAdminPrenetReferenceSuggestions();
   if (adminPrenetSendStatus && !adminPrenetSendStatus.dataset.keepMessage) adminPrenetSendStatus.textContent = "";
+  renderAdminPrenetSortIcons();
   const rows = getAdminPrenetRows();
   if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
   if (!rows.length) {
@@ -10088,6 +10121,9 @@ adminPrenetReferenceChips?.addEventListener("click", (event) => {
 });
 adminPrenetDownload?.addEventListener("click", downloadAdminPrenetPdf);
 adminPrenetSend?.addEventListener("click", sendAdminPrenetPrices);
+document.querySelectorAll("[data-admin-prenet-sort-btn]").forEach((button) => {
+  button.addEventListener("click", () => setAdminPrenetSort(button.dataset.adminPrenetSortBtn));
+});
 tutorialTab?.addEventListener("click", () => setActiveTab("tutorial"));
 tutorialSteps?.addEventListener("click", (event) => {
   const openButton = event.target.closest("[data-tutorial-open]");

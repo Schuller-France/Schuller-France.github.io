@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260901hardening5" />
+    <link rel="stylesheet" href="style.css?v=20260901hardening6" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1517,8 +1517,12 @@
                   <th>Client</th>
                   <th>Référence</th>
                   <th>Désignation</th>
-                  <th>Quantité</th>
-                  <th>Prix net</th>
+                  <th class="admin-prenet-sortable" data-admin-prenet-sort="quantity">
+                    <button type="button" data-admin-prenet-sort-btn="quantity">Quantité <span class="admin-prenet-sort-icon" data-admin-prenet-sort-icon="quantity"></span></button>
+                  </th>
+                  <th class="admin-prenet-sortable" data-admin-prenet-sort="price">
+                    <button type="button" data-admin-prenet-sort-btn="price">Prix net <span class="admin-prenet-sort-icon" data-admin-prenet-sort-icon="price"></span></button>
+                  </th>
                 </tr>
               </thead>
               <tbody id="adminPrenetBody">
@@ -1539,9 +1543,9 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260901hardening5" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260901hardening6" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260901hardening5" charset="UTF-8"></script>
+    <script src="script.js?v=20260901hardening6" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
