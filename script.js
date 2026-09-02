@@ -3000,9 +3000,29 @@ function renderAdminPurchase() {
   }).join("");
 }
 
+function fixSheetDimensions(sheet) {
+  // Certains exports (ERP fournisseur) declarent une plage "!ref" incorrecte
+  // (trop courte), ce qui tronque la lecture a quelques lignes seulement.
+  // On recalcule la vraie plage a partir des cellules reellement presentes.
+  let maxRow = 0;
+  let maxCol = 0;
+  let found = false;
+  Object.keys(sheet).forEach((key) => {
+    if (key[0] === "!") return;
+    const cell = XLSX.utils.decode_cell(key);
+    if (cell.r > maxRow) maxRow = cell.r;
+    if (cell.c > maxCol) maxCol = cell.c;
+    found = true;
+  });
+  if (found) {
+    sheet["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRow, c: maxCol } });
+  }
+  return sheet;
+}
+
 function parseSchullerExportRows(workbook) {
   const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+  const sheet = fixSheetDimensions(workbook.Sheets[sheetName]);
   const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
   const rows = [];
   for (let index = 1; index < raw.length; index += 1) {
