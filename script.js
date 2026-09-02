@@ -9753,14 +9753,22 @@ async function deleteCentraleRecordCard(id) {
   if (!source) return;
   if (!confirm(`Supprimer définitivement la fiche "${source.company}" et tout son historique ?`)) return;
   centralesBusy = true;
+  // Suppression optimiste : on retire la fiche de l'affichage tout de suite au lieu
+  // d'attendre la reponse serveur, pour eviter la double attente (delete + resync).
+  centralesRecords = centralesRecords.filter((record) => record.id !== id);
+  renderCentralesRecords();
+  centralesStatus.textContent = "Suppression en cours…";
   try {
     await postService({ action: "deleteCentraleRecord", id });
+    centralesStatus.textContent = "Fiche supprimée.";
   } catch (error) {
-    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en arrière-plan…";
   } finally {
-    await loadCentralesData();
     centralesBusy = false;
   }
+  // Resynchronisation en arriere-plan (ne bloque plus l'interface) : remet la fiche
+  // si la suppression a en realite echoue cote serveur.
+  loadCentralesData();
 }
 
 centralesAddButton?.addEventListener("click", () => toggleCentralesNewForm(centralesNewForm?.classList.contains("is-hidden")));
