@@ -1,10 +1,10 @@
-const CACHE_NAME = "schuller-france-app-v20260901hardening7";
+const CACHE_NAME = "schuller-france-app-v20260901hardening8";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260901hardening7",
-  "./script.js?v=20260901hardening7",
-  "./tarifs.js?v=20260901hardening7",
+  "./style.css?v=20260901hardening8",
+  "./script.js?v=20260901hardening8",
+  "./tarifs.js?v=20260901hardening8",
   "./manifest.webmanifest",
   "./assets/schuller-logo.png",
   "./assets/schuller-app-icon.svg",
@@ -56,4 +56,3 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 });
-

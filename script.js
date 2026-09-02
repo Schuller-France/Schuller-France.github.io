@@ -29,6 +29,12 @@ let selectedAdminPrenetClient = null;
 let selectedAdminPrenetRefs = [];
 let adminPrenetSortField = null; // "quantity" | "price" | null (tri par defaut : commercial/client/reference)
 let adminPrenetSortDirection = "asc"; // "asc" | "desc"
+let adminPurchaseCatalog = []; // [{ref, designation, sellingPrice}]
+let adminPurchaseLastDiff = null; // { date, previousDate, rows: [...], summary: {...} }
+let adminPurchaseLoaded = false;
+let adminPurchaseImporting = false;
+let adminPurchaseSortField = null; // "sellingPrice" | "newPa" | "margin" | null
+let adminPurchaseSortDirection = "asc";
 let lines = [];
 let quoteLineItems = [];
 let sampleLineItems = [];
@@ -391,6 +397,7 @@ const adminTab = document.querySelector("#adminTab");
 const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminExecutiveExpensesTab = document.querySelector("#adminExecutiveExpensesTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
+const adminPurchaseTab = document.querySelector("#adminPurchaseTab");
 const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
@@ -411,6 +418,7 @@ const adminView = document.querySelector("#adminView");
 const adminCheckingView = document.querySelector("#adminCheckingView");
 const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
 const adminPrenetView = document.querySelector("#adminPrenetView");
+const adminPurchaseView = document.querySelector("#adminPurchaseView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogStatus = document.querySelector("#adminLogStatus");
 const adminSendHistoryBody = document.querySelector("#adminSendHistoryBody");
@@ -478,6 +486,19 @@ const adminPrenetSend = document.querySelector("#adminPrenetSend");
 const adminPrenetSendStatus = document.querySelector("#adminPrenetSendStatus");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
 const adminPrenetCount = document.querySelector("#adminPrenetCount");
+const adminPurchaseCount = document.querySelector("#adminPurchaseCount");
+const adminPurchaseCountHausse = document.querySelector("#adminPurchaseCountHausse");
+const adminPurchaseCountBaisse = document.querySelector("#adminPurchaseCountBaisse");
+const adminPurchaseCountStable = document.querySelector("#adminPurchaseCountStable");
+const adminPurchaseCountNouveau = document.querySelector("#adminPurchaseCountNouveau");
+const adminPurchaseCountRupture = document.querySelector("#adminPurchaseCountRupture");
+const adminPurchaseCountMargeFaible = document.querySelector("#adminPurchaseCountMargeFaible");
+const adminPurchaseDropzone = document.querySelector("#adminPurchaseDropzone");
+const adminPurchaseFileInput = document.querySelector("#adminPurchaseFileInput");
+const adminPurchaseLastImport = document.querySelector("#adminPurchaseLastImport");
+const adminPurchaseSearch = document.querySelector("#adminPurchaseSearch");
+const adminPurchaseStatus = document.querySelector("#adminPurchaseStatus");
+const adminPurchaseBody = document.querySelector("#adminPurchaseBody");
 const tutorialSteps = document.querySelector("#tutorialSteps");
 const tutorialProgressBar = document.querySelector("#tutorialProgressBar");
 const tutorialProgressText = document.querySelector("#tutorialProgressText");
@@ -2834,6 +2855,227 @@ function renderAdminPrenets() {
   `).join("");
 }
 
+function normalizeRefForMatchClient(ref) {
+  const value = String(ref || "").trim().toUpperCase();
+  if (/^\d+$/.test(value)) return String(parseInt(value, 10));
+  return value;
+}
+
+function findAdminPurchaseCatalogEntry(ref) {
+  const key = normalizeRefForMatchClient(ref);
+  return adminPurchaseCatalog.find((item) => normalizeRefForMatchClient(item.ref) === key) || null;
+}
+
+async function loadPurchaseComparatif() {
+  if (!adminPurchaseBody) return;
+  if (adminPurchaseStatus) adminPurchaseStatus.textContent = "Chargement du comparatif...";
+  try {
+    const result = await postService({ action: "getPurchaseComparatif" });
+    adminPurchaseCatalog = Array.isArray(result.catalog) ? result.catalog : [];
+    adminPurchaseLastDiff = result.lastDiff || null;
+    adminPurchaseLoaded = true;
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = "";
+  } catch (error) {
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = error.message || "Comparatif indisponible pour le moment.";
+  }
+  renderAdminPurchase();
+}
+
+function getAdminPurchaseSourceRows() {
+  if (adminPurchaseLastDiff && Array.isArray(adminPurchaseLastDiff.rows)) {
+    return adminPurchaseLastDiff.rows.map((row) => ({ ...row }));
+  }
+  // Pas encore de comparatif : on affiche le catalogue seul (prix de vente editables).
+  return adminPurchaseCatalog.map((item) => ({
+    ref: item.ref,
+    designation: item.designation,
+    oldPa: null,
+    oldDate: null,
+    newPa: null,
+    sellingPrice: item.sellingPrice != null ? Number(item.sellingPrice) : null,
+    margin: null,
+    status: "catalogue",
+  }));
+}
+
+function getAdminPurchaseRows() {
+  const query = normalize(adminPurchaseSearch?.value || "");
+  let rows = getAdminPurchaseSourceRows();
+  if (query) {
+    rows = rows.filter((row) => normalize([row.ref || "", row.designation || ""].join(" ")).includes(query));
+  }
+  if (adminPurchaseSortField) {
+    const field = adminPurchaseSortField;
+    rows = rows.slice().sort((a, b) => {
+      const av = a[field];
+      const bv = b[field];
+      const aNum = av === null || av === undefined ? -Infinity : Number(av);
+      const bNum = bv === null || bv === undefined ? -Infinity : Number(bv);
+      const diff = aNum - bNum;
+      if (diff !== 0) return adminPurchaseSortDirection === "desc" ? -diff : diff;
+      return String(a.ref || "").localeCompare(String(b.ref || ""));
+    });
+  } else {
+    rows = rows.slice().sort((a, b) => String(a.ref || "").localeCompare(String(b.ref || "")));
+  }
+  return rows;
+}
+
+function setAdminPurchaseSort(field) {
+  if (adminPurchaseSortField === field) {
+    adminPurchaseSortDirection = adminPurchaseSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    adminPurchaseSortField = field;
+    adminPurchaseSortDirection = "asc";
+  }
+  renderAdminPurchase();
+}
+
+function renderAdminPurchaseSortIcons() {
+  document.querySelectorAll("[data-admin-purchase-sort-icon]").forEach((icon) => {
+    const field = icon.dataset.adminPurchaseSortIcon;
+    icon.classList.remove("is-asc", "is-desc");
+    if (adminPurchaseSortField === field) icon.classList.add(adminPurchaseSortDirection === "desc" ? "is-desc" : "is-asc");
+  });
+}
+
+const ADMIN_PURCHASE_STATUS_LABELS = {
+  hausse: "Hausse",
+  baisse: "Baisse",
+  stable: "Stable",
+  nouveau: "Nouveau",
+  rupture: "Rupture",
+  catalogue: "Catalogue",
+};
+
+function renderAdminPurchaseSummary() {
+  const summary = adminPurchaseLastDiff?.summary || {};
+  if (adminPurchaseCountHausse) adminPurchaseCountHausse.textContent = formatNumber(summary.hausse || 0);
+  if (adminPurchaseCountBaisse) adminPurchaseCountBaisse.textContent = formatNumber(summary.baisse || 0);
+  if (adminPurchaseCountStable) adminPurchaseCountStable.textContent = formatNumber(summary.stable || 0);
+  if (adminPurchaseCountNouveau) adminPurchaseCountNouveau.textContent = formatNumber(summary.nouveau || 0);
+  if (adminPurchaseCountRupture) adminPurchaseCountRupture.textContent = formatNumber(summary.rupture || 0);
+  if (adminPurchaseCountMargeFaible) adminPurchaseCountMargeFaible.textContent = formatNumber(summary.margeFaible || 0);
+  if (adminPurchaseLastImport) {
+    adminPurchaseLastImport.textContent = adminPurchaseLastDiff
+      ? `Dernier import : ${adminPurchaseLastDiff.date}${adminPurchaseLastDiff.previousDate ? ` (comparé au ${adminPurchaseLastDiff.previousDate})` : " (premier import)"}`
+      : "Aucun import pour le moment.";
+  }
+}
+
+function renderAdminPurchase() {
+  if (!adminPurchaseBody) return;
+  renderAdminPurchaseSortIcons();
+  renderAdminPurchaseSummary();
+  const rows = getAdminPurchaseRows();
+  if (adminPurchaseCount) adminPurchaseCount.textContent = `${formatNumber(rows.length)} référence${rows.length > 1 ? "s" : ""}`;
+  if (!rows.length) {
+    const message = adminPurchaseLoaded
+      ? "Aucune référence ne correspond à cette recherche."
+      : "Déposez votre export Schuller ci-dessus pour lancer le premier comparatif.";
+    adminPurchaseBody.innerHTML = `<tr><td colspan="8" class="admin-empty">${escapeHtml(message)}</td></tr>`;
+    return;
+  }
+  adminPurchaseBody.innerHTML = rows.map((row) => {
+    const isRupture = row.status === "rupture";
+    const isMargeFaible = row.margin != null && row.margin < 0.3;
+    const rowClasses = [isRupture ? "is-rupture-row" : "", isMargeFaible ? "is-marge-faible-row" : ""].filter(Boolean).join(" ");
+    const ecart = row.oldPa != null && row.newPa != null ? row.newPa - row.oldPa : null;
+    const ecartPct = ecart != null && row.oldPa ? (ecart / row.oldPa) * 100 : null;
+    const statusLabel = ADMIN_PURCHASE_STATUS_LABELS[row.status] || row.status || "-";
+    return `
+    <tr class="${rowClasses}" data-admin-purchase-row="${escapeHtml(row.ref || "")}">
+      <td><strong>${escapeHtml(row.ref || "-")}</strong></td>
+      <td>${escapeHtml(row.designation || "-")}</td>
+      <td class="numeric">
+        <input type="number" step="0.01" min="0" class="admin-purchase-price-input" data-admin-purchase-price-input="${escapeHtml(row.ref || "")}" value="${row.sellingPrice != null ? row.sellingPrice : ""}" placeholder="—" />
+      </td>
+      <td class="numeric">${row.oldPa != null ? formatter.format(row.oldPa) : "-"}${row.oldDate ? `<small>${escapeHtml(row.oldDate)}</small>` : ""}</td>
+      <td class="numeric"><strong>${row.newPa != null ? formatter.format(row.newPa) : "-"}</strong></td>
+      <td class="numeric">${ecart != null ? `${ecart >= 0 ? "+" : ""}${formatter.format(ecart)}${ecartPct != null ? `<small>${ecart >= 0 ? "+" : ""}${ecartPct.toFixed(1)}%</small>` : ""}` : "-"}</td>
+      <td class="numeric">${row.margin != null ? `${(row.margin * 100).toFixed(1)}%` : "-"}</td>
+      <td><span class="admin-purchase-badge is-${escapeHtml(row.status || "catalogue")}">${escapeHtml(statusLabel)}</span></td>
+    </tr>
+  `;
+  }).join("");
+}
+
+function parseSchullerExportRows(workbook) {
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const rows = [];
+  for (let index = 1; index < raw.length; index += 1) {
+    const line = raw[index];
+    if (!line || !line.length) continue;
+    const ref = String(line[0] ?? "").trim();
+    const designation = String(line[2] ?? "").trim();
+    const paRaw = line[9];
+    const pa = typeof paRaw === "number" ? paRaw : parseFloat(String(paRaw ?? "").replace(",", "."));
+    if (!ref || !isFinite(pa)) continue;
+    if (/gesamtsumme/i.test(ref)) continue;
+    rows.push({ ref, designation, pa });
+  }
+  return rows;
+}
+
+async function handleAdminPurchaseFile(file) {
+  if (!file || adminPurchaseImporting) return;
+  adminPurchaseImporting = true;
+  if (adminPurchaseStatus) adminPurchaseStatus.textContent = "Lecture du fichier...";
+  if (adminPurchaseDropzone) adminPurchaseDropzone.classList.add("is-dragover");
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const rows = parseSchullerExportRows(workbook);
+    if (!rows.length) {
+      if (adminPurchaseStatus) adminPurchaseStatus.textContent = "Aucune ligne exploitable trouvée dans ce fichier (colonnes A/C/J attendues).";
+      return;
+    }
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = `Import de ${rows.length} références en cours...`;
+    const result = await postService({ action: "importPurchasePriceExport", rows: JSON.stringify(rows) });
+    adminPurchaseLastDiff = result.lastDiff || null;
+    if (adminPurchaseStatus) {
+      const s = adminPurchaseLastDiff?.summary || {};
+      adminPurchaseStatus.textContent = `Comparatif mis à jour : ${formatNumber(s.hausse || 0)} hausse(s), ${formatNumber(s.baisse || 0)} baisse(s), ${formatNumber(s.rupture || 0)} rupture(s).`;
+    }
+    renderAdminPurchase();
+  } catch (error) {
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = error.message || "Import impossible. Vérifiez le fichier puis réessayez.";
+  } finally {
+    adminPurchaseImporting = false;
+    if (adminPurchaseDropzone) adminPurchaseDropzone.classList.remove("is-dragover");
+  }
+}
+
+async function saveAdminPurchasePrice(ref, rawValue) {
+  const price = parseFloat(String(rawValue).replace(",", "."));
+  if (!ref || !isFinite(price) || price < 0) {
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = "Prix de vente invalide.";
+    renderAdminPurchase();
+    return;
+  }
+  const catalogEntry = findAdminPurchaseCatalogEntry(ref);
+  const diffRow = adminPurchaseLastDiff?.rows?.find((row) => normalizeRefForMatchClient(row.ref) === normalizeRefForMatchClient(ref));
+  const designation = catalogEntry?.designation || diffRow?.designation || "";
+  try {
+    await postService({ action: "savePurchaseCatalogPrice", ref, sellingPrice: price, designation });
+    if (catalogEntry) {
+      catalogEntry.sellingPrice = price;
+    } else {
+      adminPurchaseCatalog.push({ ref, designation, sellingPrice: price });
+    }
+    if (diffRow) {
+      diffRow.sellingPrice = price;
+      diffRow.margin = diffRow.newPa != null ? 1 - (diffRow.newPa / price) : null;
+    }
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = `Prix de vente net enregistré pour ${ref}.`;
+  } catch (error) {
+    if (adminPurchaseStatus) adminPurchaseStatus.textContent = error.message || "Enregistrement du prix impossible.";
+  }
+  renderAdminPurchase();
+}
+
 function sanitizeDownloadName(value) {
   return String(value || "prix-nets")
     .normalize("NFD")
@@ -4923,7 +5165,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminTab, statsTab.nextSibling);
     appTabs.insertBefore(prospectionTab, adminTab.nextSibling);
     appTabs.insertBefore(adminPrenetTab, prospectionTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminPrenetTab.nextSibling);
+    appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminPurchaseTab.nextSibling);
     appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
     return;
   }
@@ -4948,6 +5191,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminCheckingTab);
   appTabs.appendChild(adminExecutiveExpensesTab);
   appTabs.appendChild(adminPrenetTab);
+  appTabs.appendChild(adminPurchaseTab);
   appTabs.appendChild(problemTab);
 }
 
@@ -5353,6 +5597,7 @@ function showApp(user, token = user.token || "") {
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
+  adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
   prospectionUsers = buildProspectionUsers(prospectionUsers);
   if (isAdmin) {
@@ -9364,6 +9609,7 @@ function setActiveTab(tabName) {
   const showAdminChecking = tabName === "adminChecking";
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
   const showAdminPrenet = tabName === "adminPrenet";
+  const showAdminPurchase = tabName === "adminPurchase";
   tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
@@ -9384,6 +9630,7 @@ function setActiveTab(tabName) {
   adminCheckingTab.classList.toggle("is-active", showAdminChecking);
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
+  adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
@@ -9404,6 +9651,7 @@ function setActiveTab(tabName) {
   adminCheckingView.classList.toggle("is-hidden", !showAdminChecking);
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
+  adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
@@ -9476,6 +9724,11 @@ function setActiveTab(tabName) {
   if (showAdminPrenet) {
     renderAdminPrenets();
     requestAnimationFrame(() => adminPrenetSearch?.focus());
+  }
+
+  if (showAdminPurchase) {
+    loadPurchaseComparatif();
+    requestAnimationFrame(() => adminPurchaseSearch?.focus());
   }
 
   if (showAdmin) loadAdminLogs();
@@ -10040,6 +10293,43 @@ adminTab.addEventListener("click", () => setActiveTab("admin"));
 adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
+adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
+
+adminPurchaseFileInput?.addEventListener("change", () => {
+  const file = adminPurchaseFileInput.files?.[0];
+  if (file) handleAdminPurchaseFile(file);
+  adminPurchaseFileInput.value = "";
+});
+
+if (adminPurchaseDropzone) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    adminPurchaseDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      adminPurchaseDropzone.classList.add("is-dragover");
+    });
+  });
+  ["dragleave", "dragend"].forEach((eventName) => {
+    adminPurchaseDropzone.addEventListener(eventName, () => adminPurchaseDropzone.classList.remove("is-dragover"));
+  });
+  adminPurchaseDropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    adminPurchaseDropzone.classList.remove("is-dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) handleAdminPurchaseFile(file);
+  });
+}
+
+adminPurchaseSearch?.addEventListener("input", () => renderAdminPurchase());
+
+document.querySelectorAll("[data-admin-purchase-sort-btn]").forEach((button) => {
+  button.addEventListener("click", () => setAdminPurchaseSort(button.dataset.adminPurchaseSortBtn));
+});
+
+adminPurchaseBody?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-admin-purchase-price-input]");
+  if (!input) return;
+  saveAdminPurchasePrice(input.dataset.adminPurchasePriceInput, input.value);
+});
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);

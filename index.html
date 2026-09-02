@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260901hardening7" />
+    <link rel="stylesheet" href="style.css?v=20260901hardening8" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -156,6 +156,7 @@
         <button class="tab-button is-hidden" type="button" id="adminTab" data-icon="🧭">Consulting</button>
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
+        <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
         </nav>
       </div>
@@ -1532,6 +1533,89 @@
           </div>
         </section>
       </main>
+
+      <main class="app-shell admin-shell is-hidden" id="adminPurchaseView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Contrôle achats</p>
+            <h2>Comparatif prix d'achat</h2>
+            <p>Déposez chaque semaine votre export Schuller pour comparer automatiquement les prix d'achat par rapport au dernier import : hausses, baisses, ruptures et marges.</p>
+          </div>
+          <span class="status-pill" id="adminPurchaseCount">0 référence</span>
+        </section>
+
+        <section class="panel admin-purchase-panel">
+          <div class="admin-purchase-summary" id="adminPurchaseSummary">
+            <div class="admin-purchase-summary-item is-hausse">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountHausse">0</span>
+              <span class="admin-purchase-summary-label">Hausses</span>
+            </div>
+            <div class="admin-purchase-summary-item is-baisse">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountBaisse">0</span>
+              <span class="admin-purchase-summary-label">Baisses</span>
+            </div>
+            <div class="admin-purchase-summary-item is-stable">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountStable">0</span>
+              <span class="admin-purchase-summary-label">Stables</span>
+            </div>
+            <div class="admin-purchase-summary-item is-nouveau">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountNouveau">0</span>
+              <span class="admin-purchase-summary-label">Nouveautés</span>
+            </div>
+            <div class="admin-purchase-summary-item is-rupture">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountRupture">0</span>
+              <span class="admin-purchase-summary-label">Ruptures</span>
+            </div>
+            <div class="admin-purchase-summary-item is-marge-faible">
+              <span class="admin-purchase-summary-value" id="adminPurchaseCountMargeFaible">0</span>
+              <span class="admin-purchase-summary-label">Marge &lt; 30%</span>
+            </div>
+          </div>
+
+          <div class="admin-purchase-topbar">
+            <div class="admin-purchase-dropzone" id="adminPurchaseDropzone">
+              <p><strong>Glissez-déposez</strong> l'export Schuller (.xlsx) reçu cette semaine ici</p>
+              <p>ou <label class="admin-purchase-filelabel" for="adminPurchaseFileInput">choisissez un fichier</label></p>
+              <input id="adminPurchaseFileInput" type="file" accept=".xlsx,.xls" class="is-visually-hidden" />
+            </div>
+            <div class="admin-purchase-meta">
+              <p id="adminPurchaseLastImport">Aucun import pour le moment.</p>
+              <label class="admin-prenet-search-label">
+                Rechercher (référence ou désignation)
+                <input id="adminPurchaseSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou une désignation…" />
+              </label>
+            </div>
+          </div>
+
+          <p class="admin-prenet-status" id="adminPurchaseStatus"></p>
+
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-purchase-table">
+              <thead>
+                <tr>
+                  <th>Référence</th>
+                  <th>Désignation</th>
+                  <th class="admin-purchase-sortable" data-admin-purchase-sort="sellingPrice">
+                    <button type="button" data-admin-purchase-sort-btn="sellingPrice">Prix vente net <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="sellingPrice"></span></button>
+                  </th>
+                  <th>Ancien PA</th>
+                  <th class="admin-purchase-sortable" data-admin-purchase-sort="newPa">
+                    <button type="button" data-admin-purchase-sort-btn="newPa">Nouveau PA <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="newPa"></span></button>
+                  </th>
+                  <th>Écart</th>
+                  <th class="admin-purchase-sortable" data-admin-purchase-sort="margin">
+                    <button type="button" data-admin-purchase-sort-btn="margin">Marge <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="margin"></span></button>
+                  </th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id="adminPurchaseBody">
+                <tr><td colspan="8" class="admin-empty">Déposez votre export Schuller ci-dessus pour lancer le premier comparatif.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
     </div>
 
     <datalist id="productRefs"></datalist>
@@ -1543,9 +1627,10 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260901hardening7" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260901hardening8" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260901hardening7" charset="UTF-8"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="script.js?v=20260901hardening8" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
