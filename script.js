@@ -9600,25 +9600,6 @@ function renderCentralesRecords() {
         <button class="ghost-button" type="button" data-save-centrale="${escapeHtml(record.id)}">Enregistrer la fiche</button>
       </div>
 
-      <div class="centrale-contacts">
-        ${(record.contacts || []).length ? (record.contacts || []).map((contact) => `
-          <div class="centrale-contact-chip">
-            <div class="centrale-contact-chip-info">
-              <strong>${escapeHtml(contact.name || "")}</strong>${contact.role ? `<span class="centrale-contact-role">${escapeHtml(contact.role)}</span>` : ""}
-              ${contact.phone ? `<span>${escapeHtml(contact.phone)}</span>` : ""}
-              ${contact.email ? `<span>${escapeHtml(contact.email)}</span>` : ""}
-            </div>
-            <button type="button" class="centrale-contact-delete" data-delete-centrale-contact="${escapeHtml(record.id)}" data-contact-id="${escapeHtml(contact.id)}" aria-label="Supprimer cet interlocuteur">✕</button>
-          </div>`).join("") : ""}
-      </div>
-      <div class="centrale-add-contact">
-        <label>Nom<input data-centrale-new-contact-name="${escapeHtml(record.id)}" placeholder="Prénom Nom" /></label>
-        <label>Rôle<input data-centrale-new-contact-role="${escapeHtml(record.id)}" placeholder="Ex: Acheteur, Directeur..." /></label>
-        <label>Téléphone<input data-centrale-new-contact-phone="${escapeHtml(record.id)}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
-        <label>E-mail<input data-centrale-new-contact-email="${escapeHtml(record.id)}" inputmode="email" placeholder="contact@centrale.fr" /></label>
-        <button class="ghost-button" type="button" data-add-centrale-contact="${escapeHtml(record.id)}">+ Ajouter un interlocuteur</button>
-      </div>
-
       <div class="centrale-timeline">
         ${entries.length ? entries.map((entry) => `
           <div class="centrale-entry">
@@ -9639,6 +9620,27 @@ function renderCentralesRecords() {
         </label>
         <label class="centrale-add-entry-notes">Notes<textarea data-centrale-new-entry-notes="${escapeHtml(record.id)}" rows="2" placeholder="Ce qui a été dit..."></textarea></label>
         <button class="primary-button" type="button" data-add-centrale-entry="${escapeHtml(record.id)}">+ Ajouter à l'historique</button>
+      </div>
+
+      <div class="centrale-contacts">
+        ${(record.contacts || []).length ? (record.contacts || []).map((contact) => `
+          <div class="centrale-contact-chip">
+            <div class="centrale-contact-chip-info">
+              <strong>${escapeHtml(contact.name || "")}</strong>${contact.role ? `<span class="centrale-contact-role">${escapeHtml(contact.role)}</span>` : ""}
+              ${contact.phone ? `<span>${escapeHtml(contact.phone)}</span>` : ""}
+              ${contact.email ? `<span>${escapeHtml(contact.email)}</span>` : ""}
+              ${contact.relanceDate ? `<span>Relance : ${escapeHtml(new Date(contact.relanceDate + "T00:00:00").toLocaleDateString("fr-FR"))}</span>` : ""}
+            </div>
+            <button type="button" class="centrale-contact-delete" data-delete-centrale-contact="${escapeHtml(record.id)}" data-contact-id="${escapeHtml(contact.id)}" aria-label="Supprimer cet interlocuteur">✕</button>
+          </div>`).join("") : ""}
+      </div>
+      <div class="centrale-add-contact">
+        <label>Nom<input data-centrale-new-contact-name="${escapeHtml(record.id)}" placeholder="Prénom Nom" /></label>
+        <label>Rôle<input data-centrale-new-contact-role="${escapeHtml(record.id)}" placeholder="Ex: Acheteur, Directeur..." /></label>
+        <label>Téléphone<input data-centrale-new-contact-phone="${escapeHtml(record.id)}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
+        <label>E-mail<input data-centrale-new-contact-email="${escapeHtml(record.id)}" inputmode="email" placeholder="contact@centrale.fr" /></label>
+        <label>Date de relance<input data-centrale-new-contact-relance="${escapeHtml(record.id)}" type="date" /></label>
+        <button class="ghost-button" type="button" data-add-centrale-contact="${escapeHtml(record.id)}">+ Ajouter un interlocuteur</button>
       </div>
     </details>`;
   }).join("");
@@ -9774,6 +9776,7 @@ async function addCentraleContactFromCard(button) {
   const role = card?.querySelector(`[data-centrale-new-contact-role="${id}"]`)?.value.trim() || "";
   const phone = card?.querySelector(`[data-centrale-new-contact-phone="${id}"]`)?.value.trim() || "";
   const email = card?.querySelector(`[data-centrale-new-contact-email="${id}"]`)?.value.trim() || "";
+  const relanceDate = card?.querySelector(`[data-centrale-new-contact-relance="${id}"]`)?.value || "";
   if (!name) {
     centralesStatus.textContent = "Saisissez le nom de l'interlocuteur.";
     return;
@@ -9782,7 +9785,7 @@ async function addCentraleContactFromCard(button) {
   button.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Ajout de l'interlocuteur…";
   try {
-    await postService({ action: "addCentraleContact", id, name, role, phone, email });
+    await postService({ action: "addCentraleContact", id, name, role, phone, email, relanceDate });
     centralesStatus.textContent = "Interlocuteur ajouté.";
   } catch (error) {
     centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";

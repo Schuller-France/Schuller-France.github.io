@@ -8630,7 +8630,7 @@ body.dark-theme .prospection-dismiss:hover { background: #4a2528; }
 .centrale-add-entry-notes { grid-column: span 2; }
 .centrale-add-entry button { grid-column: 1 / -1; justify-self: end; }
 
-.centrale-contacts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px; }
+.centrale-contacts { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px 0; border-top: 1px dashed #dfe3e8; }
 .centrale-contacts:empty { display: none; }
 .centrale-contact-chip { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 30px 8px 12px; border-radius: 999px; background: #f6f8fc; border: 1px solid #e2e8f4; font-size: 13px; }
 .centrale-contact-chip-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -8639,7 +8639,7 @@ body.dark-theme .prospection-dismiss:hover { background: #4a2528; }
 .centrale-contact-role { padding: 2px 8px; border-radius: 999px; background: #e7edfb; color: #2f5fd6; font-weight: 700; font-size: 11px; }
 .centrale-contact-delete { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; border: 1px solid #f1d4d4; background: #fff5f5; color: #b8000d; cursor: pointer; font-size: 11px; line-height: 1; }
 .centrale-contact-delete:hover { background: #ffe1e1; }
-.centrale-add-contact { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; padding: 14px 18px; border-top: 1px dashed #dfe3e8; }
+.centrale-add-contact { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 12px; padding: 14px 18px; border-top: 1px dashed #dfe3e8; }
 .centrale-add-contact label { display: grid; gap: 6px; font-weight: 700; font-size: 13px; }
 .centrale-add-contact button { grid-column: 1 / -1; justify-self: end; }
 
