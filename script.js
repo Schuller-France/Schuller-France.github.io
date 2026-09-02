@@ -6209,14 +6209,15 @@ function renderOffrePrixTotal() {
   offrePrixTotal.textContent = formatter.format(total);
 }
 
-function previewBase64File(base64, mimeType) {
+function previewBase64File(base64, mimeType, targetWindow) {
   const binary = atob(base64);
   const length = binary.length;
   const bytes = new Uint8Array(length);
   for (let index = 0; index < length; index += 1) bytes[index] = binary.charCodeAt(index);
   const blob = new Blob([bytes], { type: mimeType || "application/pdf" });
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  if (targetWindow && !targetWindow.closed) targetWindow.location = url;
+  else window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
@@ -6232,6 +6233,9 @@ async function previewOffrePrix() {
   }
   if (offrePrixPreview) offrePrixPreview.disabled = true;
   if (offrePrixStatus) offrePrixStatus.textContent = "Préparation de l'aperçu...";
+  // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
+  // navigateur ne bloque le window.open() une fois la réponse serveur arrivée (après un await).
+  const previewWindow = window.open("", "_blank");
   try {
     const result = await postService({
       action: "buildOffrePrixPdf",
@@ -6244,9 +6248,10 @@ async function previewOffrePrix() {
       rows: JSON.stringify(rows),
     });
     if (!result.data) throw new Error("Aperçu indisponible.");
-    previewBase64File(result.data, result.mimeType || "application/pdf");
+    previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
     if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu généré.";
   } catch (error) {
+    previewWindow?.close();
     if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Aperçu impossible.";
   } finally {
     if (offrePrixPreview) offrePrixPreview.disabled = false;
