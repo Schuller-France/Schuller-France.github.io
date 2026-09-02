@@ -2559,8 +2559,11 @@ function renderAdminPrenetSuggestions() {
   }
   const clients = getAdminPrenetSelectableClients();
   if (!clients.length) {
-    adminPrenetSuggestions.innerHTML = '<div class="suggestion-empty">Aucun client trouvé.</div>';
-    adminPrenetSuggestions.classList.add("is-open");
+    // Pas de client correspondant : on ferme simplement la liste de suggestions plutot que
+    // d'afficher un message "Aucun client trouve" qui donne l'impression que la recherche a echoue,
+    // alors que le tableau ci-dessous peut deja afficher des lignes trouvees par reference/prix net.
+    adminPrenetSuggestions.classList.remove("is-open");
+    adminPrenetSuggestions.innerHTML = "";
     return;
   }
   adminPrenetSuggestions.innerHTML = clients.map((client, index) => {
