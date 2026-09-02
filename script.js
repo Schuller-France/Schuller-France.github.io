@@ -37,6 +37,10 @@ let adminPurchaseSortField = null; // "sellingPrice" | "newPa" | "margin" | null
 let adminPurchaseSortDirection = "asc";
 let lines = [];
 let quoteLineItems = [];
+let selectedOffrePrixClient = null;
+let offrePrixLineItems = [];
+let priceOffers = [];
+let priceOffersLoaded = false;
 let sampleLineItems = [];
 let expenseLineItems = [];
 let executiveExpenseLineItems = [];
@@ -400,6 +404,7 @@ const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const adminPurchaseTab = document.querySelector("#adminPurchaseTab");
 const adminCentralesTab = document.querySelector("#adminCentralesTab");
 const centralesReminderBadge = document.querySelector("#centralesReminderBadge");
+const adminOffrePrixTab = document.querySelector("#adminOffrePrixTab");
 const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
@@ -422,6 +427,21 @@ const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpens
 const adminPrenetView = document.querySelector("#adminPrenetView");
 const adminPurchaseView = document.querySelector("#adminPurchaseView");
 const adminCentralesView = document.querySelector("#adminCentralesView");
+const adminOffrePrixView = document.querySelector("#adminOffrePrixView");
+const offrePrixClientSearch = document.querySelector("#offrePrixClientSearch");
+const offrePrixClientSuggestions = document.querySelector("#offrePrixClientSuggestions");
+const offrePrixSelectedClient = document.querySelector("#offrePrixSelectedClient");
+const offrePrixLines = document.querySelector("#offrePrixLines");
+const offrePrixAddLine = document.querySelector("#offrePrixAddLine");
+const offrePrixTotal = document.querySelector("#offrePrixTotal");
+const offrePrixPreview = document.querySelector("#offrePrixPreview");
+const offrePrixEmail = document.querySelector("#offrePrixEmail");
+const offrePrixSend = document.querySelector("#offrePrixSend");
+const offrePrixStatus = document.querySelector("#offrePrixStatus");
+const offrePrixHistoryList = document.querySelector("#offrePrixHistoryList");
+const offrePrixHistorySearch = document.querySelector("#offrePrixHistorySearch");
+const offrePrixHistorySectorFilter = document.querySelector("#offrePrixHistorySectorFilter");
+const offrePrixHistoryExport = document.querySelector("#offrePrixHistoryExport");
 const centralesRelanceCount = document.querySelector("#centralesRelanceCount");
 const centralesSearch = document.querySelector("#centralesSearch");
 const centralesAddButton = document.querySelector("#centralesAddButton");
@@ -5205,7 +5225,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
     appTabs.insertBefore(tourTab, adminPurchaseTab.nextSibling);
     appTabs.insertBefore(adminCentralesTab, adminPurchaseTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminCentralesTab.nextSibling);
+    if (adminOffrePrixTab) appTabs.insertBefore(adminOffrePrixTab, adminCentralesTab.nextSibling);
+    appTabs.insertBefore(tourTab, (adminOffrePrixTab || adminCentralesTab).nextSibling);
     appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
     return;
   }
@@ -5638,6 +5659,7 @@ function showApp(user, token = user.token || "") {
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
   adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
+  adminOffrePrixTab?.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
   prospectionUsers = buildProspectionUsers(prospectionUsers);
   if (isAdmin) {
@@ -6027,6 +6049,326 @@ function resetQuoteRequest() {
   quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
   quoteSendStatus.textContent = "";
   quoteSendStatus.className = "tarif-send-status";
+}
+
+function renderOffrePrixClientSuggestions(query) {
+  if (!offrePrixClientSuggestions) return;
+  const cleanQuery = normalize(query.trim());
+  offrePrixClientSuggestions.innerHTML = "";
+  if (!cleanQuery) {
+    offrePrixClientSuggestions.classList.remove("is-open");
+    return;
+  }
+  const source = getClientsForUser(currentUser);
+  const matches = source
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingCity,
+      client.billingZip,
+      client.deliveryCity,
+      client.deliveryZip,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 10);
+  if (!matches.length) {
+    offrePrixClientSuggestions.classList.remove("is-open");
+    return;
+  }
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectOffrePrixClient(client));
+    offrePrixClientSuggestions.appendChild(button);
+  });
+  offrePrixClientSuggestions.classList.add("is-open");
+}
+
+function selectOffrePrixClient(client) {
+  selectedOffrePrixClient = client;
+  if (offrePrixClientSearch) offrePrixClientSearch.value = client.name;
+  offrePrixClientSuggestions?.classList.remove("is-open");
+  if (offrePrixSelectedClient) {
+    offrePrixSelectedClient.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)}</span>
+      <span>${escapeHtml(client.billingAddress || client.deliveryAddress || "")}</span>
+      <span>${escapeHtml(client.billingZip || client.deliveryZip || "")} ${escapeHtml(client.billingCity || client.deliveryCity || "")}</span>
+      <span>${escapeHtml(client.sector)}</span>
+    `;
+  }
+  if (offrePrixStatus) offrePrixStatus.textContent = "";
+  recordActivity("Client offre de prix sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
+  renderOffrePrixLines();
+}
+
+function clearOffrePrixClient() {
+  selectedOffrePrixClient = null;
+  if (offrePrixClientSearch) offrePrixClientSearch.value = "";
+  if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+}
+
+function addOffrePrixLine() {
+  offrePrixLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, price: 0 });
+  renderOffrePrixLines();
+}
+
+function isOffrePrixLineEmpty(line) {
+  return !String(line?.ref || "").trim();
+}
+
+function ensureOffrePrixTrailingBlankLine() {
+  if (!offrePrixLineItems.length) {
+    offrePrixLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, price: 0 });
+    return;
+  }
+  while (offrePrixLineItems.length > 1 && isOffrePrixLineEmpty(offrePrixLineItems[offrePrixLineItems.length - 1]) && isOffrePrixLineEmpty(offrePrixLineItems[offrePrixLineItems.length - 2])) {
+    offrePrixLineItems.pop();
+  }
+  const lastLine = offrePrixLineItems[offrePrixLineItems.length - 1];
+  if (String(lastLine.ref || "").trim()) {
+    offrePrixLineItems.push({ id: crypto.randomUUID(), ref: "", qty: 1, price: 0 });
+  }
+}
+
+function removeOffrePrixLine(id) {
+  offrePrixLineItems = offrePrixLineItems.filter((line) => line.id !== id);
+  if (!offrePrixLineItems.length) addOffrePrixLine();
+  else renderOffrePrixLines();
+}
+
+function updateOffrePrixLine(id, field, value) {
+  const line = offrePrixLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line[field] = value;
+  renderOffrePrixTotal();
+}
+
+function getOffrePrixUnitPrice(product, quantity = 0) {
+  if (!product) return 0;
+  const prenetEntry = findPrenetEntryForProduct(selectedOffrePrixClient, product, quantity);
+  const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
+  return prenetPrice > 0 ? prenetPrice : Number(product.price) || 0;
+}
+
+function applyOffrePrixReference(id, value) {
+  const line = offrePrixLineItems.find((item) => item.id === id);
+  if (!line) return;
+  const product = findProduct(value);
+  line.ref = product ? product.ref : value;
+  if (product) {
+    line.qty = defaultQuantityForProduct(product);
+    line.price = getOffrePrixUnitPrice(product, line.qty);
+  }
+  renderOffrePrixLines();
+}
+
+function renderOffrePrixLines() {
+  ensureOffrePrixTrailingBlankLine();
+  if (offrePrixLines) {
+    offrePrixLines.innerHTML = offrePrixLineItems.map((line, index) => {
+      const product = findProduct(line.ref);
+      const amount = (Number(line.price) || 0) * (Number(line.qty) || 0);
+      return `
+        <tr data-offre-line="${escapeHtml(line.id)}">
+          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></td>
+          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
+          <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
+          <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
+          <td>${formatter.format(amount)}</td>
+          <td><button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
+        </tr>
+      `;
+    }).join("");
+  }
+  renderOffrePrixTotal();
+}
+
+function getOffrePrixRows() {
+  return offrePrixLineItems
+    .filter((line) => String(line.ref || "").trim())
+    .map((line) => {
+      const product = findProduct(line.ref);
+      return {
+        ref: line.ref,
+        designation: product ? product.name : "",
+        quantity: Math.max(Number(line.qty) || 0, 0),
+        price: Number(line.price) || 0,
+      };
+    });
+}
+
+function renderOffrePrixTotal() {
+  if (!offrePrixTotal) return;
+  const total = getOffrePrixRows().reduce((sum, row) => sum + row.price * row.quantity, 0);
+  offrePrixTotal.textContent = formatter.format(total);
+}
+
+function previewBase64File(base64, mimeType) {
+  const binary = atob(base64);
+  const length = binary.length;
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const blob = new Blob([bytes], { type: mimeType || "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function previewOffrePrix() {
+  const rows = getOffrePrixRows();
+  if (!selectedOffrePrixClient) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez d'abord un client.";
+    return;
+  }
+  if (!rows.length) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
+    return;
+  }
+  if (offrePrixPreview) offrePrixPreview.disabled = true;
+  if (offrePrixStatus) offrePrixStatus.textContent = "Préparation de l'aperçu...";
+  try {
+    const result = await postService({
+      action: "buildOffrePrixPdf",
+      client: JSON.stringify({
+        name: selectedOffrePrixClient.name || "",
+        code: selectedOffrePrixClient.code || "",
+        sector: selectedOffrePrixClient.sector || "",
+        address: formatAdminPrenetClientAddress(selectedOffrePrixClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (!result.data) throw new Error("Aperçu indisponible.");
+    previewBase64File(result.data, result.mimeType || "application/pdf");
+    if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu généré.";
+  } catch (error) {
+    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Aperçu impossible.";
+  } finally {
+    if (offrePrixPreview) offrePrixPreview.disabled = false;
+  }
+}
+
+async function sendOffrePrixEmail() {
+  const rows = getOffrePrixRows();
+  const recipient = String(offrePrixEmail?.value || "").trim().toLowerCase();
+  if (!selectedOffrePrixClient) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez d'abord un client.";
+    return;
+  }
+  if (!rows.length) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Adresse e-mail invalide.";
+    offrePrixEmail?.focus();
+    return;
+  }
+  if (offrePrixSend) offrePrixSend.disabled = true;
+  if (offrePrixStatus) offrePrixStatus.textContent = "Envoi de l'offre en cours...";
+  try {
+    const result = await postService({
+      action: "sendOffrePrix",
+      recipient,
+      client: JSON.stringify({
+        name: selectedOffrePrixClient.name || "",
+        code: selectedOffrePrixClient.code || "",
+        sector: selectedOffrePrixClient.sector || "",
+        address: formatAdminPrenetClientAddress(selectedOffrePrixClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (offrePrixStatus) offrePrixStatus.textContent = result.message || "Offre envoyée.";
+    if (result.ok) {
+      offrePrixLineItems = [];
+      renderOffrePrixLines();
+      clearOffrePrixClient();
+      if (offrePrixEmail) offrePrixEmail.value = "";
+      loadPriceOffers();
+    }
+  } catch (error) {
+    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Envoi impossible.";
+  } finally {
+    if (offrePrixSend) offrePrixSend.disabled = false;
+  }
+}
+
+async function loadPriceOffers() {
+  if (offrePrixHistoryList) offrePrixHistoryList.innerHTML = `<p class="admin-prenet-status">Chargement...</p>`;
+  try {
+    const result = await postService({ action: "getPriceOffers" });
+    priceOffers = Array.isArray(result.offers) ? result.offers : [];
+    priceOffersLoaded = true;
+    renderOffrePrixSectorFilter();
+    renderPriceOffersHistory();
+  } catch (error) {
+    if (offrePrixHistoryList) offrePrixHistoryList.innerHTML = `<p class="admin-prenet-status">${escapeHtml(error.message || "Chargement impossible.")}</p>`;
+  }
+}
+
+function renderOffrePrixSectorFilter() {
+  if (!offrePrixHistorySectorFilter) return;
+  const current = offrePrixHistorySectorFilter.value || "all";
+  const sectors = [...new Set(priceOffers.map((offer) => offer.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  offrePrixHistorySectorFilter.innerHTML = `<option value="all">Tous secteurs</option>` +
+    sectors.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(sector)}</option>`).join("");
+  offrePrixHistorySectorFilter.value = sectors.includes(current) ? current : "all";
+}
+
+function renderPriceOffersHistory() {
+  if (!offrePrixHistoryList) return;
+  const query = normalize(offrePrixHistorySearch?.value || "");
+  const sectorFilter = offrePrixHistorySectorFilter?.value || "all";
+  const rows = priceOffers.filter((offer) => {
+    if (sectorFilter !== "all" && (offer.sector || "") !== sectorFilter) return false;
+    if (!query) return true;
+    return normalize([offer.clientName, offer.clientCode, offer.sector, offer.recipient, offer.userName].join(" ")).includes(query);
+  });
+  if (!rows.length) {
+    offrePrixHistoryList.innerHTML = `<p class="admin-prenet-status">Aucune offre de prix trouvée.</p>`;
+    return;
+  }
+  offrePrixHistoryList.innerHTML = rows.map((offer) => `
+    <article class="quote-history-item">
+      <div class="quote-history-main">
+        <span class="quote-status-pill is-accepted">${escapeHtml(offer.sector || "Secteur -")}</span>
+        <strong>${escapeHtml(offer.clientName || "Client")}</strong>
+        <small>${escapeHtml(offer.clientCode || "")} - ${(offer.lines || []).length} ligne(s) - Total net HT ${formatter.format(Number(offer.totalHt) || 0)}</small>
+        <p>Envoyée à ${escapeHtml(offer.recipient || "-")} le ${escapeHtml(new Date(offer.createdAt || Date.now()).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }))} par ${escapeHtml(offer.userName || "-")}</p>
+      </div>
+      <button class="icon-button" type="button" data-delete-price-offer="${escapeHtml(offer.id)}" aria-label="Supprimer">&times;</button>
+    </article>
+  `).join("");
+}
+
+async function deletePriceOfferRecord(id) {
+  if (!id || !confirm("Supprimer cette offre de prix de l'historique ?")) return;
+  try {
+    await postService({ action: "deletePriceOffer", id });
+    priceOffers = priceOffers.filter((offer) => offer.id !== id);
+    renderOffrePrixSectorFilter();
+    renderPriceOffersHistory();
+  } catch (error) {
+    alert(error.message || "Suppression impossible.");
+  }
+}
+
+async function exportPriceOffersToExcel() {
+  if (offrePrixHistoryExport) offrePrixHistoryExport.disabled = true;
+  try {
+    const result = await postService({ action: "exportPriceOffers" });
+    if (!result.data) throw new Error("Export indisponible.");
+    downloadBase64File(result.data, result.mimeType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.fileName || "historique-offres-de-prix.xlsx");
+  } catch (error) {
+    alert(error.message || "Export impossible.");
+  } finally {
+    if (offrePrixHistoryExport) offrePrixHistoryExport.disabled = false;
+  }
 }
 
 function addQuoteLineItem() {
@@ -9980,6 +10322,7 @@ function setActiveTab(tabName) {
   const showAdminPrenet = tabName === "adminPrenet";
   const showAdminPurchase = tabName === "adminPurchase";
   const showAdminCentrales = tabName === "adminCentrales";
+  const showAdminOffrePrix = tabName === "adminOffrePrix";
   tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
@@ -10002,6 +10345,7 @@ function setActiveTab(tabName) {
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
   adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
+  adminOffrePrixTab?.classList.toggle("is-active", showAdminOffrePrix);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
@@ -10024,6 +10368,7 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
   adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
   adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
+  adminOffrePrixView?.classList.toggle("is-hidden", !showAdminOffrePrix);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
@@ -10106,6 +10451,12 @@ function setActiveTab(tabName) {
   if (showAdminCentrales) {
     loadCentralesData();
     requestAnimationFrame(() => centralesSearch?.focus());
+  }
+
+  if (showAdminOffrePrix) {
+    renderOffrePrixLines();
+    loadPriceOffers();
+    requestAnimationFrame(() => offrePrixClientSearch?.focus());
   }
 
   if (showAdmin) loadAdminLogs();
@@ -10672,6 +11023,30 @@ adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminEx
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
 adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales"));
+adminOffrePrixTab?.addEventListener("click", () => setActiveTab("adminOffrePrix"));
+offrePrixClientSearch?.addEventListener("input", () => renderOffrePrixClientSuggestions(offrePrixClientSearch.value));
+offrePrixAddLine?.addEventListener("click", addOffrePrixLine);
+offrePrixLines?.addEventListener("input", (event) => {
+  const row = event.target.closest("[data-offre-line]");
+  const field = event.target.dataset.offreField;
+  if (!row || !field) return;
+  const id = row.dataset.offreLine;
+  if (field === "ref") applyOffrePrixReference(id, event.target.value);
+  else updateOffrePrixLine(id, field, event.target.value);
+});
+offrePrixLines?.addEventListener("click", (event) => {
+  const removeId = event.target.closest("[data-remove-offre-line]")?.dataset.removeOffreLine;
+  if (removeId) removeOffrePrixLine(removeId);
+});
+offrePrixPreview?.addEventListener("click", previewOffrePrix);
+offrePrixSend?.addEventListener("click", sendOffrePrixEmail);
+offrePrixHistorySearch?.addEventListener("input", renderPriceOffersHistory);
+offrePrixHistorySectorFilter?.addEventListener("change", renderPriceOffersHistory);
+offrePrixHistoryExport?.addEventListener("click", exportPriceOffersToExcel);
+offrePrixHistoryList?.addEventListener("click", (event) => {
+  const deleteId = event.target.closest("[data-delete-price-offer]")?.dataset.deletePriceOffer;
+  if (deleteId) deletePriceOfferRecord(deleteId);
+});
 
 adminPurchaseFileInput?.addEventListener("change", () => {
   const file = adminPurchaseFileInput.files?.[0];
@@ -11186,6 +11561,9 @@ document.addEventListener("click", (event) => {
   }
   if (!event.target.closest(".client360-search")) {
     client360Suggestions?.classList.remove("is-open");
+  }
+  if (!event.target.closest(".offre-prix-search-block")) {
+    offrePrixClientSuggestions?.classList.remove("is-open");
   }
 });
 

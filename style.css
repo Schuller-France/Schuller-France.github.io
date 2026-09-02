@@ -96,6 +96,11 @@ body {
 .quote-status-pill.is-accepted { color: #166534; background: #dcfce7; }
 .quote-status-pill.is-refused { color: #991b1b; background: #fee2e2; }
 .quote-history-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.offre-prix-history-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; }
+.offre-prix-history-filters select { min-height: 48px; padding: 0 12px; border-radius: 10px; border: 1px solid #e1e5eb; }
+.offre-prix-history-filters input { flex: 1 1 220px; }
+.offre-prix-total-label { font-weight: 800; color: #171717; }
+.offre-prix-total-label strong { color: #b8000d; font-size: 17px; }
 .quote-history-actions button { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 8px 10px; color: var(--dark); font-weight: 900; cursor: pointer; }
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
@@ -7062,7 +7067,8 @@ body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !importan
 #adminExecutiveExpensesTab[data-icon]::before,
 #adminPrenetTab[data-icon]::before,
 #adminPurchaseTab[data-icon]::before,
-#adminCentralesTab[data-icon]::before {
+#adminCentralesTab[data-icon]::before,
+#adminOffrePrixTab[data-icon]::before {
   content: attr(data-icon) !important;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Inter, system-ui, sans-serif !important;
   font-size: 13px !important;

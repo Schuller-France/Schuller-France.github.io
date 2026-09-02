@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260902hardening16" />
+    <link rel="stylesheet" href="style.css?v=20260902hardening17" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -158,6 +158,7 @@
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
         <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🤝">Référencement <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
+        <button class="tab-button is-hidden" type="button" id="adminOffrePrixTab" data-icon="💰">Offre de prix</button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
         </nav>
       </div>
@@ -1653,6 +1654,81 @@
           <div class="centrales-list" id="centralesList"></div>
         </section>
       </main>
+
+      <main class="app-shell admin-shell is-hidden" id="adminOffrePrixView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Devis client</p>
+            <h2>Offre de prix</h2>
+            <p>Choisissez un client, ajoutez vos r&eacute;f&eacute;rences, quantit&eacute;s et prix, puis pr&eacute;visualisez ou envoyez une offre de prix personnalis&eacute;e.</p>
+          </div>
+        </section>
+
+        <section class="panel quote-panel" aria-labelledby="offrePrixTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Nouvelle offre</p>
+              <h2 id="offrePrixTitle">Cr&eacute;er une offre de prix</h2>
+            </div>
+            <span class="status-pill" id="offrePrixStatus"></span>
+          </div>
+
+          <div class="quote-layout">
+            <section class="quote-client-card quote-client-wide">
+              <div class="search-block offre-prix-search-block">
+                <label for="offrePrixClientSearch">Rechercher le client</label>
+                <input id="offrePrixClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                <div class="suggestions" id="offrePrixClientSuggestions" role="listbox"></div>
+              </div>
+              <article class="selected-client" id="offrePrixSelectedClient" aria-live="polite">
+                <span>Aucun client choisi pour le moment.</span>
+              </article>
+            </section>
+
+            <section class="quote-lines-card quote-lines-wide">
+              <div class="table-wrap quote-table-wrap">
+                <table class="order-table quote-table">
+                  <thead>
+                    <tr>
+                      <th>R&eacute;f&eacute;rence</th>
+                      <th>D&eacute;signation</th>
+                      <th>Quantit&eacute;</th>
+                      <th>Prix net HT</th>
+                      <th>Montant HT</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="offrePrixLines"></tbody>
+                </table>
+              </div>
+              <button class="ghost-button compact quote-add-line" type="button" id="offrePrixAddLine">Ajouter une ligne vide</button>
+              <div class="quote-actions">
+                <span class="offre-prix-total-label">Total net HT&nbsp;: <strong id="offrePrixTotal">0,00&nbsp;&euro;</strong></span>
+              </div>
+              <div class="quote-actions">
+                <button class="ghost-button" type="button" id="offrePrixPreview">Aper&ccedil;u PDF</button>
+                <input id="offrePrixEmail" type="email" autocomplete="off" placeholder="destinataire@exemple.fr" />
+                <button class="primary-button" type="button" id="offrePrixSend">Envoyer l'offre</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel quote-history-card" aria-labelledby="offrePrixHistoryTitle">
+          <div class="quote-history-heading">
+            <div>
+              <p class="step">Suivi commercial</p>
+              <h3 id="offrePrixHistoryTitle">Historique des offres de prix</h3>
+            </div>
+            <div class="offre-prix-history-filters">
+              <select id="offrePrixHistorySectorFilter"><option value="all">Tous secteurs</option></select>
+              <input id="offrePrixHistorySearch" type="search" autocomplete="off" placeholder="Rechercher un client..." />
+              <button class="ghost-button compact" type="button" id="offrePrixHistoryExport">Exporter en Excel</button>
+            </div>
+          </div>
+          <div class="quote-history-list" id="offrePrixHistoryList"></div>
+        </section>
+      </main>
     </div>
 
     <datalist id="productRefs"></datalist>
@@ -1664,10 +1740,10 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260902hardening16" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260902hardening17" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="script.js?v=20260902hardening16" charset="UTF-8"></script>
+    <script src="script.js?v=20260902hardening17" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
