@@ -9603,7 +9603,7 @@ function renderCentralesRecords() {
       <div class="centrale-timeline">
         ${entries.length ? entries.map((entry) => `
           <div class="centrale-entry">
-            <div class="centrale-entry-date">${escapeHtml(new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR"))}<span class="centrale-entry-type">${entry.type === "rdv" ? "Rendez-vous" : "Appel"}</span></div>
+            <div class="centrale-entry-date">${escapeHtml(new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR"))}<span class="centrale-entry-type">${entry.type === "rdv" ? "Rendez-vous" : entry.type === "email" ? "E-mail" : "Appel"}</span></div>
             <div class="centrale-entry-notes">${escapeHtml(entry.notes || "").replace(/\n/g, "<br>")}</div>
             <button type="button" class="centrale-entry-delete" data-delete-centrale-entry="${escapeHtml(record.id)}" data-entry-id="${escapeHtml(entry.id)}" aria-label="Supprimer cette entrée">✕</button>
           </div>`).join("") : `<p class="centrale-empty-timeline">Aucun échange enregistré pour le moment.</p>`}
@@ -9615,6 +9615,7 @@ function renderCentralesRecords() {
           <select data-centrale-new-entry-type="${escapeHtml(record.id)}">
             <option value="appel">Appel</option>
             <option value="rdv">Rendez-vous</option>
+            <option value="email">Envoyer un mail</option>
           </select>
         </label>
         <label class="centrale-add-entry-notes">Notes<textarea data-centrale-new-entry-notes="${escapeHtml(record.id)}" rows="2" placeholder="Ce qui a été dit..."></textarea></label>
