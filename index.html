@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260901hardening2" />
+    <link rel="stylesheet" href="style.css?v=20260901hardening3" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1476,8 +1476,8 @@
               </select>
             </label>
             <label class="admin-prenet-search-label">
-              Rechercher et sélectionner un client
-              <input id="adminPrenetSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
+              Rechercher (client, référence ou prix net)
+              <input id="adminPrenetSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville, le code client, une référence ou un prix net…" />
               <div class="admin-prenet-suggestions suggestions" id="adminPrenetSuggestions"></div>
             </label>
           </div>
@@ -1539,9 +1539,9 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260901hardening2" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260901hardening3" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260901hardening2" charset="UTF-8"></script>
+    <script src="script.js?v=20260901hardening3" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

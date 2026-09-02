@@ -2733,12 +2733,25 @@ function getAdminPrenetRows() {
     prenetClients.forEach((client) => {
       const commercial = getAdminCommercialForPrenetClient(client);
       if (selectedCommercialId !== "all" && commercial?.id !== selectedCommercialId) return;
-      if (cleanQuery) {
-        const address = formatAdminPrenetClientAddress(client);
-        const haystack = normalize([commercial?.name || "", client.name || "", client.code || "", client.sector || "", address].join(" "));
-        if (!haystack.includes(cleanQuery)) return;
+      const clientRows = buildAdminPrenetRowsForClient(client, null);
+      if (!cleanQuery) {
+        rows.push(...clientRows);
+        return;
       }
-      rows.push(...buildAdminPrenetRowsForClient(client, null));
+      const address = formatAdminPrenetClientAddress(client);
+      const clientHaystack = normalize([commercial?.name || "", client.name || "", client.code || "", client.sector || "", address].join(" "));
+      if (clientHaystack.includes(cleanQuery)) {
+        rows.push(...clientRows);
+        return;
+      }
+      // Le client lui-meme ne correspond pas : on cherche quand meme au niveau des lignes
+      // (reference, designation, ou prix net) pour permettre une recherche directe par prix.
+      rows.push(...clientRows.filter((row) => {
+        const priceComma = String(row.price).replace(".", ",");
+        const priceDot = String(row.price);
+        const rowHaystack = normalize([row.ref || "", row.designation || "", priceComma, priceDot].join(" "));
+        return rowHaystack.includes(cleanQuery);
+      }));
     });
   }
 
