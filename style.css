@@ -8630,30 +8630,50 @@ body.dark-theme .prospection-dismiss:hover { background: #4a2528; }
 .centrale-add-entry-notes { grid-column: span 2; }
 .centrale-add-entry button { grid-column: 1 / -1; justify-self: end; }
 
+.centrale-contacts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px; }
+.centrale-contacts:empty { display: none; }
+.centrale-contact-chip { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 30px 8px 12px; border-radius: 999px; background: #f6f8fc; border: 1px solid #e2e8f4; font-size: 13px; }
+.centrale-contact-chip-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.centrale-contact-chip-info strong { font-weight: 800; }
+.centrale-contact-chip-info span { color: #667085; }
+.centrale-contact-role { padding: 2px 8px; border-radius: 999px; background: #e7edfb; color: #2f5fd6; font-weight: 700; font-size: 11px; }
+.centrale-contact-delete { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; border: 1px solid #f1d4d4; background: #fff5f5; color: #b8000d; cursor: pointer; font-size: 11px; line-height: 1; }
+.centrale-contact-delete:hover { background: #ffe1e1; }
+.centrale-add-contact { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; padding: 14px 18px; border-top: 1px dashed #dfe3e8; }
+.centrale-add-contact label { display: grid; gap: 6px; font-weight: 700; font-size: 13px; }
+.centrale-add-contact button { grid-column: 1 / -1; justify-self: end; }
+
 body.dark-theme .centrale-card,
 body.dark-theme .centrales-new-form { background: #101826; border-color: rgba(158,197,255,.24); color: #f8fbff; }
 body.dark-theme .centrale-card summary { color: #f8fbff; }
 body.dark-theme .centrale-entry { background: rgba(47, 95, 214, 0.12); }
 body.dark-theme .centrale-entry-notes { color: #dbe4f3; }
+body.dark-theme .centrale-contact-chip { background: rgba(47, 95, 214, 0.12); border-color: rgba(158,197,255,.24); }
+body.dark-theme .centrale-contact-chip-info span { color: #c7d3e8; }
 
 body.tablet-mode .centrale-card summary { min-height: 72px; font-size: 17px; }
 body.tablet-mode .centrales-new-form,
 body.tablet-mode .centrale-contact-row,
-body.tablet-mode .centrale-add-entry { grid-template-columns: 1fr 1fr; }
+body.tablet-mode .centrale-add-entry,
+body.tablet-mode .centrale-add-contact { grid-template-columns: 1fr 1fr; }
 body.tablet-mode .centrales-new-form input,
 body.tablet-mode .centrale-contact-row input,
 body.tablet-mode .centrale-add-entry input,
 body.tablet-mode .centrale-add-entry select,
 body.tablet-mode .centrale-add-entry textarea,
-body.tablet-mode .centrale-add-entry button { min-height: 58px; font-size: 17px; }
+body.tablet-mode .centrale-add-entry button,
+body.tablet-mode .centrale-add-contact input,
+body.tablet-mode .centrale-add-contact button { min-height: 58px; font-size: 17px; }
 
 @media (max-width: 760px) {
   .centrales-new-form,
   .centrale-contact-row,
   .centrale-add-entry,
+  .centrale-add-contact,
   body.tablet-mode .centrales-new-form,
   body.tablet-mode .centrale-contact-row,
-  body.tablet-mode .centrale-add-entry { grid-template-columns: 1fr; }
+  body.tablet-mode .centrale-add-entry,
+  body.tablet-mode .centrale-add-contact { grid-template-columns: 1fr; }
   .centrale-add-entry-notes { grid-column: 1; }
   .centrale-card summary { align-items: stretch; flex-direction: column; }
 }

@@ -9600,6 +9600,25 @@ function renderCentralesRecords() {
         <button class="ghost-button" type="button" data-save-centrale="${escapeHtml(record.id)}">Enregistrer la fiche</button>
       </div>
 
+      <div class="centrale-contacts">
+        ${(record.contacts || []).length ? (record.contacts || []).map((contact) => `
+          <div class="centrale-contact-chip">
+            <div class="centrale-contact-chip-info">
+              <strong>${escapeHtml(contact.name || "")}</strong>${contact.role ? `<span class="centrale-contact-role">${escapeHtml(contact.role)}</span>` : ""}
+              ${contact.phone ? `<span>${escapeHtml(contact.phone)}</span>` : ""}
+              ${contact.email ? `<span>${escapeHtml(contact.email)}</span>` : ""}
+            </div>
+            <button type="button" class="centrale-contact-delete" data-delete-centrale-contact="${escapeHtml(record.id)}" data-contact-id="${escapeHtml(contact.id)}" aria-label="Supprimer cet interlocuteur">✕</button>
+          </div>`).join("") : ""}
+      </div>
+      <div class="centrale-add-contact">
+        <label>Nom<input data-centrale-new-contact-name="${escapeHtml(record.id)}" placeholder="Prénom Nom" /></label>
+        <label>Rôle<input data-centrale-new-contact-role="${escapeHtml(record.id)}" placeholder="Ex: Acheteur, Directeur..." /></label>
+        <label>Téléphone<input data-centrale-new-contact-phone="${escapeHtml(record.id)}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
+        <label>E-mail<input data-centrale-new-contact-email="${escapeHtml(record.id)}" inputmode="email" placeholder="contact@centrale.fr" /></label>
+        <button class="ghost-button" type="button" data-add-centrale-contact="${escapeHtml(record.id)}">+ Ajouter un interlocuteur</button>
+      </div>
+
       <div class="centrale-timeline">
         ${entries.length ? entries.map((entry) => `
           <div class="centrale-entry">
@@ -9747,6 +9766,48 @@ async function deleteCentraleEntryFromCard(button) {
   }
 }
 
+async function addCentraleContactFromCard(button) {
+  if (centralesBusy) return;
+  const id = button.dataset.addCentraleContact;
+  const card = button.closest("[data-centrale-card]");
+  const name = card?.querySelector(`[data-centrale-new-contact-name="${id}"]`)?.value.trim() || "";
+  const role = card?.querySelector(`[data-centrale-new-contact-role="${id}"]`)?.value.trim() || "";
+  const phone = card?.querySelector(`[data-centrale-new-contact-phone="${id}"]`)?.value.trim() || "";
+  const email = card?.querySelector(`[data-centrale-new-contact-email="${id}"]`)?.value.trim() || "";
+  if (!name) {
+    centralesStatus.textContent = "Saisissez le nom de l'interlocuteur.";
+    return;
+  }
+  centralesBusy = true;
+  button.setAttribute("disabled", "disabled");
+  centralesStatus.textContent = "Ajout de l'interlocuteur…";
+  try {
+    await postService({ action: "addCentraleContact", id, name, role, phone, email });
+    centralesStatus.textContent = "Interlocuteur ajouté.";
+  } catch (error) {
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
+  }
+}
+
+async function deleteCentraleContactFromCard(button) {
+  if (centralesBusy) return;
+  const id = button.dataset.deleteCentraleContact;
+  const contactId = button.dataset.contactId;
+  if (!confirm("Supprimer cet interlocuteur ?")) return;
+  centralesBusy = true;
+  try {
+    await postService({ action: "deleteCentraleContact", id, contactId });
+  } catch (error) {
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    await loadCentralesData();
+    centralesBusy = false;
+  }
+}
+
 async function deleteCentraleRecordCard(id) {
   if (centralesBusy) return;
   const source = centralesRecords.find((record) => record.id === id);
@@ -9793,6 +9854,18 @@ centralesList?.addEventListener("click", (event) => {
   const addEntryButton = event.target.closest("[data-add-centrale-entry]");
   if (addEntryButton) {
     addCentraleEntryFromCard(addEntryButton);
+    return;
+  }
+  const deleteContactButton = event.target.closest("[data-delete-centrale-contact]");
+  if (deleteContactButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    deleteCentraleContactFromCard(deleteContactButton);
+    return;
+  }
+  const addContactButton = event.target.closest("[data-add-centrale-contact]");
+  if (addContactButton) {
+    addCentraleContactFromCard(addContactButton);
     return;
   }
   const saveButton = event.target.closest("[data-save-centrale]");
