@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260901hardening3" />
+    <link rel="stylesheet" href="style.css?v=20260901hardening4" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1498,15 +1498,6 @@
             </div>
             <button class="secondary-btn" type="button" id="adminPrenetClearClient">Changer de client</button>
           </div>
-          <div class="admin-prenet-reference-box">
-            <label class="admin-prenet-search-label">
-              References a afficher
-              <input id="adminPrenetReferenceInput" type="search" autocomplete="off" placeholder="Tapez une reference puis Entree..." />
-              <div class="admin-prenet-suggestions suggestions" id="adminPrenetReferenceSuggestions"></div>
-            </label>
-            <div class="admin-prenet-chips" id="adminPrenetReferenceChips"></div>
-            <p>Sans reference selectionnee, tous les prix nets du client s'affichent. Ajoutez plusieurs references pour preparer un envoi cible.</p>
-          </div>
           <p class="admin-prenet-status" id="adminPrenetSendStatus"></p>
           <div class="admin-log-wrap">
             <table class="admin-log-table admin-prenet-table">
@@ -1539,9 +1530,9 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260901hardening3" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260901hardening4" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260901hardening3" charset="UTF-8"></script>
+    <script src="script.js?v=20260901hardening4" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
