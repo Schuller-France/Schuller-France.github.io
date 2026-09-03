@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260902hardening19" />
+    <link rel="stylesheet" href="style.css?v=20260903hardening20" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -386,6 +386,7 @@
               </select>
             </label>
             <button class="ghost-button" type="button" id="statsResetFilters">Effacer</button>
+            <div class="stats-client-chips is-empty" id="statsClientChips" aria-label="Clients sélectionnés"></div>
           </section>
 
           <section class="dashboard-grid stats-kpi-grid" aria-label="Résumé statistiques">
@@ -1740,10 +1741,10 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260902hardening19" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260903hardening20" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="script.js?v=20260902hardening19" charset="UTF-8"></script>
+    <script src="script.js?v=20260903hardening20" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -22,6 +22,7 @@ const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 let selectedClient = null;
 let selectedClient360 = null;
 let selectedStatsClient = null;
+let selectedStatsClients = [];
 let selectedQuoteClient = null;
 let selectedSampleClient = null;
 let selectedPrenetClient = null;
@@ -487,6 +488,7 @@ const checkingSource = document.querySelector("#checkingSource");
 const checkingUpdatedAt = document.querySelector("#checkingUpdatedAt");
 const statsClientFilter = document.querySelector("#statsClientFilter");
 const statsClientSuggestions = document.querySelector("#statsClientSuggestions");
+const statsClientChips = document.querySelector("#statsClientChips");
 const statsReferenceFilter = document.querySelector("#statsReferenceFilter");
 const statsArticleFilter = document.querySelector("#statsArticleFilter");
 const statsFamilyFilter = document.querySelector("#statsFamilyFilter");
@@ -4100,16 +4102,53 @@ function getCommercialStatsClientMatches(query) {
     .slice(0, 12);
 }
 
+function statsClientKey(client) {
+  return normalize(client?.code || client?.name || "");
+}
+
+function renderStatsClientChips() {
+  if (!statsClientChips) return;
+  if (!selectedStatsClients.length) {
+    statsClientChips.innerHTML = "";
+    statsClientChips.classList.add("is-empty");
+    return;
+  }
+  statsClientChips.classList.remove("is-empty");
+  statsClientChips.innerHTML = selectedStatsClients.map((client) => `
+    <span class="stats-client-chip">
+      <span class="stats-client-chip-info">
+        <strong>${escapeHtml(client.name)}</strong>
+        <span>${escapeHtml(client.code || "")}</span>
+      </span>
+      <button type="button" class="stats-client-chip-delete" data-remove-stats-client="${escapeHtml(statsClientKey(client))}" aria-label="Retirer ce client">✕</button>
+    </span>
+  `).join("");
+}
+
 function selectCommercialStatsClient(client) {
+  if (!client) return;
+  const key = statsClientKey(client);
+  if (!selectedStatsClients.some((c) => statsClientKey(c) === key)) {
+    selectedStatsClients.push(client);
+  }
   selectedStatsClient = client;
-  if (statsClientFilter) statsClientFilter.value = client?.name || "";
+  if (statsClientFilter) statsClientFilter.value = "";
   if (statsReportRecipient && client?.email) statsReportRecipient.value = client.email;
   statsClientSuggestions?.classList.remove("is-open");
+  renderStatsClientChips();
+  renderCommercialStats();
+}
+
+function removeStatsSelectedClient(key) {
+  selectedStatsClients = selectedStatsClients.filter((c) => statsClientKey(c) !== key);
+  if (selectedStatsClient && statsClientKey(selectedStatsClient) === key) {
+    selectedStatsClient = selectedStatsClients[selectedStatsClients.length - 1] || null;
+  }
+  renderStatsClientChips();
   renderCommercialStats();
 }
 
 function clearCommercialStatsClientSelection() {
-  selectedStatsClient = null;
   statsClientSuggestions?.classList.remove("is-open");
 }
 
@@ -4119,19 +4158,13 @@ function renderCommercialStatsClientSuggestions() {
   statsClientSuggestions.innerHTML = "";
   if (!query) {
     clearCommercialStatsClientSelection();
-    renderCommercialStats();
     return;
   }
-  if (selectedStatsClient && normalize(query) === normalize(selectedStatsClient.name || "")) {
-    statsClientSuggestions.classList.remove("is-open");
-    return;
-  }
-  selectedStatsClient = null;
-  const matches = getCommercialStatsClientMatches(query);
+  const selectedKeys = new Set(selectedStatsClients.map((c) => statsClientKey(c)));
+  const matches = getCommercialStatsClientMatches(query).filter((client) => !selectedKeys.has(statsClientKey(client)));
   if (!matches.length) {
     statsClientSuggestions.innerHTML = '<div class="suggestion-empty">Aucun client trouve.</div>';
     statsClientSuggestions.classList.add("is-open");
-    renderCommercialStats();
     return;
   }
   matches.forEach((client) => {
@@ -4146,19 +4179,19 @@ function renderCommercialStatsClientSuggestions() {
     statsClientSuggestions.appendChild(button);
   });
   statsClientSuggestions.classList.add("is-open");
-  renderCommercialStats();
 }
 
 function filterCommercialStatsRows() {
-  const clientQuery = selectedStatsClient ? normalize(selectedStatsClient.code || selectedStatsClient.name || "") : "";
+  const clientQueries = selectedStatsClients.map((c) => statsClientKey(c)).filter(Boolean);
   const refQuery = normalize(statsReferenceFilter?.value || "");
   const articleQuery = normalize(statsArticleFilter?.value || "");
   const sortMode = statsSortSelect?.value || "caDesc";
   const rows = getCommercialStatsRows().filter((row) => {
-    const clientText = normalize([row.clientName, row.clientCode, row.sector].join(" "));
+    const rowCode = normalize(row.clientCode || "");
+    const rowName = normalize(row.clientName || "");
     const refText = normalize(row.articleCode);
     const articleText = normalize(row.articleName);
-    return (!clientQuery || clientText.includes(clientQuery))
+    return (!clientQueries.length || clientQueries.some((q) => q === rowCode || q === rowName))
       && (!refQuery || refText.includes(refQuery))
       && (!articleQuery || articleText.includes(articleQuery));
   });
@@ -4179,7 +4212,7 @@ function filterCommercialStatsRows() {
 function renderCommercialStats() {
   if (!statsArticleBody) return;
   const clientText = statsClientFilter?.value?.trim() || "";
-  if (clientText && !selectedStatsClient) {
+  if (clientText && !selectedStatsClients.length) {
     if (statsSourceBadge) statsSourceBadge.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
     if (statsTotalCa) statsTotalCa.textContent = "--";
     if (statsTotalPreviousCa) statsTotalPreviousCa.textContent = "--";
@@ -4788,6 +4821,8 @@ async function sendClientStatsReport() {
 
 function resetCommercialStatsFilters() {
   selectedStatsClient = null;
+  selectedStatsClients = [];
+  renderStatsClientChips();
   statsClientSuggestions?.classList.remove("is-open");
   [statsClientFilter, statsReferenceFilter, statsArticleFilter].forEach((input) => {
     if (input) input.value = "";
@@ -11120,6 +11155,11 @@ statsClientFilter?.addEventListener("keydown", (event) => {
     firstSuggestion.click();
   }
 });
+statsClientChips?.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-stats-client]");
+  if (!removeButton) return;
+  removeStatsSelectedClient(removeButton.getAttribute("data-remove-stats-client"));
+});
 [statsReferenceFilter, statsArticleFilter, statsSortSelect].forEach((control) => {
   control?.addEventListener("input", renderCommercialStats);
   control?.addEventListener("change", renderCommercialStats);
@@ -11486,6 +11526,11 @@ promotionClientSearch?.addEventListener("change", (event) => handlePromotionClie
 promotionClientSearch?.addEventListener("blur", (event) => {
   handlePromotionClientSearch(event.target.value, true);
   setTimeout(() => promotionClientSuggestions?.classList.remove("is-open"), 120);
+});
+["mousedown", "touchstart"].forEach((eventName) => {
+  promotionClientSuggestions?.addEventListener(eventName, (event) => {
+    if (event.target.closest("[data-promotion-client-index]")) event.preventDefault();
+  }, { passive: false });
 });
 promotionClientSuggestions?.addEventListener("click", (event) => {
   const index = event.target.closest("[data-promotion-client-index]")?.dataset.promotionClientIndex;
