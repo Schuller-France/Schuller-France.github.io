@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening26" />
-    <link rel="icon" href="assets/favicon.ico?v=20260907hardening26" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening26" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening26" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening26" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening27" />
+    <link rel="icon" href="assets/favicon.ico?v=20260907hardening27" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening27" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening27" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening27" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260907hardening26" />
+    <link rel="stylesheet" href="style.css?v=20260907hardening27" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1797,6 +1797,11 @@
             </section>
 
             <section class="quote-lines-card quote-lines-wide">
+              <div class="admin-purchase-dropzone offre-prix-dropzone" id="offrePrixDropzone">
+                <p><strong>Glissez-d&eacute;posez</strong> un fichier de r&eacute;f&eacute;rences ici (Excel, CSV ou texte)</p>
+                <p>ou <label class="admin-purchase-filelabel" for="offrePrixImportInput">choisissez un fichier</label></p>
+                <input id="offrePrixImportInput" type="file" accept=".xlsx,.xls,.csv,.txt" class="is-visually-hidden" />
+              </div>
               <div class="table-wrap quote-table-wrap">
                 <table class="order-table quote-table">
                   <thead>
@@ -1818,6 +1823,7 @@
               </div>
               <div class="quote-actions">
                 <button class="ghost-button" type="button" id="offrePrixPreview">Aper&ccedil;u PDF</button>
+                <button class="ghost-button" type="button" id="offrePrixExportCsv">Exporter en CSV</button>
                 <input id="offrePrixEmail" type="email" autocomplete="off" placeholder="destinataire@exemple.fr" />
                 <button class="primary-button" type="button" id="offrePrixSend">Envoyer l'offre</button>
               </div>
@@ -1851,11 +1857,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260907hardening26" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260907hardening27" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260907hardening26" charset="UTF-8"></script>
+    <script src="script.js?v=20260907hardening27" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

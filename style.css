@@ -4802,6 +4802,11 @@ body.dark-theme .send-history-badge.tag-statistiques { background: rgba(124, 58,
   cursor: pointer;
 }
 
+.offre-prix-dropzone {
+  margin-bottom: 14px;
+  padding: 12px;
+}
+
 .admin-purchase-meta {
   display: grid;
   align-content: start;

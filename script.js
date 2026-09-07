@@ -52,6 +52,7 @@ let lines = [];
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
 let offrePrixLineItems = [];
+let offrePrixImporting = false;
 let priceOffers = [];
 let priceOffersLoaded = false;
 let sampleLineItems = [];
@@ -448,9 +449,12 @@ const offrePrixLines = document.querySelector("#offrePrixLines");
 const offrePrixAddLine = document.querySelector("#offrePrixAddLine");
 const offrePrixTotal = document.querySelector("#offrePrixTotal");
 const offrePrixPreview = document.querySelector("#offrePrixPreview");
+const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
 const offrePrixEmail = document.querySelector("#offrePrixEmail");
 const offrePrixSend = document.querySelector("#offrePrixSend");
 const offrePrixStatus = document.querySelector("#offrePrixStatus");
+const offrePrixDropzone = document.querySelector("#offrePrixDropzone");
+const offrePrixImportInput = document.querySelector("#offrePrixImportInput");
 const offrePrixHistoryList = document.querySelector("#offrePrixHistoryList");
 const offrePrixHistorySearch = document.querySelector("#offrePrixHistorySearch");
 const offrePrixHistorySectorFilter = document.querySelector("#offrePrixHistorySectorFilter");
@@ -6619,6 +6623,130 @@ function renderOffrePrixTotal() {
   offrePrixTotal.textContent = formatter.format(total);
 }
 
+function detectOffrePrixHeaderColumns(row) {
+  const keys = (row || []).map((cell) => normalize(String(cell ?? "").trim()));
+  const findIndex = (patterns) => keys.findIndex((key) => key && patterns.some((pattern) => key.includes(pattern)));
+  const refIdx = findIndex(["reference", "ref", "code", "sku", "article"]);
+  const qtyIdx = findIndex(["quantite", "qte", "qty", "quantity"]);
+  const priceIdx = findIndex(["prix", "price", "net", " pu", "pu ", "tarif"]);
+  if (refIdx === -1) return null;
+  return { refIdx, qtyIdx, priceIdx };
+}
+
+function splitOffrePrixTextRow(line) {
+  if (line.includes("\t")) return line.split("\t");
+  if (line.includes(";")) return line.split(";");
+  if (line.includes(":")) return line.split(":");
+  if (line.includes(",") && line.split(",").length <= 4) return line.split(",");
+  return line.trim().split(/\s+/);
+}
+
+function parseOffrePrixImportMatrix(matrix) {
+  const rows = (matrix || [])
+    .map((row) => (Array.isArray(row) ? row : [row]))
+    .map((row) => row.map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim())))
+    .filter((row) => row.some((cell) => cell !== ""));
+  if (!rows.length) return [];
+
+  let dataRows = rows;
+  let columns = { refIdx: 0, qtyIdx: 1, priceIdx: 2 };
+  const headerColumns = detectOffrePrixHeaderColumns(rows[0]);
+  if (headerColumns) {
+    columns = headerColumns;
+    dataRows = rows.slice(1);
+  }
+
+  return dataRows
+    .map((row) => {
+      const rawRef = row[columns.refIdx] || "";
+      if (!rawRef) return null;
+      const rawQty = columns.qtyIdx > -1 ? row[columns.qtyIdx] : "";
+      const rawPrice = columns.priceIdx > -1 ? row[columns.priceIdx] : "";
+      return {
+        ref: rawRef,
+        qty: rawQty ? Math.max(Math.round(parseAmount(rawQty)), 0) : null,
+        price: rawPrice ? parseAmount(rawPrice) : null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function applyOffrePrixImportRows(parsedRows) {
+  if (!parsedRows.length) return;
+  const unmatched = [];
+  parsedRows.forEach((row) => {
+    const product = findProduct(row.ref);
+    const qty = row.qty && row.qty > 0 ? row.qty : (product ? defaultQuantityForProduct(product) : 1);
+    const price = row.price != null && row.price > 0 ? row.price : (product ? getOffrePrixUnitPrice(product, qty) : 0);
+    if (!product) unmatched.push(row.ref);
+    offrePrixLineItems.push({
+      id: crypto.randomUUID(),
+      ref: product ? product.ref : row.ref,
+      qty,
+      price,
+    });
+  });
+  offrePrixLineItems = offrePrixLineItems.filter((line) => !isOffrePrixLineEmpty(line));
+  renderOffrePrixLines();
+  if (offrePrixStatus) {
+    const matched = parsedRows.length - unmatched.length;
+    const parts = [`${matched} référence(s) importée(s) sur ${parsedRows.length}.`];
+    if (unmatched.length) {
+      const preview = unmatched.slice(0, 5).join(", ");
+      parts.push(`Introuvable(s) dans le tarif : ${preview}${unmatched.length > 5 ? "…" : ""} (vérifiez la ligne avant d'envoyer).`);
+    }
+    offrePrixStatus.textContent = parts.join(" ");
+  }
+}
+
+async function handleOffrePrixImportFile(file) {
+  if (!file || offrePrixImporting) return;
+  offrePrixImporting = true;
+  if (offrePrixStatus) offrePrixStatus.textContent = "Lecture du fichier...";
+  if (offrePrixDropzone) offrePrixDropzone.classList.add("is-dragover");
+  try {
+    const name = file.name.toLowerCase();
+    let matrix = [];
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+    } else {
+      const text = await file.text();
+      matrix = text
+        .replace(/^﻿/, "")
+        .split(/\r?\n/)
+        .filter((line) => line.trim())
+        .map(splitOffrePrixTextRow);
+    }
+    const parsedRows = parseOffrePrixImportMatrix(matrix);
+    if (!parsedRows.length) {
+      if (offrePrixStatus) offrePrixStatus.textContent = "Aucune référence exploitable trouvée dans ce fichier.";
+      return;
+    }
+    applyOffrePrixImportRows(parsedRows);
+  } catch (error) {
+    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Import impossible. Vérifiez le fichier puis réessayez.";
+  } finally {
+    offrePrixImporting = false;
+    if (offrePrixDropzone) offrePrixDropzone.classList.remove("is-dragover");
+  }
+}
+
+function exportOffrePrixCsv() {
+  const rows = getOffrePrixRows();
+  if (!rows.length) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
+    return;
+  }
+  const clientLabel = selectedOffrePrixClient?.code || selectedOffrePrixClient?.name || "offre";
+  const safeLabel = String(clientLabel).replace(/[^a-z0-9_-]/gi, "_");
+  const csvRows = buildErpCsvRows(rows.map((row) => ({ product: { ref: row.ref } })));
+  downloadErpCsv(`OFFRE_${safeLabel}_${todayInputDate()}_ERP_REFERENCES.csv`, csvRows);
+  if (offrePrixStatus) offrePrixStatus.textContent = "CSV exporté.";
+}
+
 function previewBase64File(base64, mimeType, targetWindow) {
   const binary = atob(base64);
   const length = binary.length;
@@ -11473,6 +11601,32 @@ offrePrixHistoryList?.addEventListener("click", (event) => {
   const deleteId = event.target.closest("[data-delete-price-offer]")?.dataset.deletePriceOffer;
   if (deleteId) deletePriceOfferRecord(deleteId);
 });
+
+offrePrixExportCsv?.addEventListener("click", exportOffrePrixCsv);
+
+offrePrixImportInput?.addEventListener("change", () => {
+  const file = offrePrixImportInput.files?.[0];
+  if (file) handleOffrePrixImportFile(file);
+  offrePrixImportInput.value = "";
+});
+
+if (offrePrixDropzone) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    offrePrixDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      offrePrixDropzone.classList.add("is-dragover");
+    });
+  });
+  ["dragleave", "dragend"].forEach((eventName) => {
+    offrePrixDropzone.addEventListener(eventName, () => offrePrixDropzone.classList.remove("is-dragover"));
+  });
+  offrePrixDropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    offrePrixDropzone.classList.remove("is-dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) handleOffrePrixImportFile(file);
+  });
+}
 
 adminPurchaseFileInput?.addEventListener("change", () => {
   const file = adminPurchaseFileInput.files?.[0];
