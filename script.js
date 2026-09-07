@@ -5623,16 +5623,19 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(adminTab, statsTab.nextSibling);
-    appTabs.insertBefore(prospectionTab, adminTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, prospectionTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
-    appTabs.insertBefore(adminRuptureTab, adminPurchaseTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminRuptureTab.nextSibling);
-    appTabs.insertBefore(adminCentralesTab, adminRuptureTab.nextSibling);
-    if (adminOffrePrixTab) appTabs.insertBefore(adminOffrePrixTab, adminCentralesTab.nextSibling);
-    appTabs.insertBefore(tourTab, (adminOffrePrixTab || adminCentralesTab).nextSibling);
-    appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
+    let lastTab = adminPurchaseTab;
+    if (adminOffrePrixTab) {
+      appTabs.insertBefore(adminOffrePrixTab, lastTab.nextSibling);
+      lastTab = adminOffrePrixTab;
+    }
+    appTabs.insertBefore(adminExecutiveExpensesTab, lastTab.nextSibling);
+    appTabs.insertBefore(adminTab, adminExecutiveExpensesTab.nextSibling);
+    appTabs.insertBefore(adminCentralesTab, adminTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminCentralesTab.nextSibling);
+    appTabs.insertBefore(prospectionTab, tourTab.nextSibling);
+    appTabs.insertBefore(adminRuptureTab, prospectionTab.nextSibling);
     return;
   }
   [

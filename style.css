@@ -7150,6 +7150,7 @@ body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !importan
 #adminExecutiveExpensesTab[data-icon]::before,
 #adminPrenetTab[data-icon]::before,
 #adminPurchaseTab[data-icon]::before,
+#adminRuptureTab[data-icon]::before,
 #adminCentralesTab[data-icon]::before,
 #adminOffrePrixTab[data-icon]::before {
   content: attr(data-icon) !important;
