@@ -447,6 +447,7 @@ const offrePrixClientSuggestions = document.querySelector("#offrePrixClientSugge
 const offrePrixSelectedClient = document.querySelector("#offrePrixSelectedClient");
 const offrePrixLines = document.querySelector("#offrePrixLines");
 const offrePrixAddLine = document.querySelector("#offrePrixAddLine");
+const offrePrixClearLines = document.querySelector("#offrePrixClearLines");
 const offrePrixTotal = document.querySelector("#offrePrixTotal");
 const offrePrixPreview = document.querySelector("#offrePrixPreview");
 const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
@@ -6532,6 +6533,14 @@ function addOffrePrixLine() {
   renderOffrePrixLines();
 }
 
+function clearOffrePrixLines() {
+  const hasContent = offrePrixLineItems.some((line) => !isOffrePrixLineEmpty(line));
+  if (hasContent && !confirm("Supprimer toutes les lignes de cette offre ?")) return;
+  offrePrixLineItems = [];
+  renderOffrePrixLines();
+  if (offrePrixStatus) offrePrixStatus.textContent = "Toutes les lignes ont été supprimées.";
+}
+
 function isOffrePrixLineEmpty(line) {
   return !String(line?.ref || "").trim();
 }
@@ -11577,6 +11586,7 @@ adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales")
 adminOffrePrixTab?.addEventListener("click", () => setActiveTab("adminOffrePrix"));
 offrePrixClientSearch?.addEventListener("input", () => renderOffrePrixClientSuggestions(offrePrixClientSearch.value));
 offrePrixAddLine?.addEventListener("click", addOffrePrixLine);
+offrePrixClearLines?.addEventListener("click", clearOffrePrixLines);
 offrePrixLines?.addEventListener("input", (event) => {
   const row = event.target.closest("[data-offre-line]");
   const field = event.target.dataset.offreField;
