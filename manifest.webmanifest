@@ -14,16 +14,22 @@
   "lang": "fr",
   "icons": [
     {
-      "src": "assets/schuller-app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/schuller-logo.png",
-      "sizes": "590x423",
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -32,35 +38,35 @@
       "short_name": "Commande",
       "description": "Ouvrir directement la saisie de commande.",
       "url": "./?tab=order&app=1",
-      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Fiche client",
       "short_name": "Client",
       "description": "Ouvrir la recherche et la fiche client.",
       "url": "./?tab=client360&app=1",
-      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Promotions",
       "short_name": "Promos",
       "description": "Ouvrir les supports commerciaux et promotions.",
       "url": "./?tab=promotion&app=1",
-      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Echantillons",
       "short_name": "Echantillons",
       "description": "Creer une demande d'echantillons.",
       "url": "./?tab=sample&app=1",
-      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Tournees",
       "short_name": "Tournees",
       "description": "Ouvrir les tournees commerciales.",
       "url": "./?tab=tour&app=1",
-      "icons": [{ "src": "assets/schuller-logo.png", "sizes": "590x423", "type": "image/png" }]
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

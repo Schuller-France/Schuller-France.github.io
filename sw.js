@@ -1,13 +1,19 @@
-const CACHE_NAME = "schuller-france-app-v20260907hardening22";
+const CACHE_NAME = "schuller-france-app-v20260907hardening23";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260907hardening22",
-  "./script.js?v=20260907hardening22",
-  "./tarifs.js?v=20260907hardening22",
-  "./manifest.webmanifest",
+  "./style.css?v=20260907hardening23",
+  "./script.js?v=20260907hardening23",
+  "./tarifs.js?v=20260907hardening23",
+  "./manifest.webmanifest?v=20260907hardening23",
   "./assets/schuller-logo.png",
-  "./assets/schuller-app-icon.svg",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+  "./assets/icon-maskable-512.png",
+  "./assets/apple-touch-icon.png",
+  "./assets/favicon.ico",
+  "./assets/favicon-32.png",
+  "./assets/favicon-16.png",
   "./assets/login-background.jpg"
 ];
 
