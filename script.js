@@ -484,6 +484,8 @@ const adminOrderSummaryLines = document.querySelector("#adminOrderSummaryLines")
 const adminOrderSummaryTotal = document.querySelector("#adminOrderSummaryTotal");
 const adminOrderNote = document.querySelector("#adminOrderNote");
 const adminOrderSend = document.querySelector("#adminOrderSend");
+const previewAdminOrderFilesButton = document.querySelector("#previewAdminOrderFiles");
+const previewOrderFilesButton = document.querySelector("#previewOrderFiles");
 const adminOrderHistoryCount = document.querySelector("#adminOrderHistoryCount");
 const adminOrderClearHistory = document.querySelector("#adminOrderClearHistory");
 const adminOrderHistoryList = document.querySelector("#adminOrderHistoryList");
@@ -6831,6 +6833,7 @@ function selectOffrePrixClient(client) {
   offrePrixClientSuggestions?.classList.remove("is-open");
   if (offrePrixSelectedClient) {
     offrePrixSelectedClient.innerHTML = `
+      <button class="selected-client-clear" type="button" data-role="offre-prix-clear-client" aria-label="D&eacute;selectionner le client">&times; D&eacute;selectionner</button>
       <strong>${escapeHtml(client.name)}</strong>
       <span>${escapeHtml(client.code)}</span>
       <span>${escapeHtml(client.billingAddress || client.deliveryAddress || "")}</span>
@@ -6845,8 +6848,20 @@ function selectOffrePrixClient(client) {
 
 function clearOffrePrixClient() {
   selectedOffrePrixClient = null;
-  if (offrePrixClientSearch) offrePrixClientSearch.value = "";
-  if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+  if (offrePrixClientSearch) {
+    offrePrixClientSearch.value = "";
+    offrePrixClientSearch.focus();
+  }
+  if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment. Saisissez un nom de prospect ci-dessus pour une offre hors base clients.</span>";
+}
+
+// Client "effectif" pour une offre de prix : le client selectionne dans la base,
+// ou a defaut un pseudo-client construit a partir du texte tape (prospect hors base).
+function getOffrePrixEffectiveClient() {
+  if (selectedOffrePrixClient) return selectedOffrePrixClient;
+  const typed = String(offrePrixClientSearch?.value || "").trim();
+  if (!typed) return null;
+  return { name: typed, code: "", sector: "Prospect", billingAddress: "", billingZip: "", billingCity: "" };
 }
 
 function addOffrePrixLine() {
@@ -7070,7 +7085,7 @@ function exportOffrePrixCsv() {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
-  const clientLabel = selectedOffrePrixClient?.code || selectedOffrePrixClient?.name || "offre";
+  const clientLabel = selectedOffrePrixClient?.code || getOffrePrixEffectiveClient()?.name || "offre";
   const safeLabel = String(clientLabel).replace(/[^a-z0-9_-]/gi, "_");
   const csvRows = buildErpCsvRows(rows.map((row) => ({ product: { ref: row.ref } })));
   downloadErpCsv(`OFFRE_${safeLabel}_${todayInputDate()}_ERP_REFERENCES.csv`, csvRows);
@@ -7089,10 +7104,17 @@ function previewBase64File(base64, mimeType, targetWindow) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+function previewPdfBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 async function previewOffrePrix() {
   const rows = getOffrePrixRows();
-  if (!selectedOffrePrixClient) {
-    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez d'abord un client.";
+  const effectiveClient = getOffrePrixEffectiveClient();
+  if (!effectiveClient) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez un client ou saisissez un nom de prospect.";
     return;
   }
   if (!rows.length) {
@@ -7108,10 +7130,10 @@ async function previewOffrePrix() {
     const result = await postService({
       action: "buildOffrePrixPdf",
       client: JSON.stringify({
-        name: selectedOffrePrixClient.name || "",
-        code: selectedOffrePrixClient.code || "",
-        sector: selectedOffrePrixClient.sector || "",
-        address: formatAdminPrenetClientAddress(selectedOffrePrixClient),
+        name: effectiveClient.name || "",
+        code: effectiveClient.code || "",
+        sector: effectiveClient.sector || "",
+        address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
     });
@@ -7129,8 +7151,9 @@ async function previewOffrePrix() {
 async function sendOffrePrixEmail() {
   const rows = getOffrePrixRows();
   const recipient = String(offrePrixEmail?.value || "").trim().toLowerCase();
-  if (!selectedOffrePrixClient) {
-    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez d'abord un client.";
+  const effectiveClient = getOffrePrixEffectiveClient();
+  if (!effectiveClient) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez un client ou saisissez un nom de prospect.";
     return;
   }
   if (!rows.length) {
@@ -7149,10 +7172,10 @@ async function sendOffrePrixEmail() {
       action: "sendOffrePrix",
       recipient,
       client: JSON.stringify({
-        name: selectedOffrePrixClient.name || "",
-        code: selectedOffrePrixClient.code || "",
-        sector: selectedOffrePrixClient.sector || "",
-        address: formatAdminPrenetClientAddress(selectedOffrePrixClient),
+        name: effectiveClient.name || "",
+        code: effectiveClient.code || "",
+        sector: effectiveClient.sector || "",
+        address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
     });
@@ -9530,6 +9553,24 @@ function renderAdminOrderDetail(order) {
   `;
 }
 
+function previewAdminOrderFiles() {
+  const validLines = getAdminOrderValidLines();
+  if (!adminOrderSelectedClient) {
+    alert("Selectionne d'abord un client.");
+    adminOrderClientSearch?.focus();
+    return;
+  }
+  if (!validLines.length) {
+    alert("Ajoute au moins un produit valide.");
+    return;
+  }
+  const orderDate = new Date().toLocaleDateString("fr-FR");
+  const orderNumber = `APERCU-${Date.now().toString().slice(-6)}`;
+  const note = adminOrderNote.value.trim();
+  const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note, client: adminOrderSelectedClient });
+  previewPdfBlob(pdfBlob);
+}
+
 async function generateAdminOrderFiles() {
   const validLines = getAdminOrderValidLines();
   const orderSendButton = adminOrderSend;
@@ -9573,6 +9614,7 @@ async function generateAdminOrderFiles() {
       csvContent: csvText,
       pdfName,
       pdfBase64: await blobToBase64(pdfBlob),
+      timeoutMs: 60000,
     });
     recordActivity("Commande envoyée (admin)", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
     alert(`Commande envoyée à ${schullerOperationsEmail}.`);
@@ -11936,9 +11978,27 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     }
   }
 
+  function approximateTextWidth(text, size) {
+    return String(text || "").length * size * 0.55;
+  }
+
+  function truncateToWidth(text, size, maxWidth) {
+    let str = String(text || "");
+    if (approximateTextWidth(str, size) <= maxWidth) return str;
+    while (str.length > 1 && approximateTextWidth(`${str}…`, size) > maxWidth) {
+      str = str.slice(0, -1);
+    }
+    return `${str}…`;
+  }
+
   function textAt(x, currentY, size, value, options = {}) {
     const font = options.bold ? "F2" : "F1";
-    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
+    const drawX = options.align === "right"
+      ? x - approximateTextWidth(value, size)
+      : options.align === "center"
+        ? x - approximateTextWidth(value, size) / 2
+        : x;
+    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(drawX)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
   }
 
   function textLine(x, size, value, options = {}) {
@@ -11979,6 +12039,27 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     commands.push(`${pdfEscapeNumber(x1)} ${pdfEscapeNumber(currentY)} m ${pdfEscapeNumber(x2)} ${pdfEscapeNumber(currentY)} l S`);
     setStroke("#1E1E22");
   }
+
+  function vline(x, yBottom, yTop, color = "#DEDFE3") {
+    setStroke(color);
+    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(yBottom)} m ${pdfEscapeNumber(x)} ${pdfEscapeNumber(yTop)} l S`);
+    setStroke("#1E1E22");
+  }
+
+  // Colonnes du tableau produits : bornes verticales utilisees pour l'entete,
+  // les lignes et les separateurs de colonnes (alignement chiffres a droite).
+  const TABLE_LEFT = margin;
+  const TABLE_RIGHT = pageWidth - margin;
+  const COL = {
+    ref: TABLE_LEFT,
+    gencod: TABLE_LEFT + 56,
+    designation: TABLE_LEFT + 142,
+    qty: TABLE_LEFT + 356,
+    unitPrice: TABLE_LEFT + 394,
+    total: TABLE_LEFT + 459,
+    end: TABLE_RIGHT,
+  };
+  const ROW_HEIGHT = 24;
 
   function drawHeader() {
     fillRect(margin, pageHeight - 50, 76, 4, "#E30613");
@@ -12033,35 +12114,47 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
   }
 
   function drawTableHeader() {
-    fillRect(margin, y - 4, pageWidth - margin * 2, 21, "#E30613");
+    const headerTop = y + 17;
+    const headerBottom = y - 7;
+    fillRect(TABLE_LEFT, headerBottom, TABLE_RIGHT - TABLE_LEFT, headerTop - headerBottom, "#E30613");
     setColor("#FFFFFF");
-    textAt(margin + 6, y + 3, 7.5, "Réf.", { bold: true });
-    textAt(88, y + 3, 7.5, "Gencod", { bold: true });
-    textAt(172, y + 3, 7.5, "Désignation", { bold: true });
-    textAt(408, y + 3, 7.5, "Qté", { bold: true });
-    textAt(452, y + 3, 7.5, "Prix net HT", { bold: true });
-    textAt(522, y + 3, 7.5, "Total HT", { bold: true });
+    textAt(COL.ref + 6, y + 3, 7.5, "Réf.", { bold: true });
+    textAt(COL.gencod + 6, y + 3, 7.5, "Gencod", { bold: true });
+    textAt(COL.designation + 6, y + 3, 7.5, "Désignation", { bold: true });
+    textAt(COL.unitPrice - 6, y + 3, 7.5, "Qté", { bold: true, align: "right" });
+    textAt(COL.total - 6, y + 3, 7.5, "Prix net HT", { bold: true, align: "right" });
+    textAt(COL.end - 6, y + 3, 7.5, "Total HT", { bold: true, align: "right" });
+    [COL.gencod, COL.designation, COL.qty, COL.unitPrice, COL.total].forEach((x) => {
+      vline(x, headerBottom, headerTop, "#FFFFFF");
+    });
     setColor("#1E1E22");
-    y -= 22;
+    strokeRect(TABLE_LEFT, headerBottom, TABLE_RIGHT - TABLE_LEFT, headerTop - headerBottom, "#C9403A");
+    y -= 25;
   }
 
   function drawProductRow(line, index) {
-    ensureSpace(24);
+    ensureSpace(ROW_HEIGHT + 4);
     if (y > pageHeight - 110) {
       drawTableHeader();
     }
+    const rowTop = y + 15;
+    const rowBottom = y - (ROW_HEIGHT - 15);
     if (index % 2 === 1) {
-      fillRect(margin, y - 8, pageWidth - margin * 2, 20, "#F8F8F9");
+      fillRect(TABLE_LEFT, rowBottom, TABLE_RIGHT - TABLE_LEFT, rowTop - rowBottom, "#F3F4F6");
     }
     const lineTotal = line.lineTotal;
-    textAt(margin + 6, y, 7.5, line.product.ref);
-    textAt(88, y, 7.2, line.product.gencod);
-    textAt(172, y, 7.6, line.product.name.slice(0, 45), { bold: true });
-    textAt(410, y, 7.5, line.qty);
-    textAt(452, y, 7.5, formatter.format(line.unitPrice));
-    textAt(522, y, 7.5, formatter.format(lineTotal));
-    y -= 20;
-    hline(margin, pageWidth - margin, y + 7, "#E5E5E8");
+    const designationMaxWidth = COL.qty - COL.designation - 12;
+    textAt(COL.ref + 6, y, 7.5, line.product.ref);
+    textAt(COL.gencod + 6, y, 7, line.product.gencod);
+    textAt(COL.designation + 6, y, 7.5, truncateToWidth(line.product.name, 7.5, designationMaxWidth), { bold: true });
+    textAt(COL.unitPrice - 6, y, 7.5, String(line.qty), { align: "right" });
+    textAt(COL.total - 6, y, 7.5, formatter.format(line.unitPrice), { align: "right" });
+    textAt(COL.end - 6, y, 7.5, formatter.format(lineTotal), { bold: true, align: "right" });
+    [COL.gencod, COL.designation, COL.qty, COL.unitPrice, COL.total].forEach((x) => {
+      vline(x, rowBottom, rowTop, "#DEDFE3");
+    });
+    strokeRect(TABLE_LEFT, rowBottom, TABLE_RIGHT - TABLE_LEFT, rowTop - rowBottom, "#DEDFE3");
+    y -= ROW_HEIGHT;
   }
 
   addPage();
@@ -12137,6 +12230,24 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
+function previewOrderFiles() {
+  const validLines = getValidLines();
+  if (!selectedClient) {
+    alert("Selectionne d'abord un client.");
+    clientSearch.focus();
+    return;
+  }
+  if (!validLines.length) {
+    alert("Ajoute au moins un produit valide.");
+    return;
+  }
+  const orderDate = new Date().toLocaleDateString("fr-FR");
+  const orderNumber = `APERCU-${Date.now().toString().slice(-6)}`;
+  const note = orderNote.value.trim();
+  const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note });
+  previewPdfBlob(pdfBlob);
+}
+
 async function generateOrderFiles() {
   const validLines = getValidLines();
   const orderSendButton = document.querySelector("#generateOrderFiles");
@@ -12192,6 +12303,7 @@ async function generateOrderFiles() {
       csvContent: csvText,
       pdfName,
       pdfBase64: await blobToBase64(pdfBlob),
+      timeoutMs: 60000,
     });
     recordActivity("Commande envoyée", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
     alert(`Commande envoyée à ${schullerOperationsEmail}.`);
@@ -12375,6 +12487,7 @@ document.querySelector("#addLine").addEventListener("click", () => {
   saveOrderDraft();
 });
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
+previewOrderFilesButton?.addEventListener("click", previewOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
@@ -12401,8 +12514,12 @@ adminOrderTab?.addEventListener("click", () => setActiveTab("adminOrder"));
 adminOrderClientSearch?.addEventListener("input", (event) => handleAdminOrderClientSearchInput(event.target.value));
 adminOrderAddLine?.addEventListener("click", addAdminOrderLine);
 adminOrderSend?.addEventListener("click", generateAdminOrderFiles);
+previewAdminOrderFilesButton?.addEventListener("click", previewAdminOrderFiles);
 adminOrderClearHistory?.addEventListener("click", clearCurrentUserAdminOrders);
 offrePrixClientSearch?.addEventListener("input", () => renderOffrePrixClientSuggestions(offrePrixClientSearch.value));
+offrePrixSelectedClient?.addEventListener("click", (event) => {
+  if (event.target.closest("[data-role='offre-prix-clear-client']")) clearOffrePrixClient();
+});
 offrePrixAddLine?.addEventListener("click", addOffrePrixLine);
 offrePrixClearLines?.addEventListener("click", clearOffrePrixLines);
 offrePrixLines?.addEventListener("input", (event) => {

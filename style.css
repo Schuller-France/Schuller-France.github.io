@@ -2178,6 +2178,32 @@ textarea:focus {
   line-height: 1.45;
 }
 
+.selected-client {
+  position: relative;
+}
+
+.selected-client-clear {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.selected-client-clear:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -2355,6 +2381,14 @@ textarea:focus {
   min-height: 58px;
   margin-top: 0;
   font-size: 18px;
+}
+
+.ghost-button.full {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 15px;
 }
 
 .ghost-button {
