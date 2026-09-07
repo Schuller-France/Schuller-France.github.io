@@ -7158,7 +7158,8 @@ body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !importan
 #adminRuptureTab[data-icon]::before,
 #adminStockTab[data-icon]::before,
 #adminCentralesTab[data-icon]::before,
-#adminOffrePrixTab[data-icon]::before {
+#adminOffrePrixTab[data-icon]::before,
+#adminOrderTab[data-icon]::before {
   content: attr(data-icon) !important;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", Inter, system-ui, sans-serif !important;
   font-size: 13px !important;

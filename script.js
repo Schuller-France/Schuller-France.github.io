@@ -56,6 +56,9 @@ let adminStockSortDirection = "asc";
 let adminStockStatusFilter = ""; // "" | "nouveau" | "hausse" | "baisse" | "stable"
 let adminStockOpenHistoryRef = null;
 let adminStockHistoryCache = {}; // ref -> entries[]
+let adminOrderSelectedClient = null;
+let adminOrderLineItems = [];
+let activeAdminHistoryOrderId = null;
 let lines = [];
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
@@ -427,6 +430,7 @@ const adminPurchaseTab = document.querySelector("#adminPurchaseTab");
 const adminCentralesTab = document.querySelector("#adminCentralesTab");
 const centralesReminderBadge = document.querySelector("#centralesReminderBadge");
 const adminOffrePrixTab = document.querySelector("#adminOffrePrixTab");
+const adminOrderTab = document.querySelector("#adminOrderTab");
 const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
@@ -468,6 +472,22 @@ const offrePrixHistoryList = document.querySelector("#offrePrixHistoryList");
 const offrePrixHistorySearch = document.querySelector("#offrePrixHistorySearch");
 const offrePrixHistorySectorFilter = document.querySelector("#offrePrixHistorySectorFilter");
 const offrePrixHistoryExport = document.querySelector("#offrePrixHistoryExport");
+const adminOrderView = document.querySelector("#adminOrderView");
+const adminOrderClientSearch = document.querySelector("#adminOrderClientSearch");
+const adminOrderClientSuggestions = document.querySelector("#adminOrderClientSuggestions");
+const adminOrderSelectedClientBox = document.querySelector("#adminOrderSelectedClient");
+const adminOrderClientStatus = document.querySelector("#adminOrderClientStatus");
+const adminOrderLinesBody = document.querySelector("#adminOrderLines");
+const adminOrderAddLine = document.querySelector("#adminOrderAddLine");
+const adminOrderSummaryClient = document.querySelector("#adminOrderSummaryClient");
+const adminOrderSummaryLines = document.querySelector("#adminOrderSummaryLines");
+const adminOrderSummaryTotal = document.querySelector("#adminOrderSummaryTotal");
+const adminOrderNote = document.querySelector("#adminOrderNote");
+const adminOrderSend = document.querySelector("#adminOrderSend");
+const adminOrderHistoryCount = document.querySelector("#adminOrderHistoryCount");
+const adminOrderClearHistory = document.querySelector("#adminOrderClearHistory");
+const adminOrderHistoryList = document.querySelector("#adminOrderHistoryList");
+const adminOrderHistoryDetail = document.querySelector("#adminOrderHistoryDetail");
 const centralesRelanceCount = document.querySelector("#centralesRelanceCount");
 const centralesSearch = document.querySelector("#centralesSearch");
 const centralesAddButton = document.querySelector("#centralesAddButton");
@@ -2444,9 +2464,9 @@ function findPrenetEntryForProduct(client, product, orderedQuantity = 0) {
     .sort((a, b) => getPrenetEntryQuantity(b) - getPrenetEntryQuantity(a))[0] || null;
 }
 
-function getOrderUnitPrice(product, quantity = 0) {
+function getOrderUnitPrice(product, quantity = 0, client = selectedClient) {
   if (!product) return 0;
-  const prenetEntry = findPrenetEntryForProduct(selectedClient, product, quantity);
+  const prenetEntry = findPrenetEntryForProduct(client, product, quantity);
   const prenetPrice = parseAmount(prenetEntry?.price ?? prenetEntry?.netPrice ?? prenetEntry?.prixNet ?? prenetEntry?.prix);
   return prenetPrice > 0 ? prenetPrice : Number(product.price) || 0;
 }
@@ -5927,6 +5947,10 @@ function arrangeTabsForUser(user) {
       appTabs.insertBefore(adminOffrePrixTab, lastTab.nextSibling);
       lastTab = adminOffrePrixTab;
     }
+    if (adminOrderTab) {
+      appTabs.insertBefore(adminOrderTab, lastTab.nextSibling);
+      lastTab = adminOrderTab;
+    }
     appTabs.insertBefore(adminExecutiveExpensesTab, lastTab.nextSibling);
     appTabs.insertBefore(adminTab, adminExecutiveExpensesTab.nextSibling);
     appTabs.insertBefore(adminCentralesTab, adminTab.nextSibling);
@@ -5960,6 +5984,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminPurchaseTab);
   appTabs.appendChild(adminRuptureTab);
   appTabs.appendChild(adminStockTab);
+  if (adminOrderTab) appTabs.appendChild(adminOrderTab);
   appTabs.appendChild(problemTab);
 }
 
@@ -6370,6 +6395,7 @@ function showApp(user, token = user.token || "") {
   adminStockTab?.classList.toggle("is-hidden", !isAdmin);
   adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
   adminOffrePrixTab?.classList.toggle("is-hidden", !isAdmin);
+  adminOrderTab?.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
   prospectionUsers = buildProspectionUsers(prospectionUsers);
   if (isAdmin) {
@@ -9091,6 +9117,479 @@ function renderOrderDetail(order) {
   `;
 }
 
+// ---- Saisie de commande admin (tous clients de la societe) ----
+
+function renderAdminOrderClientSuggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  adminOrderClientSuggestions.innerHTML = "";
+
+  if (!cleanQuery) {
+    resetAdminOrder();
+    adminOrderClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  const matches = allClients
+    .filter((client) => {
+      const searchable = [
+        client.code,
+        client.name,
+        client.billingCity,
+        client.billingZip,
+        client.deliveryCity,
+        client.deliveryZip,
+        client.sector,
+      ].join(" ");
+      return normalize(searchable).includes(cleanQuery);
+    })
+    .slice(0, 10);
+
+  if (!matches.length) {
+    adminOrderClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectAdminOrderClient(client));
+    adminOrderClientSuggestions.appendChild(button);
+  });
+
+  adminOrderClientSuggestions.classList.add("is-open");
+}
+
+function selectAdminOrderClient(client) {
+  adminOrderSelectedClient = client;
+  adminOrderClientSearch.value = client.name;
+  adminOrderClientSuggestions.classList.remove("is-open");
+  recordActivity("Client sélectionné (commande admin)", `${client.name} (${client.code}) - ${client.sector}`);
+  adminOrderClientStatus.textContent = "Client selectionne";
+  adminOrderClientStatus.classList.add("is-ready");
+  adminOrderSelectedClientBox.innerHTML = `
+    <strong>${escapeHtml(client.name)}</strong>
+    <span>${escapeHtml(client.code)}</span>
+    <span>Facturation : ${escapeHtml(client.billingAddress)}</span>
+    <span>${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)}</span>
+    <span>Livraison : ${escapeHtml(client.deliveryAddress)}</span>
+    <span>${escapeHtml(client.deliveryZip)} ${escapeHtml(client.deliveryCity)}</span>
+    <span>${escapeHtml(client.sector)}</span>
+    <span>${escapeHtml(client.phone)} - ${escapeHtml(client.email)}</span>
+  `;
+  updateAdminOrderSummary();
+}
+
+function resetAdminOrder() {
+  adminOrderSelectedClient = null;
+  adminOrderLineItems = [];
+  if (adminOrderClientSearch) adminOrderClientSearch.value = "";
+  if (adminOrderNote) adminOrderNote.value = "";
+  if (adminOrderClientStatus) {
+    adminOrderClientStatus.textContent = "Client non selectionne";
+    adminOrderClientStatus.classList.remove("is-ready");
+  }
+  if (adminOrderSelectedClientBox) adminOrderSelectedClientBox.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+  addAdminOrderLine();
+  updateAdminOrderSummary();
+}
+
+function clearAdminOrderClientForSearch(query) {
+  adminOrderSelectedClient = null;
+  adminOrderLineItems = [];
+  adminOrderClientSearch.value = query;
+  adminOrderClientStatus.textContent = "Cliquez sur un client dans la liste";
+  adminOrderClientStatus.classList.remove("is-ready");
+  adminOrderSelectedClientBox.innerHTML = "<span>Saisissez un nom, puis cliquez sur le client souhaité.</span>";
+  addAdminOrderLine();
+  updateAdminOrderSummary();
+}
+
+function handleAdminOrderClientSearchInput(value) {
+  if (adminOrderSelectedClient && normalize(value) !== normalize(adminOrderSelectedClient.name)) {
+    clearAdminOrderClientForSearch(value);
+  }
+  renderAdminOrderClientSuggestions(value);
+}
+
+function addAdminOrderLine() {
+  const line = { id: crypto.randomUUID(), ref: "", qty: 1 };
+  adminOrderLineItems.push(line);
+  renderAdminOrderLines();
+  return line.id;
+}
+
+function setAdminOrderLineReference(id, ref) {
+  adminOrderLineItems = adminOrderLineItems.map((line) => {
+    if (line.id !== id) return line;
+    const product = findProduct(ref);
+    const referenceChanged = normalize(line.ref) !== normalize(ref);
+    return {
+      ...line,
+      ref,
+      qty: product && referenceChanged ? defaultQuantityForProduct(product) : line.qty,
+    };
+  });
+  const product = findProduct(ref);
+  if (product) recordActivity("Référence consultée (commande admin)", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
+  renderAdminOrderLines();
+}
+
+function removeAdminOrderLine(id) {
+  adminOrderLineItems = adminOrderLineItems.filter((line) => line.id !== id);
+  if (!adminOrderLineItems.length) {
+    addAdminOrderLine();
+    return;
+  }
+  renderAdminOrderLines();
+}
+
+function focusAdminOrderLineRef(id) {
+  requestAnimationFrame(() => {
+    const row = [...adminOrderLinesBody.querySelectorAll("tr")].find((item) => item.dataset.lineId === id);
+    const input = row?.querySelector(".ref-cell input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+function focusAdminOrderLineQty(id) {
+  requestAnimationFrame(() => {
+    const row = [...adminOrderLinesBody.querySelectorAll("tr")].find((item) => item.dataset.lineId === id);
+    const input = row?.querySelector(".qty-cell input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+function getNextAdminOrderLineId(currentId) {
+  const index = adminOrderLineItems.findIndex((line) => line.id === currentId);
+  const currentLine = adminOrderLineItems[index];
+  if (!currentLine || !findProduct(currentLine.ref) || Number(currentLine.qty) <= 0) {
+    return null;
+  }
+  const nextLine = adminOrderLineItems[index + 1];
+  if (nextLine) return nextLine.id;
+  const newLine = { id: crypto.randomUUID(), ref: "", qty: 1 };
+  adminOrderLineItems.push(newLine);
+  return newLine.id;
+}
+
+function completeAdminOrderQuantity(id, qty) {
+  adminOrderLineItems = adminOrderLineItems.map((line) => (line.id === id ? { ...line, qty } : line));
+  const nextLineId = getNextAdminOrderLineId(id);
+  renderAdminOrderLines();
+  if (nextLineId) focusAdminOrderLineRef(nextLineId);
+}
+
+function renderAdminOrderLines() {
+  if (!adminOrderLinesBody) return;
+  adminOrderLinesBody.innerHTML = "";
+
+  adminOrderLineItems.forEach((line) => {
+    const product = findProduct(line.ref);
+    const quantity = Math.max(Number(line.qty) || 0, 0);
+    const unitPrice = product ? getOrderUnitPrice(product, quantity, adminOrderSelectedClient) : 0;
+    const lineTotal = product ? unitPrice * quantity : 0;
+    const row = document.createElement("tr");
+    row.dataset.lineId = line.id;
+
+    row.innerHTML = `
+      <td class="ref-cell">
+        <input value="${escapeHtml(line.ref)}" list="productRefs" inputmode="numeric" aria-label="Reference produit" />
+      </td>
+      <td class="gencod-cell">${product ? escapeHtml(product.gencod) : "-"}</td>
+      <td class="name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une reference"}</td>
+      <td class="udv-cell">${product ? escapeHtml(product.udv || "-") : "-"}</td>
+      <td class="qty-cell">
+        <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
+      </td>
+      <td class="price-cell">${product ? formatter.format(unitPrice) : "-"}</td>
+      <td class="line-total-cell">${product ? formatter.format(lineTotal) : "-"}</td>
+      <td>
+        <button class="remove-line" type="button" aria-label="Supprimer la ligne">x</button>
+      </td>
+    `;
+
+    const refInput = row.querySelector("td:first-child input");
+    const qtyInput = row.querySelector(".qty-cell input");
+    const removeButton = row.querySelector(".remove-line");
+
+    refInput.addEventListener("change", (event) => setAdminOrderLineReference(line.id, event.target.value.trim()));
+    refInput.addEventListener("blur", (event) => setAdminOrderLineReference(line.id, event.target.value.trim()));
+    refInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        setAdminOrderLineReference(line.id, event.target.value.trim());
+        focusAdminOrderLineQty(line.id);
+      }
+    });
+    qtyInput.addEventListener("change", (event) => completeAdminOrderQuantity(line.id, Number(event.target.value) || 1));
+    qtyInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        completeAdminOrderQuantity(line.id, Number(event.target.value) || 1);
+      }
+    });
+    qtyInput.addEventListener("blur", (event) => completeAdminOrderQuantity(line.id, Number(event.target.value) || 1));
+    removeButton.addEventListener("click", () => removeAdminOrderLine(line.id));
+
+    adminOrderLinesBody.appendChild(row);
+  });
+
+  updateAdminOrderSummary();
+}
+
+function getAdminOrderValidLines() {
+  return adminOrderLineItems
+    .map((line) => {
+      const product = findProduct(line.ref);
+      const qty = Math.max(Number(line.qty) || 0, 0);
+      const unitPrice = getOrderUnitPrice(product, qty, adminOrderSelectedClient);
+      return { ...line, product, qty, unitPrice, lineTotal: unitPrice * qty };
+    })
+    .filter((line) => line.product && line.qty > 0);
+}
+
+function getAdminOrderTotal() {
+  return getAdminOrderValidLines().reduce((sum, line) => sum + line.lineTotal, 0);
+}
+
+function updateAdminOrderSummary() {
+  if (!adminOrderSummaryClient) return;
+  const validLines = getAdminOrderValidLines();
+  adminOrderSummaryClient.textContent = adminOrderSelectedClient ? adminOrderSelectedClient.name : "Non selectionne";
+  adminOrderSummaryLines.textContent = validLines.length.toString();
+  adminOrderSummaryTotal.textContent = formatter.format(getAdminOrderTotal());
+}
+
+function buildAdminOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
+  const isoDate = new Date().toISOString();
+  return {
+    id: orderNumber,
+    orderNumber,
+    orderDate,
+    isoDate,
+    dayKey: isoDate.slice(0, 10),
+    recipient: schullerOperationsEmail,
+    user: currentUser ? { id: currentUser.id, name: currentUser.name, sector: currentUser.sector } : null,
+    client: { ...adminOrderSelectedClient },
+    note,
+    total: getAdminOrderTotal(),
+    lines: validLines.map((line) => ({
+      ref: line.product.ref,
+      gencod: line.product.gencod,
+      name: line.product.name,
+      udv: line.product.udv || "",
+      qty: line.qty,
+      price: line.unitPrice,
+      total: line.lineTotal,
+    })),
+  };
+}
+
+function storeAdminOrder(order) {
+  const orders = getStoredOrders().filter((item) => item.id !== order.id);
+  orders.push(order);
+  saveStoredOrders(orders);
+  const refs = order.lines.slice(0, 8).map((line) => `${line.ref} x${line.qty}`).join(", ");
+  const more = order.lines.length > 8 ? ` + ${order.lines.length - 8} autre(s)` : "";
+  recordActivity("Commande enregistrée (admin)", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
+  activeAdminHistoryOrderId = order.id;
+  renderAdminOrderHistory();
+}
+
+function deleteAdminStoredOrder(orderId) {
+  saveStoredOrders(getStoredOrders().filter((order) => order.id !== orderId));
+  if (activeAdminHistoryOrderId === orderId) activeAdminHistoryOrderId = null;
+  renderAdminOrderHistory();
+}
+
+function clearCurrentUserAdminOrders() {
+  if (!currentUser) return;
+  const visibleOrders = getVisibleStoredOrders();
+  if (!visibleOrders.length) return;
+  if (!confirm(`Effacer ${visibleOrders.length} commande${visibleOrders.length > 1 ? "s" : ""} de votre historique ?`)) return;
+  const visibleIds = new Set(visibleOrders.map((order) => order.id));
+  saveStoredOrders(getStoredOrders().filter((order) => !visibleIds.has(order.id)));
+  activeAdminHistoryOrderId = null;
+  renderAdminOrderHistory();
+}
+
+function renderAdminOrderHistory() {
+  if (!adminOrderHistoryList) return;
+  const orders = getVisibleStoredOrders();
+  adminOrderHistoryCount.textContent = `${orders.length} commande${orders.length > 1 ? "s" : ""}`;
+  adminOrderHistoryList.innerHTML = "";
+
+  if (!orders.length) {
+    adminOrderHistoryList.innerHTML = '<div class="history-day">Aucune commande enregistrée</div>';
+    adminOrderHistoryDetail.innerHTML = "<span>Les commandes générées apparaîtront ici.</span>";
+    return;
+  }
+
+  let currentDay = "";
+  orders.forEach((order) => {
+    if (order.dayKey !== currentDay) {
+      currentDay = order.dayKey;
+      const day = document.createElement("div");
+      day.className = "history-day";
+      day.textContent = formatStoredDate(order.dayKey);
+      adminOrderHistoryList.appendChild(day);
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `history-item${order.id === activeAdminHistoryOrderId ? " is-active" : ""}`;
+    button.innerHTML = `
+      <span>
+        <strong>${escapeHtml(order.client.name)}</strong>
+        <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
+      </span>
+      <span class="history-item-total">${formatter.format(order.total)}</span>
+      <span class="history-delete" title="Effacer cette commande">×</span>
+    `;
+    button.addEventListener("click", () => {
+      activeAdminHistoryOrderId = order.id;
+      renderAdminOrderHistory();
+      renderAdminOrderDetail(order);
+    });
+    button.querySelector(".history-delete").addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteAdminStoredOrder(order.id);
+    });
+    adminOrderHistoryList.appendChild(button);
+  });
+
+  const activeOrder = orders.find((order) => order.id === activeAdminHistoryOrderId) || orders[0];
+  activeAdminHistoryOrderId = activeOrder.id;
+  renderAdminOrderDetail(activeOrder);
+}
+
+function renderAdminOrderDetail(order) {
+  adminOrderHistoryDetail.innerHTML = `
+    <div class="history-detail-header">
+      <div>
+        <p class="step">${escapeHtml(order.orderDate)}</p>
+        <h3>${escapeHtml(order.orderNumber)}</h3>
+      </div>
+      <strong>${formatter.format(order.total)}</strong>
+    </div>
+    <div class="history-detail-grid">
+      <div class="history-detail-box">
+        <strong>${escapeHtml(order.client.name)}</strong>
+        <span>${escapeHtml(order.client.code)}</span>
+        <span>${escapeHtml(order.client.sector)}</span>
+        <span>${escapeHtml(order.client.phone)} - ${escapeHtml(order.client.email)}</span>
+      </div>
+      <div class="history-detail-box">
+        <strong>Livraison</strong>
+        <span>${escapeHtml(order.client.deliveryAddress)}</span>
+        <span>${escapeHtml(order.client.deliveryZip)} ${escapeHtml(order.client.deliveryCity)}</span>
+      </div>
+      <div class="history-detail-box">
+        <strong>Destinataire commande</strong>
+        <span>${escapeHtml(order.recipient || schullerOperationsEmail)}</span>
+      </div>
+    </div>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Réf.</th>
+          <th>Désignation</th>
+          <th>Qté</th>
+          <th>Prix U.</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${order.lines
+          .map(
+            (line) => `
+              <tr>
+                <td>${escapeHtml(line.ref)}</td>
+                <td>${escapeHtml(line.name)}</td>
+                <td>${escapeHtml(line.qty)}</td>
+                <td>${formatter.format(line.price)}</td>
+                <td>${formatter.format(line.total)}</td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+    ${order.note ? `<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
+  `;
+}
+
+async function generateAdminOrderFiles() {
+  const validLines = getAdminOrderValidLines();
+  const orderSendButton = adminOrderSend;
+
+  if (!adminOrderSelectedClient) {
+    alert("Selectionne d'abord un client.");
+    adminOrderClientSearch?.focus();
+    return;
+  }
+
+  if (!validLines.length) {
+    alert("Ajoute au moins un produit valide.");
+    return;
+  }
+
+  const orderDate = new Date().toLocaleDateString("fr-FR");
+  const orderNumber = `CMD-${Date.now().toString().slice(-6)}`;
+  const note = adminOrderNote.value.trim();
+  const safeClientCode = adminOrderSelectedClient.code.replace(/[^a-z0-9_-]/gi, "_");
+  const baseName = `${orderNumber}_${safeClientCode}`;
+  const orderSnapshot = buildAdminOrderSnapshot({ orderNumber, orderDate, note, validLines });
+
+  const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note, client: adminOrderSelectedClient });
+  const csvName = `${baseName}_ERP_REFERENCES.csv`;
+  const pdfName = `${baseName}_COMMANDE_COMPLETE.pdf`;
+  const csvText = `\uFEFF${buildErpCsvRows(validLines).join("\r\n")}`;
+
+  storeAdminOrder(orderSnapshot);
+  if (orderSendButton) {
+    orderSendButton.disabled = true;
+    orderSendButton.textContent = "Envoi en cours…";
+  }
+
+  try {
+    await postService({
+      action: "sendOrderFiles",
+      recipient: schullerOperationsEmail,
+      destinationEmail: schullerOperationsEmail,
+      order: JSON.stringify(orderSnapshot),
+      csvName,
+      csvContent: csvText,
+      pdfName,
+      pdfBase64: await blobToBase64(pdfBlob),
+    });
+    recordActivity("Commande envoyée (admin)", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+    alert(`Commande envoyée à ${schullerOperationsEmail}.`);
+  } catch (error) {
+    downloadErpCsv(csvName, buildErpCsvRows(validLines));
+    downloadBlob(pdfName, pdfBlob);
+    recordActivity("Commande prête à envoyer (admin)", `${orderNumber} - destinataire ${schullerOperationsEmail}`);
+    alert(`Envoi automatique indisponible : les fichiers ont été téléchargés. Envoyez-les à ${schullerOperationsEmail}.`);
+  } finally {
+    if (orderSendButton) {
+      orderSendButton.disabled = false;
+      orderSendButton.textContent = "Envoyer la commande";
+    }
+  }
+  setSyncStatus("ready", "Commande prête");
+}
+
 function todayInputDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -11172,6 +11671,7 @@ function setActiveTab(tabName) {
   const showAdminStock = tabName === "adminStock";
   const showAdminCentrales = tabName === "adminCentrales";
   const showAdminOffrePrix = tabName === "adminOffrePrix";
+  const showAdminOrder = tabName === "adminOrder";
   tutorialTab?.classList.toggle("is-active", showTutorial);
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
@@ -11197,6 +11697,7 @@ function setActiveTab(tabName) {
   adminStockTab?.classList.toggle("is-active", showAdminStock);
   adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
   adminOffrePrixTab?.classList.toggle("is-active", showAdminOffrePrix);
+  adminOrderTab?.classList.toggle("is-active", showAdminOrder);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
@@ -11222,6 +11723,7 @@ function setActiveTab(tabName) {
   adminStockView?.classList.toggle("is-hidden", !showAdminStock);
   adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
   adminOffrePrixView?.classList.toggle("is-hidden", !showAdminOffrePrix);
+  adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
@@ -11322,6 +11824,13 @@ function setActiveTab(tabName) {
     requestAnimationFrame(() => offrePrixClientSearch?.focus());
   }
 
+  if (showAdminOrder) {
+    if (!adminOrderLineItems.length) addAdminOrderLine();
+    renderAdminOrderLines();
+    renderAdminOrderHistory();
+    requestAnimationFrame(() => adminOrderClientSearch?.focus());
+  }
+
   if (showAdmin) loadAdminLogs();
   if (showAdminChecking) {
     if (!dashboardStatsOverride) restoreDashboardStatsCache();
@@ -11399,7 +11908,8 @@ function pdfEscapeNumber(value) {
   return Number(value).toFixed(2).replace(/\.00$/, "");
 }
 
-function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
+function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
+  const pdfClient = client || selectedClient;
   const pageWidth = 595.28;
   const pageHeight = 841.89;
   const margin = 36;
@@ -11508,17 +12018,17 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
 
     const leftX = margin + 10;
     const rightX = margin + boxW + 24;
-    textAt(leftX, boxY + 60, 10, selectedClient.name, { bold: true });
-    textAt(leftX, boxY + 45, 8, selectedClient.billingAddress || "-");
-    textAt(leftX, boxY + 33, 8, `${selectedClient.billingZip} ${selectedClient.billingCity}`);
-    textAt(leftX, boxY + 18, 8, `Code client : ${selectedClient.code}`);
-    textAt(leftX, boxY + 7, 8, selectedClient.sector || "");
+    textAt(leftX, boxY + 60, 10, pdfClient.name, { bold: true });
+    textAt(leftX, boxY + 45, 8, pdfClient.billingAddress || "-");
+    textAt(leftX, boxY + 33, 8, `${pdfClient.billingZip} ${pdfClient.billingCity}`);
+    textAt(leftX, boxY + 18, 8, `Code client : ${pdfClient.code}`);
+    textAt(leftX, boxY + 7, 8, pdfClient.sector || "");
 
-    textAt(rightX, boxY + 60, 10, selectedClient.name, { bold: true });
-    textAt(rightX, boxY + 45, 8, selectedClient.deliveryAddress || "-");
-    textAt(rightX, boxY + 33, 8, `${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
-    textAt(rightX, boxY + 18, 8, selectedClient.phone || "");
-    textAt(rightX, boxY + 7, 8, selectedClient.email || "");
+    textAt(rightX, boxY + 60, 10, pdfClient.name, { bold: true });
+    textAt(rightX, boxY + 45, 8, pdfClient.deliveryAddress || "-");
+    textAt(rightX, boxY + 33, 8, `${pdfClient.deliveryZip} ${pdfClient.deliveryCity}`);
+    textAt(rightX, boxY + 18, 8, pdfClient.phone || "");
+    textAt(rightX, boxY + 7, 8, pdfClient.email || "");
     y = boxY - 26;
   }
 
@@ -11887,6 +12397,11 @@ adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
 adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales"));
 adminOffrePrixTab?.addEventListener("click", () => setActiveTab("adminOffrePrix"));
+adminOrderTab?.addEventListener("click", () => setActiveTab("adminOrder"));
+adminOrderClientSearch?.addEventListener("input", (event) => handleAdminOrderClientSearchInput(event.target.value));
+adminOrderAddLine?.addEventListener("click", addAdminOrderLine);
+adminOrderSend?.addEventListener("click", generateAdminOrderFiles);
+adminOrderClearHistory?.addEventListener("click", clearCurrentUserAdminOrders);
 offrePrixClientSearch?.addEventListener("input", () => renderOffrePrixClientSuggestions(offrePrixClientSearch.value));
 offrePrixAddLine?.addEventListener("click", addOffrePrixLine);
 offrePrixClearLines?.addEventListener("click", clearOffrePrixLines);
@@ -12562,6 +13077,9 @@ document.addEventListener("click", (event) => {
   }
   if (!event.target.closest(".offre-prix-search-block")) {
     offrePrixClientSuggestions?.classList.remove("is-open");
+  }
+  if (!event.target.closest(".admin-order-search-block")) {
+    adminOrderClientSuggestions?.classList.remove("is-open");
   }
 });
 

@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening30" />
-    <link rel="icon" href="assets/favicon.ico?v=20260907hardening30" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening30" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening30" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening30" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening31" />
+    <link rel="icon" href="assets/favicon.ico?v=20260907hardening31" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening31" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening31" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening31" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260907hardening30" />
+    <link rel="stylesheet" href="style.css?v=20260907hardening31" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -163,6 +163,7 @@
         <button class="tab-button is-hidden" type="button" id="adminStockTab" data-icon="📦">Stock</button>
         <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🤝">Référencement <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
         <button class="tab-button is-hidden" type="button" id="adminOffrePrixTab" data-icon="💰">Offre de prix</button>
+        <button class="tab-button is-hidden" type="button" id="adminOrderTab" data-icon="🧾">Commande</button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
         </nav>
       </div>
@@ -1946,6 +1947,129 @@
           <div class="quote-history-list" id="offrePrixHistoryList"></div>
         </section>
       </main>
+
+      <main class="app-shell admin-shell is-hidden" id="adminOrderView">
+      <section class="panel client-panel" aria-labelledby="adminOrderClientTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 1</p>
+            <h2 id="adminOrderClientTitle">Choisir le client</h2>
+          </div>
+          <span class="status-pill" id="adminOrderClientStatus">Client non selectionne</span>
+        </div>
+
+        <div class="search-block admin-order-search-block">
+          <label for="adminOrderClientSearch">Rechercher par nom, ville ou code client (tous les clients de la soci&eacute;t&eacute;)</label>
+          <input
+            id="adminOrderClientSearch"
+            type="search"
+            autocomplete="off"
+            placeholder="Ex. Peinture Martin, Lyon, C001..."
+          />
+          <div class="suggestions" id="adminOrderClientSuggestions" role="listbox"></div>
+        </div>
+
+        <article class="selected-client" id="adminOrderSelectedClient" aria-live="polite">
+          <span>Aucun client choisi pour le moment.</span>
+        </article>
+      </section>
+
+      <section class="panel order-panel" aria-labelledby="adminOrderTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 2</p>
+            <h2 id="adminOrderTitle">Ajouter les produits</h2>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="order-table">
+            <colgroup>
+              <col class="col-ref" />
+              <col class="col-gencod" />
+              <col class="col-name" />
+              <col class="col-udv" />
+              <col class="col-qty" />
+              <col class="col-price" />
+              <col class="col-total" />
+              <col class="col-action" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Gencod</th>
+                <th>Designation</th>
+                <th>UDV</th>
+                <th>Qte</th>
+                <th>Prix U.</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="adminOrderLines"></tbody>
+          </table>
+        </div>
+        <div class="order-actions">
+          <p>Une nouvelle ligne s’ajoute automatiquement après saisie d’une référence valide et d’une quantité.</p>
+          <button class="ghost-button compact" type="button" id="adminOrderAddLine">Ajouter une ligne vide</button>
+        </div>
+      </section>
+
+      <aside class="panel summary-panel" aria-labelledby="adminOrderSummaryTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 3</p>
+            <h2 id="adminOrderSummaryTitle">Valider</h2>
+          </div>
+        </div>
+
+        <dl class="summary-list">
+          <div>
+            <dt>Client</dt>
+            <dd id="adminOrderSummaryClient">Non selectionne</dd>
+          </div>
+          <div>
+            <dt>Lignes</dt>
+            <dd id="adminOrderSummaryLines">0</dd>
+          </div>
+          <div>
+            <dt>Total HT</dt>
+            <dd id="adminOrderSummaryTotal">0,00 €</dd>
+          </div>
+        </dl>
+
+        <label class="note-field" for="adminOrderNote">
+          Note commande
+          <textarea id="adminOrderNote" rows="4" placeholder="Instruction livraison, commentaire interne..."></textarea>
+        </label>
+
+        <button class="primary-button full" type="button" id="adminOrderSend">
+          Envoyer la commande
+        </button>
+        <p class="helper-text">
+          Le CSV contient uniquement les références. Le PDF contient la commande complète. Destinataire : france@schuller.eu.
+        </p>
+      </aside>
+
+        <section class="panel history-panel order-history-panel" aria-labelledby="adminOrderHistoryTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Historique</p>
+              <h2 id="adminOrderHistoryTitle">Commandes passées</h2>
+            </div>
+            <div class="history-actions">
+              <span class="status-pill" id="adminOrderHistoryCount">0 commande</span>
+              <button class="ghost-button compact" type="button" id="adminOrderClearHistory">Effacer mes commandes</button>
+            </div>
+          </div>
+          <div class="history-layout">
+            <div class="history-list" id="adminOrderHistoryList"></div>
+            <article class="history-detail" id="adminOrderHistoryDetail">
+              <span>Sélectionnez une commande pour consulter le détail.</span>
+            </article>
+          </div>
+        </section>
+      </main>
     </div>
 
     <datalist id="productRefs"></datalist>
@@ -1957,11 +2081,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260907hardening30" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260907hardening31" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260907hardening30" charset="UTF-8"></script>
+    <script src="script.js?v=20260907hardening31" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
