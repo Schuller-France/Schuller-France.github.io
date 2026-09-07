@@ -48,6 +48,14 @@ let adminRuptureSortDirection = "asc";
 let adminRuptureStatusFilter = ""; // "" | "nouveau" | "repousse" | "ameliore" | "toujours" | "sansDate"
 let adminRuptureOpenHistoryRef = null;
 let adminRuptureHistoryCache = {}; // ref -> entries[]
+let adminStockLastDiff = null; // { date, previousDate, rows: [...], disparus: [...], summary: {...} }
+let adminStockLoaded = false;
+let adminStockImporting = false;
+let adminStockSortField = null; // "qty" | null
+let adminStockSortDirection = "asc";
+let adminStockStatusFilter = ""; // "" | "nouveau" | "hausse" | "baisse" | "stable"
+let adminStockOpenHistoryRef = null;
+let adminStockHistoryCache = {}; // ref -> entries[]
 let lines = [];
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
@@ -573,6 +581,26 @@ const adminRuptureSummary = document.querySelector("#adminRuptureSummary");
 const adminRuptureStatus = document.querySelector("#adminRuptureStatus");
 const adminRuptureBody = document.querySelector("#adminRuptureBody");
 const adminRuptureRetourBox = document.querySelector("#adminRuptureRetourBox");
+const adminStockTab = document.querySelector("#adminStockTab");
+const adminStockView = document.querySelector("#adminStockView");
+const adminStockCount = document.querySelector("#adminStockCount");
+const adminStockCountTotal = document.querySelector("#adminStockCountTotal");
+const adminStockCountNouveau = document.querySelector("#adminStockCountNouveau");
+const adminStockCountHausse = document.querySelector("#adminStockCountHausse");
+const adminStockCountBaisse = document.querySelector("#adminStockCountBaisse");
+const adminStockCountStable = document.querySelector("#adminStockCountStable");
+const adminStockCountDisparu = document.querySelector("#adminStockCountDisparu");
+const adminStockDropzone = document.querySelector("#adminStockDropzone");
+const adminStockFileInput = document.querySelector("#adminStockFileInput");
+const adminStockLastImport = document.querySelector("#adminStockLastImport");
+const adminStockSearch = document.querySelector("#adminStockSearch");
+const adminStockStatusSelect = document.querySelector("#adminStockStatusSelect");
+const adminStockQtyMin = document.querySelector("#adminStockQtyMin");
+const adminStockQtyMax = document.querySelector("#adminStockQtyMax");
+const adminStockSummary = document.querySelector("#adminStockSummary");
+const adminStockStatus = document.querySelector("#adminStockStatus");
+const adminStockBody = document.querySelector("#adminStockBody");
+const adminStockDisparusBox = document.querySelector("#adminStockDisparusBox");
 const tutorialSteps = document.querySelector("#tutorialSteps");
 const tutorialProgressBar = document.querySelector("#tutorialProgressBar");
 const tutorialProgressText = document.querySelector("#tutorialProgressText");
@@ -3509,6 +3537,251 @@ async function toggleAdminRuptureHistory(ref) {
   }
 }
 
+const STOCK_STATUS_LABELS = {
+  nouveau: "Nouveau",
+  hausse: "Hausse",
+  baisse: "Baisse",
+  stable: "Stable",
+};
+const STOCK_STATUS_BADGE_CLASS = {
+  nouveau: "is-nouveau",
+  hausse: "is-hausse",
+  baisse: "is-baisse",
+  stable: "is-stable",
+};
+
+function detectStockHeaderColumns(row) {
+  const keys = (row || []).map((cell) => normalize(String(cell ?? "").trim()));
+  const findIndex = (patterns) => keys.findIndex((key) => key && patterns.some((pattern) => key.includes(pattern)));
+  const refIdx = findIndex(["artikel", "reference", "ref", "code", "sku"]);
+  const designationIdx = findIndex(["bezeichnung", "designation", "libelle"]);
+  const designation2Idx = findIndex(["name 2", "name2", "detail", "complement"]);
+  const qtyIdx = findIndex(["lagermenge", "quantite", "stock", "qty", "qte"]);
+  const unitIdx = findIndex(["einh", "unite", "unit"]);
+  if (refIdx === -1 || qtyIdx === -1) return null;
+  return { refIdx, designationIdx, designation2Idx, qtyIdx, unitIdx };
+}
+
+async function extractStockFileRows(file) {
+  const name = file.name.toLowerCase();
+  let matrix = [];
+  if (name.endsWith(".csv") || name.endsWith(".txt")) {
+    const text = await file.text();
+    matrix = text.replace(/^﻿/, "").split(/\r?\n/).filter((line) => line.trim()).map(parseCsvLine);
+  } else {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+  }
+  const rows = matrix
+    .map((row) => (Array.isArray(row) ? row : [row]))
+    .map((row) => row.map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim())))
+    .filter((row) => row.some((cell) => cell !== ""));
+  if (!rows.length) return [];
+  const columns = detectStockHeaderColumns(rows[0]);
+  if (!columns) return [];
+  return rows.slice(1).map((row) => {
+    const ref = row[columns.refIdx] || "";
+    if (!ref) return null;
+    const designation = columns.designationIdx > -1 ? row[columns.designationIdx] || "" : "";
+    const designation2 = columns.designation2Idx > -1 ? row[columns.designation2Idx] || "" : "";
+    const qty = parseAmount(row[columns.qtyIdx]);
+    const unit = columns.unitIdx > -1 ? row[columns.unitIdx] || "" : "";
+    return { ref, designation, designation2, qty, unit };
+  }).filter(Boolean);
+}
+
+async function handleAdminStockFile(file) {
+  if (!file || adminStockImporting) return;
+  adminStockImporting = true;
+  if (adminStockStatus) adminStockStatus.textContent = "Lecture du fichier...";
+  if (adminStockDropzone) adminStockDropzone.classList.add("is-dragover");
+  try {
+    const rows = await extractStockFileRows(file);
+    if (!rows.length) {
+      if (adminStockStatus) adminStockStatus.textContent = "Aucune ligne exploitable trouvée dans ce fichier (colonnes Artikel/Bezeichnung/Lagermenge attendues).";
+      return;
+    }
+    if (adminStockStatus) adminStockStatus.textContent = `Import de ${rows.length} référence(s) en cours...`;
+    const result = await postService({ action: "importStockExport", rows: JSON.stringify(rows) });
+    adminStockLastDiff = result.lastDiff || null;
+    adminStockOpenHistoryRef = null;
+    adminStockHistoryCache = {};
+    if (adminStockStatus) {
+      const s = adminStockLastDiff?.summary || {};
+      adminStockStatus.textContent = `Stock mis à jour : ${formatNumber(s.nouveau || 0)} nouvelle(s), ${formatNumber(s.hausse || 0)} hausse(s), ${formatNumber(s.baisse || 0)} baisse(s), ${formatNumber(s.disparu || 0)} rupture(s) potentielle(s).`;
+    }
+    renderAdminStock();
+  } catch (error) {
+    if (adminStockStatus) adminStockStatus.textContent = error.message || "Import impossible. Vérifiez le fichier puis réessayez.";
+  } finally {
+    adminStockImporting = false;
+    if (adminStockDropzone) adminStockDropzone.classList.remove("is-dragover");
+  }
+}
+
+async function loadStockComparatif() {
+  if (!adminStockBody) return;
+  if (adminStockStatus) adminStockStatus.textContent = "Chargement du stock...";
+  try {
+    const result = await postService({ action: "getStockComparatif" });
+    adminStockLastDiff = result.lastDiff || null;
+    adminStockLoaded = true;
+    if (adminStockStatus) adminStockStatus.textContent = "";
+  } catch (error) {
+    if (adminStockStatus) adminStockStatus.textContent = error.message || "Stock indisponible pour le moment.";
+  }
+  renderAdminStock();
+}
+
+function getAdminStockRows() {
+  let rows = adminStockLastDiff && Array.isArray(adminStockLastDiff.rows) ? adminStockLastDiff.rows.map((row) => ({ ...row })) : [];
+  const query = normalize(adminStockSearch?.value || "");
+  if (query) {
+    rows = rows.filter((row) => normalize([row.ref, row.designation, row.designation2].filter(Boolean).join(" ")).includes(query));
+  }
+  if (adminStockStatusFilter) {
+    rows = rows.filter((row) => row.status === adminStockStatusFilter);
+  }
+  const minRaw = adminStockQtyMin?.value;
+  const maxRaw = adminStockQtyMax?.value;
+  if (minRaw !== undefined && minRaw !== "") {
+    const min = parseAmount(minRaw);
+    rows = rows.filter((row) => (Number(row.qty) || 0) >= min);
+  }
+  if (maxRaw !== undefined && maxRaw !== "") {
+    const max = parseAmount(maxRaw);
+    rows = rows.filter((row) => (Number(row.qty) || 0) <= max);
+  }
+  if (adminStockSortField === "qty") {
+    rows.sort((a, b) => {
+      const diff = (Number(a.qty) || 0) - (Number(b.qty) || 0);
+      return adminStockSortDirection === "desc" ? -diff : diff;
+    });
+  }
+  return rows;
+}
+
+function setAdminStockSort(field) {
+  if (adminStockSortField === field) {
+    adminStockSortDirection = adminStockSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    adminStockSortField = field;
+    adminStockSortDirection = "asc";
+  }
+  renderAdminStock();
+}
+
+function setAdminStockStatusFilter(status) {
+  adminStockStatusFilter = adminStockStatusFilter === status ? "" : status;
+  renderAdminStock();
+}
+
+function renderAdminStockSummary() {
+  const summary = adminStockLastDiff?.summary || {};
+  if (adminStockCountTotal) adminStockCountTotal.textContent = formatNumber(summary.total || 0);
+  if (adminStockCountNouveau) adminStockCountNouveau.textContent = formatNumber(summary.nouveau || 0);
+  if (adminStockCountHausse) adminStockCountHausse.textContent = formatNumber(summary.hausse || 0);
+  if (adminStockCountBaisse) adminStockCountBaisse.textContent = formatNumber(summary.baisse || 0);
+  if (adminStockCountStable) adminStockCountStable.textContent = formatNumber(summary.stable || 0);
+  if (adminStockCountDisparu) adminStockCountDisparu.textContent = formatNumber(summary.disparu || 0);
+  if (adminStockLastImport) {
+    adminStockLastImport.textContent = adminStockLastDiff
+      ? `Dernier import : ${adminStockLastDiff.date}${adminStockLastDiff.previousDate ? ` (comparé au ${adminStockLastDiff.previousDate})` : " (premier import)"}`
+      : "Aucun import pour le moment.";
+  }
+  adminStockSummary?.querySelectorAll("[data-admin-stock-filter]").forEach((button) => {
+    const status = button.dataset.adminStockFilter;
+    button.classList.toggle("is-active", status !== "disparu" && status === adminStockStatusFilter);
+  });
+  if (adminStockStatusSelect) {
+    adminStockStatusSelect.value = adminStockStatusFilter === "disparu" ? "" : adminStockStatusFilter;
+  }
+  const disparus = adminStockLastDiff?.disparus || [];
+  if (adminStockDisparusBox) {
+    if (!disparus.length) {
+      adminStockDisparusBox.classList.add("is-hidden");
+      adminStockDisparusBox.innerHTML = "";
+    } else {
+      adminStockDisparusBox.classList.remove("is-hidden");
+      const list = disparus.map((r) => escapeHtml(`${r.ref || ""} - ${r.designation || ""}`)).join(" • ");
+      adminStockDisparusBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>⚠️ ${disparus.length} référence(s) disparue(s) depuis le dernier import (rupture potentielle) :</strong> ${list}</p></div>`;
+    }
+  }
+}
+
+function renderAdminStockRows(rows) {
+  if (!adminStockBody) return;
+  if (!rows.length) {
+    let message = "Chargement...";
+    if (adminStockLoaded) {
+      message = adminStockLastDiff ? "Aucune référence ne correspond à ce filtre." : "Déposez le fichier Artikel ci-dessus pour lancer le premier suivi.";
+    }
+    adminStockBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
+    return;
+  }
+  adminStockBody.innerHTML = rows.map((row) => {
+    const badgeClass = STOCK_STATUS_BADGE_CLASS[row.status] || "is-stable";
+    const statusLabel = STOCK_STATUS_LABELS[row.status] || row.status || "-";
+    const isOpen = adminStockOpenHistoryRef === row.ref;
+    let historyHtml = "";
+    if (isOpen) {
+      const historyEntries = adminStockHistoryCache[row.ref];
+      if (Array.isArray(historyEntries)) {
+        historyHtml = historyEntries.length
+          ? `<ul class="admin-rupture-history-list">${historyEntries.map((h) => `<li>${escapeHtml(h.date || "-")} : ${h.disparu ? "disparu (rupture potentielle)" : `stock ${formatNumber(h.qty || 0)}`}</li>`).join("")}</ul>`
+          : `<p class="admin-empty">Aucun historique disponible.</p>`;
+      } else {
+        historyHtml = `<p class="admin-empty">Chargement de l'historique...</p>`;
+      }
+    }
+    const mainRow = `
+    <tr data-admin-stock-row="${escapeHtml(row.ref || "")}">
+      <td><strong>${escapeHtml(row.ref || "-")}</strong></td>
+      <td>${escapeHtml(row.designation || "-")}</td>
+      <td>${escapeHtml(row.designation2 || "-")}</td>
+      <td class="numeric">${formatNumber(row.qty || 0)}${row.previousQty != null && row.previousQty !== row.qty ? `<small>était ${formatNumber(row.previousQty)}</small>` : ""}</td>
+      <td>${escapeHtml(row.unit || "-")}</td>
+      <td><span class="admin-purchase-badge ${badgeClass}">${escapeHtml(statusLabel)}</span></td>
+      <td><button type="button" class="ghost-button compact" data-admin-stock-history-btn="${escapeHtml(row.ref || "")}">${isOpen ? "Masquer" : "Voir"}</button></td>
+    </tr>`;
+    const historyRow = isOpen ? `<tr class="admin-rupture-history-row"><td colspan="7">${historyHtml}</td></tr>` : "";
+    return mainRow + historyRow;
+  }).join("");
+}
+
+function renderAdminStock() {
+  const rows = getAdminStockRows();
+  if (adminStockCount) adminStockCount.textContent = `${formatNumber(rows.length)} référence${rows.length > 1 ? "s" : ""}`;
+  renderAdminStockRows(rows);
+  renderAdminStockSummary();
+  document.querySelectorAll("[data-admin-stock-sort-icon]").forEach((icon) => {
+    const field = icon.dataset.adminStockSortIcon;
+    icon.classList.remove("is-asc", "is-desc");
+    if (adminStockSortField === field) icon.classList.add(adminStockSortDirection === "desc" ? "is-desc" : "is-asc");
+  });
+}
+
+async function toggleAdminStockHistory(ref) {
+  if (adminStockOpenHistoryRef === ref) {
+    adminStockOpenHistoryRef = null;
+    renderAdminStock();
+    return;
+  }
+  adminStockOpenHistoryRef = ref;
+  renderAdminStock();
+  if (!adminStockHistoryCache[ref]) {
+    try {
+      const result = await postService({ action: "getStockHistory", ref });
+      adminStockHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
+    } catch (error) {
+      adminStockHistoryCache[ref] = [];
+    }
+    if (adminStockOpenHistoryRef === ref) renderAdminStock();
+  }
+}
+
 function sanitizeDownloadName(value) {
   return String(value || "prix-nets")
     .normalize("NFD")
@@ -5641,6 +5914,7 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(tourTab, adminCentralesTab.nextSibling);
     appTabs.insertBefore(prospectionTab, tourTab.nextSibling);
     appTabs.insertBefore(adminRuptureTab, prospectionTab.nextSibling);
+    appTabs.insertBefore(adminStockTab, adminRuptureTab.nextSibling);
     return;
   }
   [
@@ -5666,6 +5940,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminPrenetTab);
   appTabs.appendChild(adminPurchaseTab);
   appTabs.appendChild(adminRuptureTab);
+  appTabs.appendChild(adminStockTab);
   appTabs.appendChild(problemTab);
 }
 
@@ -6073,6 +6348,7 @@ function showApp(user, token = user.token || "") {
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
   adminRuptureTab?.classList.toggle("is-hidden", !isAdmin);
+  adminStockTab?.classList.toggle("is-hidden", !isAdmin);
   adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
   adminOffrePrixTab?.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
@@ -10874,6 +11150,7 @@ function setActiveTab(tabName) {
   const showAdminPrenet = tabName === "adminPrenet";
   const showAdminPurchase = tabName === "adminPurchase";
   const showAdminRupture = tabName === "adminRupture";
+  const showAdminStock = tabName === "adminStock";
   const showAdminCentrales = tabName === "adminCentrales";
   const showAdminOffrePrix = tabName === "adminOffrePrix";
   tutorialTab?.classList.toggle("is-active", showTutorial);
@@ -10898,6 +11175,7 @@ function setActiveTab(tabName) {
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
   adminRuptureTab?.classList.toggle("is-active", showAdminRupture);
+  adminStockTab?.classList.toggle("is-active", showAdminStock);
   adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
   adminOffrePrixTab?.classList.toggle("is-active", showAdminOffrePrix);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
@@ -10922,6 +11200,7 @@ function setActiveTab(tabName) {
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
   adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
   adminRuptureView?.classList.toggle("is-hidden", !showAdminRupture);
+  adminStockView?.classList.toggle("is-hidden", !showAdminStock);
   adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
   adminOffrePrixView?.classList.toggle("is-hidden", !showAdminOffrePrix);
 
@@ -11006,6 +11285,11 @@ function setActiveTab(tabName) {
   if (showAdminRupture) {
     loadRuptureComparatif();
     requestAnimationFrame(() => adminRuptureSearch?.focus());
+  }
+
+  if (showAdminStock) {
+    loadStockComparatif();
+    requestAnimationFrame(() => adminStockSearch?.focus());
   }
 
   if (showAdminCentrales) {
@@ -11722,6 +12006,51 @@ adminRuptureBody?.addEventListener("click", (event) => {
   toggleAdminRuptureHistory(btn.dataset.adminRuptureHistoryBtn);
 });
 adminRuptureTab?.addEventListener("click", () => setActiveTab("adminRupture"));
+adminStockFileInput?.addEventListener("change", () => {
+  const file = adminStockFileInput.files?.[0];
+  if (file) handleAdminStockFile(file);
+  adminStockFileInput.value = "";
+});
+if (adminStockDropzone) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    adminStockDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      adminStockDropzone.classList.add("is-dragover");
+    });
+  });
+  ["dragleave", "dragend"].forEach((eventName) => {
+    adminStockDropzone.addEventListener(eventName, () => adminStockDropzone.classList.remove("is-dragover"));
+  });
+  adminStockDropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    adminStockDropzone.classList.remove("is-dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) handleAdminStockFile(file);
+  });
+}
+adminStockSearch?.addEventListener("input", () => renderAdminStock());
+adminStockStatusSelect?.addEventListener("change", () => setAdminStockStatusFilter(adminStockStatusSelect.value));
+adminStockQtyMin?.addEventListener("input", () => renderAdminStock());
+adminStockQtyMax?.addEventListener("input", () => renderAdminStock());
+adminStockSummary?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-stock-filter]");
+  if (!button) return;
+  const status = button.dataset.adminStockFilter;
+  if (status === "disparu") {
+    adminStockDisparusBox?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  setAdminStockStatusFilter(status);
+});
+document.querySelectorAll("[data-admin-stock-sort-btn]").forEach((button) => {
+  button.addEventListener("click", () => setAdminStockSort(button.dataset.adminStockSortBtn));
+});
+adminStockBody?.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-admin-stock-history-btn]");
+  if (!btn) return;
+  toggleAdminStockHistory(btn.dataset.adminStockHistoryBtn);
+});
+adminStockTab?.addEventListener("click", () => setActiveTab("adminStock"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);

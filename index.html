@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening28" />
-    <link rel="icon" href="assets/favicon.ico?v=20260907hardening28" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening28" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening28" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening28" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening29" />
+    <link rel="icon" href="assets/favicon.ico?v=20260907hardening29" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening29" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening29" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening29" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260907hardening28" />
+    <link rel="stylesheet" href="style.css?v=20260907hardening29" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -160,6 +160,7 @@
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
         <button class="tab-button is-hidden" type="button" id="adminRuptureTab" data-icon="⛔">Rupture</button>
+        <button class="tab-button is-hidden" type="button" id="adminStockTab" data-icon="📦">Stock</button>
         <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🤝">Référencement <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
         <button class="tab-button is-hidden" type="button" id="adminOffrePrixTab" data-icon="💰">Offre de prix</button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
@@ -1730,6 +1731,104 @@
         </section>
       </main>
 
+      <main class="app-shell admin-shell is-hidden" id="adminStockView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Suivi stock</p>
+            <h2>Stock articles</h2>
+            <p>Glissez chaque semaine le fichier "Artikel" reçu du fournisseur pour visualiser vos stocks, filtrer par quantité, et repérer les références disparues (rupture potentielle) par rapport au dernier import.</p>
+          </div>
+          <span class="status-pill" id="adminStockCount">0 référence</span>
+        </section>
+
+        <section class="panel admin-purchase-panel">
+          <div class="admin-purchase-summary" id="adminStockSummary">
+            <button type="button" class="admin-purchase-summary-item is-stable" data-admin-stock-filter="">
+              <span class="admin-purchase-summary-value" id="adminStockCountTotal">0</span>
+              <span class="admin-purchase-summary-label">Total références</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-nouveau" data-admin-stock-filter="nouveau">
+              <span class="admin-purchase-summary-value" id="adminStockCountNouveau">0</span>
+              <span class="admin-purchase-summary-label">Nouvelles</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-hausse" data-admin-stock-filter="hausse">
+              <span class="admin-purchase-summary-value" id="adminStockCountHausse">0</span>
+              <span class="admin-purchase-summary-label">Hausses</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-baisse" data-admin-stock-filter="baisse">
+              <span class="admin-purchase-summary-value" id="adminStockCountBaisse">0</span>
+              <span class="admin-purchase-summary-label">Baisses</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-stable" data-admin-stock-filter="stable">
+              <span class="admin-purchase-summary-value" id="adminStockCountStable">0</span>
+              <span class="admin-purchase-summary-label">Stables</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-rupture" data-admin-stock-filter="disparu">
+              <span class="admin-purchase-summary-value" id="adminStockCountDisparu">0</span>
+              <span class="admin-purchase-summary-label">Ruptures potentielles</span>
+            </button>
+          </div>
+
+          <div class="admin-purchase-topbar">
+            <div class="admin-purchase-dropzone" id="adminStockDropzone">
+              <p><strong>Glissez-déposez</strong> le fichier "Artikel" reçu cette semaine ici (Excel)</p>
+              <p>ou <label class="admin-purchase-filelabel" for="adminStockFileInput">choisissez un fichier</label></p>
+              <input id="adminStockFileInput" type="file" accept=".xlsx,.xls,.csv" class="is-visually-hidden" />
+            </div>
+            <div class="admin-purchase-meta">
+              <p id="adminStockLastImport">Aucun import pour le moment.</p>
+              <label class="admin-prenet-search-label">
+                Rechercher (référence ou désignation)
+                <input id="adminStockSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou une désignation…" />
+              </label>
+              <label class="admin-prenet-search-label">
+                Statut
+                <select id="adminStockStatusSelect">
+                  <option value="">Tous</option>
+                  <option value="nouveau">Nouveau</option>
+                  <option value="hausse">Hausse</option>
+                  <option value="baisse">Baisse</option>
+                  <option value="stable">Stable</option>
+                </select>
+              </label>
+              <label class="admin-prenet-search-label">
+                Quantité min.
+                <input id="adminStockQtyMin" type="number" inputmode="numeric" min="0" placeholder="0" />
+              </label>
+              <label class="admin-prenet-search-label">
+                Quantité max.
+                <input id="adminStockQtyMax" type="number" inputmode="numeric" min="0" placeholder="Aucune limite" />
+              </label>
+            </div>
+          </div>
+
+          <p class="admin-prenet-status" id="adminStockStatus"></p>
+
+          <div id="adminStockDisparusBox" class="admin-purchase-topbar is-hidden"></div>
+
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-purchase-table">
+              <thead>
+                <tr>
+                  <th>Référence</th>
+                  <th>Désignation</th>
+                  <th>Détail</th>
+                  <th class="admin-purchase-sortable" data-admin-stock-sort="qty">
+                    <button type="button" data-admin-stock-sort-btn="qty">Quantité <span class="admin-prenet-sort-icon" data-admin-stock-sort-icon="qty"></span></button>
+                  </th>
+                  <th>Unité</th>
+                  <th>Statut</th>
+                  <th>Historique</th>
+                </tr>
+              </thead>
+              <tbody id="adminStockBody">
+                <tr><td colspan="7" class="admin-empty">Déposez le fichier Artikel ci-dessus pour lancer le premier suivi.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell admin-shell is-hidden" id="adminCentralesView">
         <section class="panel admin-hero">
           <div>
@@ -1858,11 +1957,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260907hardening28" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260907hardening29" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260907hardening28" charset="UTF-8"></script>
+    <script src="script.js?v=20260907hardening29" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
