@@ -25,7 +25,7 @@
     <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260903hardening20" />
+    <link rel="stylesheet" href="style.css?v=20260907hardening21" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1549,30 +1549,30 @@
 
         <section class="panel admin-purchase-panel">
           <div class="admin-purchase-summary" id="adminPurchaseSummary">
-            <div class="admin-purchase-summary-item is-hausse">
+            <button type="button" class="admin-purchase-summary-item is-hausse" data-admin-purchase-filter="hausse">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountHausse">0</span>
               <span class="admin-purchase-summary-label">Hausses</span>
-            </div>
-            <div class="admin-purchase-summary-item is-baisse">
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-baisse" data-admin-purchase-filter="baisse">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountBaisse">0</span>
               <span class="admin-purchase-summary-label">Baisses</span>
-            </div>
-            <div class="admin-purchase-summary-item is-stable">
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-stable" data-admin-purchase-filter="stable">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountStable">0</span>
               <span class="admin-purchase-summary-label">Stables</span>
-            </div>
-            <div class="admin-purchase-summary-item is-nouveau">
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-nouveau" data-admin-purchase-filter="nouveau">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountNouveau">0</span>
               <span class="admin-purchase-summary-label">Nouveautés</span>
-            </div>
-            <div class="admin-purchase-summary-item is-rupture">
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-rupture" data-admin-purchase-filter="rupture">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountRupture">0</span>
               <span class="admin-purchase-summary-label">Ruptures</span>
-            </div>
-            <div class="admin-purchase-summary-item is-marge-faible">
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-marge-faible" data-admin-purchase-filter="margeFaible">
               <span class="admin-purchase-summary-value" id="adminPurchaseCountMargeFaible">0</span>
               <span class="admin-purchase-summary-label">Marge &lt; 30%</span>
-            </div>
+            </button>
           </div>
 
           <div class="admin-purchase-topbar">
@@ -1586,6 +1586,17 @@
               <label class="admin-prenet-search-label">
                 Rechercher (référence ou désignation)
                 <input id="adminPurchaseSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou une désignation…" />
+              </label>
+              <label class="admin-prenet-search-label">
+                Statut
+                <select id="adminPurchaseStatusSelect">
+                  <option value="">Tous</option>
+                  <option value="hausse">Hausse</option>
+                  <option value="baisse">Baisse</option>
+                  <option value="stable">Stable</option>
+                  <option value="nouveau">Nouveau</option>
+                  <option value="rupture">Rupture</option>
+                </select>
               </label>
             </div>
           </div>
@@ -1605,7 +1616,9 @@
                   <th class="admin-purchase-sortable" data-admin-purchase-sort="newPa">
                     <button type="button" data-admin-purchase-sort-btn="newPa">Nouveau PA <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="newPa"></span></button>
                   </th>
-                  <th>Écart</th>
+                  <th class="admin-purchase-sortable" data-admin-purchase-sort="gap">
+                    <button type="button" data-admin-purchase-sort-btn="gap">Écart <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="gap"></span></button>
+                  </th>
                   <th class="admin-purchase-sortable" data-admin-purchase-sort="margin">
                     <button type="button" data-admin-purchase-sort-btn="margin">Marge <span class="admin-prenet-sort-icon" data-admin-purchase-sort-icon="margin"></span></button>
                   </th>
@@ -1741,10 +1754,10 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260903hardening20" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260907hardening21" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="script.js?v=20260903hardening20" charset="UTF-8"></script>
+    <script src="script.js?v=20260907hardening21" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

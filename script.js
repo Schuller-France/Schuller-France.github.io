@@ -34,8 +34,9 @@ let adminPurchaseCatalog = []; // [{ref, designation, sellingPrice}]
 let adminPurchaseLastDiff = null; // { date, previousDate, rows: [...], summary: {...} }
 let adminPurchaseLoaded = false;
 let adminPurchaseImporting = false;
-let adminPurchaseSortField = null; // "sellingPrice" | "newPa" | "margin" | null
+let adminPurchaseSortField = null; // "sellingPrice" | "newPa" | "gap" | "margin" | null
 let adminPurchaseSortDirection = "asc";
+let adminPurchaseStatusFilter = ""; // "" | "hausse" | "baisse" | "stable" | "nouveau" | "rupture" | "margeFaible"
 let lines = [];
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
@@ -534,6 +535,8 @@ const adminPurchaseDropzone = document.querySelector("#adminPurchaseDropzone");
 const adminPurchaseFileInput = document.querySelector("#adminPurchaseFileInput");
 const adminPurchaseLastImport = document.querySelector("#adminPurchaseLastImport");
 const adminPurchaseSearch = document.querySelector("#adminPurchaseSearch");
+const adminPurchaseStatusSelect = document.querySelector("#adminPurchaseStatusSelect");
+const adminPurchaseSummary = document.querySelector("#adminPurchaseSummary");
 const adminPurchaseStatus = document.querySelector("#adminPurchaseStatus");
 const adminPurchaseBody = document.querySelector("#adminPurchaseBody");
 const tutorialSteps = document.querySelector("#tutorialSteps");
@@ -2939,9 +2942,17 @@ function getAdminPurchaseSourceRows() {
 
 function getAdminPurchaseRows() {
   const query = normalize(adminPurchaseSearch?.value || "");
-  let rows = getAdminPurchaseSourceRows();
+  let rows = getAdminPurchaseSourceRows().map((row) => ({
+    ...row,
+    gap: row.oldPa != null && row.newPa != null ? row.newPa - row.oldPa : null,
+  }));
   if (query) {
     rows = rows.filter((row) => normalize([row.ref || "", row.designation || ""].join(" ")).includes(query));
+  }
+  if (adminPurchaseStatusFilter === "margeFaible") {
+    rows = rows.filter((row) => row.margin != null && row.margin < 0.3);
+  } else if (adminPurchaseStatusFilter) {
+    rows = rows.filter((row) => row.status === adminPurchaseStatusFilter);
   }
   if (adminPurchaseSortField) {
     const field = adminPurchaseSortField;
@@ -3000,6 +3011,17 @@ function renderAdminPurchaseSummary() {
       ? `Dernier import : ${adminPurchaseLastDiff.date}${adminPurchaseLastDiff.previousDate ? ` (comparé au ${adminPurchaseLastDiff.previousDate})` : " (premier import)"}`
       : "Aucun import pour le moment.";
   }
+  adminPurchaseSummary?.querySelectorAll("[data-admin-purchase-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.adminPurchaseFilter === adminPurchaseStatusFilter && !!adminPurchaseStatusFilter);
+  });
+  if (adminPurchaseStatusSelect) {
+    adminPurchaseStatusSelect.value = adminPurchaseStatusFilter === "margeFaible" ? "" : adminPurchaseStatusFilter;
+  }
+}
+
+function setAdminPurchaseStatusFilter(status) {
+  adminPurchaseStatusFilter = adminPurchaseStatusFilter === status ? "" : status;
+  renderAdminPurchase();
 }
 
 function renderAdminPurchase() {
@@ -3019,7 +3041,7 @@ function renderAdminPurchase() {
     const isRupture = row.status === "rupture";
     const isMargeFaible = row.margin != null && row.margin < 0.3;
     const rowClasses = [isRupture ? "is-rupture-row" : "", isMargeFaible ? "is-marge-faible-row" : ""].filter(Boolean).join(" ");
-    const ecart = row.oldPa != null && row.newPa != null ? row.newPa - row.oldPa : null;
+    const ecart = row.gap;
     const ecartPct = ecart != null && row.oldPa ? (ecart / row.oldPa) * 100 : null;
     const statusLabel = ADMIN_PURCHASE_STATUS_LABELS[row.status] || row.status || "-";
     return `
@@ -11116,6 +11138,12 @@ if (adminPurchaseDropzone) {
 }
 
 adminPurchaseSearch?.addEventListener("input", () => renderAdminPurchase());
+adminPurchaseStatusSelect?.addEventListener("change", () => setAdminPurchaseStatusFilter(adminPurchaseStatusSelect.value));
+adminPurchaseSummary?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-purchase-filter]");
+  if (!button) return;
+  setAdminPurchaseStatusFilter(button.dataset.adminPurchaseFilter);
+});
 
 document.querySelectorAll("[data-admin-purchase-sort-btn]").forEach((button) => {
   button.addEventListener("click", () => setAdminPurchaseSort(button.dataset.adminPurchaseSortBtn));

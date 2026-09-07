@@ -4725,6 +4725,19 @@ body.dark-theme .send-history-badge.tag-statistiques { background: rgba(124, 58,
   background: color-mix(in srgb, var(--white) 88%, var(--bg));
   border: 1px solid var(--line);
   border-radius: 14px;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.admin-purchase-summary-item:hover {
+  border-color: rgba(227, 6, 19, 0.4);
+}
+
+.admin-purchase-summary-item.is-active {
+  border-color: var(--red);
+  background: rgba(227, 6, 19, 0.08);
+  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.1);
 }
 
 .admin-purchase-summary-value {
@@ -4815,6 +4828,25 @@ body.dark-theme .send-history-badge.tag-statistiques { background: rgba(124, 58,
 }
 
 .admin-purchase-meta .admin-prenet-search-label input:focus {
+  border-color: rgba(227, 6, 19, 0.55);
+  box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
+  outline: none;
+}
+
+.admin-purchase-meta .admin-prenet-search-label select {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 14px;
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-purchase-meta .admin-prenet-search-label select:focus {
   border-color: rgba(227, 6, 19, 0.55);
   box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
   outline: none;
