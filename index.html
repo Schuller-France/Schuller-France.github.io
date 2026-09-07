@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening23" />
-    <link rel="icon" href="assets/favicon.ico?v=20260907hardening23" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening23" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening23" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening23" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260907hardening24" />
+    <link rel="icon" href="assets/favicon.ico?v=20260907hardening24" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260907hardening24" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260907hardening24" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260907hardening24" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260907hardening23" />
+    <link rel="stylesheet" href="style.css?v=20260907hardening24" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -159,6 +159,7 @@
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
+        <button class="tab-button is-hidden" type="button" id="adminRuptureTab" data-icon="📦">Rupture</button>
         <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🤝">Référencement <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
         <button class="tab-button is-hidden" type="button" id="adminOffrePrixTab" data-icon="💰">Offre de prix</button>
         <button class="tab-button" type="button" id="problemTab" data-icon="assets/schuller-logo.png">Signaler un problème</button>
@@ -1636,6 +1637,99 @@
         </section>
       </main>
 
+      <main class="app-shell admin-shell is-hidden" id="adminRuptureView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Suivi fournisseur</p>
+            <h2>Articles en rupture</h2>
+            <p>Glissez chaque semaine le PDF "Artikel nicht verfügbar" reçu du fournisseur pour suivre les ruptures en cours, les nouvelles ruptures, les dates de retour repoussées et les retours en stock.</p>
+          </div>
+          <span class="status-pill" id="adminRuptureCount">0 référence</span>
+        </section>
+
+        <section class="panel admin-purchase-panel">
+          <div class="admin-purchase-summary" id="adminRuptureSummary">
+            <button type="button" class="admin-purchase-summary-item is-rupture" data-admin-rupture-filter="">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountTotal">0</span>
+              <span class="admin-purchase-summary-label">Total ruptures</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-nouveau" data-admin-rupture-filter="nouveau">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountNouveau">0</span>
+              <span class="admin-purchase-summary-label">Nouvelles</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-hausse" data-admin-rupture-filter="repousse">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountRepousse">0</span>
+              <span class="admin-purchase-summary-label">Dates repoussées</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-baisse" data-admin-rupture-filter="ameliore">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountAmeliore">0</span>
+              <span class="admin-purchase-summary-label">Dates avancées</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-stable" data-admin-rupture-filter="sansDate">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountSansDate">0</span>
+              <span class="admin-purchase-summary-label">Sans date connue</span>
+            </button>
+            <button type="button" class="admin-purchase-summary-item is-marge-faible" data-admin-rupture-filter="retour">
+              <span class="admin-purchase-summary-value" id="adminRuptureCountRetour">0</span>
+              <span class="admin-purchase-summary-label">Retours en stock</span>
+            </button>
+          </div>
+
+          <div class="admin-purchase-topbar">
+            <div class="admin-purchase-dropzone" id="adminRuptureDropzone">
+              <p><strong>Glissez-déposez</strong> le PDF "Artikel nicht verfügbar" reçu cette semaine ici</p>
+              <p>ou <label class="admin-purchase-filelabel" for="adminRuptureFileInput">choisissez un fichier</label></p>
+              <input id="adminRuptureFileInput" type="file" accept=".pdf" class="is-visually-hidden" />
+            </div>
+            <div class="admin-purchase-meta">
+              <p id="adminRuptureLastImport">Aucun import pour le moment.</p>
+              <label class="admin-prenet-search-label">
+                Rechercher (référence ou désignation)
+                <input id="adminRuptureSearch" type="search" autocomplete="off" placeholder="Tapez une référence ou une désignation…" />
+              </label>
+              <label class="admin-prenet-search-label">
+                Statut
+                <select id="adminRuptureStatusSelect">
+                  <option value="">Tous</option>
+                  <option value="nouveau">Nouveau</option>
+                  <option value="repousse">Date repoussée</option>
+                  <option value="ameliore">Date avancée</option>
+                  <option value="toujours">Toujours en rupture</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <p class="admin-prenet-status" id="adminRuptureStatus"></p>
+
+          <div id="adminRuptureRetourBox" class="admin-purchase-topbar is-hidden"></div>
+
+          <div class="admin-log-wrap">
+            <table class="admin-log-table admin-purchase-table">
+              <thead>
+                <tr>
+                  <th>Référence</th>
+                  <th>Désignation</th>
+                  <th>Cond.</th>
+                  <th class="admin-purchase-sortable" data-admin-rupture-sort="returnDate">
+                    <button type="button" data-admin-rupture-sort-btn="returnDate">Retour prévu <span class="admin-prenet-sort-icon" data-admin-rupture-sort-icon="returnDate"></span></button>
+                  </th>
+                  <th class="admin-purchase-sortable" data-admin-rupture-sort="week">
+                    <button type="button" data-admin-rupture-sort-btn="week">Semaine <span class="admin-prenet-sort-icon" data-admin-rupture-sort-icon="week"></span></button>
+                  </th>
+                  <th>Statut</th>
+                  <th>Depuis</th>
+                  <th>Historique</th>
+                </tr>
+              </thead>
+              <tbody id="adminRuptureBody">
+                <tr><td colspan="8" class="admin-empty">Déposez le PDF fournisseur ci-dessus pour lancer le premier suivi.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell admin-shell is-hidden" id="adminCentralesView">
         <section class="panel admin-hero">
           <div>
@@ -1757,10 +1851,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260907hardening23" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260907hardening24" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="script.js?v=20260907hardening23" charset="UTF-8"></script>
+    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="script.js?v=20260907hardening24" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

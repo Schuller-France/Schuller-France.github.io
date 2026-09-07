@@ -1,4 +1,7 @@
 ﻿const APP_BUILD_VERSION = "2026-08-27.3";
+if (window.pdfjsLib) {
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+}
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("#appBuildVersion, #appBuildVersionMenu").forEach((el) => {
     el.textContent = `Version ${APP_BUILD_VERSION}`;
@@ -37,6 +40,14 @@ let adminPurchaseImporting = false;
 let adminPurchaseSortField = null; // "sellingPrice" | "newPa" | "gap" | "margin" | null
 let adminPurchaseSortDirection = "asc";
 let adminPurchaseStatusFilter = ""; // "" | "hausse" | "baisse" | "stable" | "nouveau" | "rupture" | "margeFaible"
+let adminRuptureLastDiff = null; // { date, previousDate, rows: [...], retours: [...], summary: {...} }
+let adminRuptureLoaded = false;
+let adminRuptureImporting = false;
+let adminRuptureSortField = null; // "returnDate" | "week" | null
+let adminRuptureSortDirection = "asc";
+let adminRuptureStatusFilter = ""; // "" | "nouveau" | "repousse" | "ameliore" | "toujours" | "sansDate"
+let adminRuptureOpenHistoryRef = null;
+let adminRuptureHistoryCache = {}; // ref -> entries[]
 let lines = [];
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
@@ -539,6 +550,24 @@ const adminPurchaseStatusSelect = document.querySelector("#adminPurchaseStatusSe
 const adminPurchaseSummary = document.querySelector("#adminPurchaseSummary");
 const adminPurchaseStatus = document.querySelector("#adminPurchaseStatus");
 const adminPurchaseBody = document.querySelector("#adminPurchaseBody");
+const adminRuptureTab = document.querySelector("#adminRuptureTab");
+const adminRuptureView = document.querySelector("#adminRuptureView");
+const adminRuptureCount = document.querySelector("#adminRuptureCount");
+const adminRuptureCountTotal = document.querySelector("#adminRuptureCountTotal");
+const adminRuptureCountNouveau = document.querySelector("#adminRuptureCountNouveau");
+const adminRuptureCountRepousse = document.querySelector("#adminRuptureCountRepousse");
+const adminRuptureCountAmeliore = document.querySelector("#adminRuptureCountAmeliore");
+const adminRuptureCountSansDate = document.querySelector("#adminRuptureCountSansDate");
+const adminRuptureCountRetour = document.querySelector("#adminRuptureCountRetour");
+const adminRuptureDropzone = document.querySelector("#adminRuptureDropzone");
+const adminRuptureFileInput = document.querySelector("#adminRuptureFileInput");
+const adminRuptureLastImport = document.querySelector("#adminRuptureLastImport");
+const adminRuptureSearch = document.querySelector("#adminRuptureSearch");
+const adminRuptureStatusSelect = document.querySelector("#adminRuptureStatusSelect");
+const adminRuptureSummary = document.querySelector("#adminRuptureSummary");
+const adminRuptureStatus = document.querySelector("#adminRuptureStatus");
+const adminRuptureBody = document.querySelector("#adminRuptureBody");
+const adminRuptureRetourBox = document.querySelector("#adminRuptureRetourBox");
 const tutorialSteps = document.querySelector("#tutorialSteps");
 const tutorialProgressBar = document.querySelector("#tutorialProgressBar");
 const tutorialProgressText = document.querySelector("#tutorialProgressText");
@@ -3212,6 +3241,266 @@ async function saveAdminPurchasePrice(ref, rawValue) {
   renderAdminPurchase();
 }
 
+const RUPTURE_STATUS_LABELS = {
+  nouveau: "Nouveau",
+  repousse: "Date repoussée",
+  ameliore: "Date avancée",
+  toujours: "Toujours en rupture",
+};
+const RUPTURE_STATUS_BADGE_CLASS = {
+  nouveau: "is-nouveau",
+  repousse: "is-hausse",
+  ameliore: "is-baisse",
+  toujours: "is-stable",
+};
+
+async function extractRupturePdfLines(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const lines = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const rowsByY = new Map();
+    content.items.forEach((item) => {
+      const y = Math.round(item.transform[5]);
+      if (!rowsByY.has(y)) rowsByY.set(y, []);
+      rowsByY.get(y).push(item);
+    });
+    const sortedYs = Array.from(rowsByY.keys()).sort((a, b) => b - a);
+    sortedYs.forEach((y) => {
+      const items = rowsByY.get(y).sort((a, b) => a.transform[4] - b.transform[4]);
+      const text = items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+      if (text) lines.push(text);
+    });
+  }
+  return lines;
+}
+
+function parseRuptureExportLines(lines) {
+  const rows = [];
+  const lineRe = /^(\d{3,})\s+(.+?)\s+([\d.,]+)\s+([\d.,]+)(?:\s+(\d{2}\.\d{2}\.\d{4})\s+(\d+))?$/;
+  lines.forEach((line) => {
+    const match = line.match(lineRe);
+    if (!match) return;
+    const ref = match[1].trim();
+    const designation = match[2].trim();
+    const packQtyRaw = match[3];
+    const stockRaw = match[4];
+    const returnDate = match[5] || null;
+    const week = match[6] ? parseInt(match[6], 10) : null;
+    if (/gesamtsumme/i.test(ref) || /gesamtsumme/i.test(designation)) return;
+    rows.push({
+      ref,
+      designation,
+      packQty: parseFloat(packQtyRaw.replace(",", ".")),
+      stock: parseFloat(stockRaw.replace(",", ".")),
+      returnDate,
+      week,
+    });
+  });
+  return rows;
+}
+
+async function handleAdminRuptureFile(file) {
+  if (!file || adminRuptureImporting) return;
+  adminRuptureImporting = true;
+  if (adminRuptureStatus) adminRuptureStatus.textContent = "Lecture du fichier...";
+  if (adminRuptureDropzone) adminRuptureDropzone.classList.add("is-dragover");
+  try {
+    const lines = await extractRupturePdfLines(file);
+    const rows = parseRuptureExportLines(lines);
+    if (!rows.length) {
+      if (adminRuptureStatus) adminRuptureStatus.textContent = "Aucune ligne exploitable trouvée dans ce PDF.";
+      return;
+    }
+    if (adminRuptureStatus) adminRuptureStatus.textContent = `Import de ${rows.length} référence(s) en cours...`;
+    const result = await postService({ action: "importRuptureExport", rows: JSON.stringify(rows) });
+    adminRuptureLastDiff = result.lastDiff || null;
+    adminRuptureOpenHistoryRef = null;
+    adminRuptureHistoryCache = {};
+    if (adminRuptureStatus) {
+      const s = adminRuptureLastDiff?.summary || {};
+      adminRuptureStatus.textContent = `Suivi mis à jour : ${formatNumber(s.nouveau || 0)} nouvelle(s), ${formatNumber(s.repousse || 0)} date(s) repoussée(s), ${formatNumber(s.retour || 0)} retour(s) en stock.`;
+    }
+    renderAdminRupture();
+  } catch (error) {
+    if (adminRuptureStatus) adminRuptureStatus.textContent = error.message || "Import impossible. Vérifiez le fichier puis réessayez.";
+  } finally {
+    adminRuptureImporting = false;
+    if (adminRuptureDropzone) adminRuptureDropzone.classList.remove("is-dragover");
+  }
+}
+
+async function loadRuptureComparatif() {
+  if (!adminRuptureBody) return;
+  if (adminRuptureStatus) adminRuptureStatus.textContent = "Chargement du suivi...";
+  try {
+    const result = await postService({ action: "getRuptureComparatif" });
+    adminRuptureLastDiff = result.lastDiff || null;
+    adminRuptureLoaded = true;
+    if (adminRuptureStatus) adminRuptureStatus.textContent = "";
+  } catch (error) {
+    if (adminRuptureStatus) adminRuptureStatus.textContent = error.message || "Suivi indisponible pour le moment.";
+  }
+  renderAdminRupture();
+}
+
+function getAdminRuptureRows() {
+  let rows = adminRuptureLastDiff && Array.isArray(adminRuptureLastDiff.rows) ? adminRuptureLastDiff.rows.map((row) => ({ ...row })) : [];
+  const query = normalize(adminRuptureSearch?.value || "");
+  if (query) {
+    rows = rows.filter((row) => normalize([row.ref, row.designation].filter(Boolean).join(" ")).includes(query));
+  }
+  if (adminRuptureStatusFilter === "sansDate") {
+    rows = rows.filter((row) => !row.returnDate);
+  } else if (adminRuptureStatusFilter) {
+    rows = rows.filter((row) => row.status === adminRuptureStatusFilter);
+  }
+  if (adminRuptureSortField) {
+    const field = adminRuptureSortField;
+    const toMs = (value) => {
+      if (!value) return null;
+      const parts = String(value).split(".");
+      return parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]).getTime() : null;
+    };
+    rows.sort((a, b) => {
+      let diff = 0;
+      if (field === "returnDate") {
+        const ma = toMs(a.returnDate);
+        const mb = toMs(b.returnDate);
+        if (ma === null && mb === null) diff = 0;
+        else if (ma === null) diff = 1;
+        else if (mb === null) diff = -1;
+        else diff = ma - mb;
+      } else if (field === "week") {
+        const wa = a.week == null ? Infinity : a.week;
+        const wb = b.week == null ? Infinity : b.week;
+        diff = wa - wb;
+      }
+      return adminRuptureSortDirection === "desc" ? -diff : diff;
+    });
+  }
+  return rows;
+}
+
+function setAdminRuptureSort(field) {
+  if (adminRuptureSortField === field) {
+    adminRuptureSortDirection = adminRuptureSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    adminRuptureSortField = field;
+    adminRuptureSortDirection = "asc";
+  }
+  renderAdminRupture();
+}
+
+function setAdminRuptureStatusFilter(status) {
+  adminRuptureStatusFilter = adminRuptureStatusFilter === status ? "" : status;
+  renderAdminRupture();
+}
+
+function renderAdminRuptureSummary() {
+  const summary = adminRuptureLastDiff?.summary || {};
+  if (adminRuptureCountTotal) adminRuptureCountTotal.textContent = formatNumber(summary.total || 0);
+  if (adminRuptureCountNouveau) adminRuptureCountNouveau.textContent = formatNumber(summary.nouveau || 0);
+  if (adminRuptureCountRepousse) adminRuptureCountRepousse.textContent = formatNumber(summary.repousse || 0);
+  if (adminRuptureCountAmeliore) adminRuptureCountAmeliore.textContent = formatNumber(summary.ameliore || 0);
+  if (adminRuptureCountSansDate) adminRuptureCountSansDate.textContent = formatNumber(summary.sansDate || 0);
+  if (adminRuptureCountRetour) adminRuptureCountRetour.textContent = formatNumber(summary.retour || 0);
+  if (adminRuptureLastImport) {
+    adminRuptureLastImport.textContent = adminRuptureLastDiff
+      ? `Dernier import : ${adminRuptureLastDiff.date}${adminRuptureLastDiff.previousDate ? ` (comparé au ${adminRuptureLastDiff.previousDate})` : " (premier import)"}`
+      : "Aucun import pour le moment.";
+  }
+  adminRuptureSummary?.querySelectorAll("[data-admin-rupture-filter]").forEach((button) => {
+    const status = button.dataset.adminRuptureFilter;
+    button.classList.toggle("is-active", status !== "retour" && status === adminRuptureStatusFilter);
+  });
+  if (adminRuptureStatusSelect) {
+    adminRuptureStatusSelect.value = adminRuptureStatusFilter === "sansDate" ? "" : adminRuptureStatusFilter;
+  }
+  const retours = adminRuptureLastDiff?.retours || [];
+  if (adminRuptureRetourBox) {
+    if (!retours.length) {
+      adminRuptureRetourBox.classList.add("is-hidden");
+      adminRuptureRetourBox.innerHTML = "";
+    } else {
+      adminRuptureRetourBox.classList.remove("is-hidden");
+      const list = retours.map((r) => escapeHtml(`${r.ref || ""} - ${r.designation || ""}`)).join(" • ");
+      adminRuptureRetourBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>${retours.length} référence(s) de retour en stock cette semaine :</strong> ${list}</p></div>`;
+    }
+  }
+}
+
+function renderAdminRuptureRows(rows) {
+  if (!adminRuptureBody) return;
+  if (!rows.length) {
+    const message = adminRuptureLoaded ? "Aucune référence ne correspond à ce filtre." : "Chargement...";
+    adminRuptureBody.innerHTML = `<tr><td colspan="8" class="admin-empty">${escapeHtml(message)}</td></tr>`;
+    return;
+  }
+  adminRuptureBody.innerHTML = rows.map((row) => {
+    const badgeClass = RUPTURE_STATUS_BADGE_CLASS[row.status] || "is-stable";
+    const statusLabel = RUPTURE_STATUS_LABELS[row.status] || row.status || "-";
+    const isOpen = adminRuptureOpenHistoryRef === row.ref;
+    let historyHtml = "";
+    if (isOpen) {
+      const historyEntries = adminRuptureHistoryCache[row.ref];
+      if (Array.isArray(historyEntries)) {
+        historyHtml = historyEntries.length
+          ? `<ul class="admin-rupture-history-list">${historyEntries.map((h) => `<li>${escapeHtml(h.date || "-")} : ${h.backInStock ? "retour en stock" : `retour prévu ${escapeHtml(h.returnDate || "date inconnue")}${h.week ? ` (sem. ${escapeHtml(String(h.week))})` : ""}`}</li>`).join("")}</ul>`
+          : `<p class="admin-empty">Aucun historique disponible.</p>`;
+      } else {
+        historyHtml = `<p class="admin-empty">Chargement de l'historique...</p>`;
+      }
+    }
+    const mainRow = `
+    <tr data-admin-rupture-row="${escapeHtml(row.ref || "")}">
+      <td><strong>${escapeHtml(row.ref || "-")}</strong></td>
+      <td>${escapeHtml(row.designation || "-")}</td>
+      <td class="numeric">${row.packQty != null ? formatNumber(row.packQty) : "-"}</td>
+      <td class="numeric">${row.returnDate ? escapeHtml(row.returnDate) : "—"}${row.previousReturnDate && row.previousReturnDate !== row.returnDate ? `<small>était ${escapeHtml(row.previousReturnDate)}</small>` : ""}</td>
+      <td class="numeric">${row.week != null ? row.week : "-"}</td>
+      <td><span class="admin-purchase-badge ${badgeClass}">${escapeHtml(statusLabel)}</span></td>
+      <td>${escapeHtml(row.sinceDate || "-")}</td>
+      <td><button type="button" class="ghost-button compact" data-admin-rupture-history-btn="${escapeHtml(row.ref || "")}">${isOpen ? "Masquer" : "Voir"}</button></td>
+    </tr>`;
+    const historyRow = isOpen ? `<tr class="admin-rupture-history-row"><td colspan="8">${historyHtml}</td></tr>` : "";
+    return mainRow + historyRow;
+  }).join("");
+}
+
+function renderAdminRupture() {
+  const rows = getAdminRuptureRows();
+  if (adminRuptureCount) adminRuptureCount.textContent = `${formatNumber(rows.length)} référence${rows.length > 1 ? "s" : ""}`;
+  renderAdminRuptureRows(rows);
+  renderAdminRuptureSummary();
+  document.querySelectorAll("[data-admin-rupture-sort-icon]").forEach((icon) => {
+    const field = icon.dataset.adminRuptureSortIcon;
+    icon.classList.remove("is-asc", "is-desc");
+    if (adminRuptureSortField === field) icon.classList.add(adminRuptureSortDirection === "desc" ? "is-desc" : "is-asc");
+  });
+}
+
+async function toggleAdminRuptureHistory(ref) {
+  if (adminRuptureOpenHistoryRef === ref) {
+    adminRuptureOpenHistoryRef = null;
+    renderAdminRupture();
+    return;
+  }
+  adminRuptureOpenHistoryRef = ref;
+  renderAdminRupture();
+  if (!adminRuptureHistoryCache[ref]) {
+    try {
+      const result = await postService({ action: "getRuptureHistory", ref });
+      adminRuptureHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
+    } catch (error) {
+      adminRuptureHistoryCache[ref] = [];
+    }
+    if (adminRuptureOpenHistoryRef === ref) renderAdminRupture();
+  }
+}
+
 function sanitizeDownloadName(value) {
   return String(value || "prix-nets")
     .normalize("NFD")
@@ -5335,8 +5624,9 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(prospectionTab, adminTab.nextSibling);
     appTabs.insertBefore(adminPrenetTab, prospectionTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminPurchaseTab.nextSibling);
-    appTabs.insertBefore(adminCentralesTab, adminPurchaseTab.nextSibling);
+    appTabs.insertBefore(adminRuptureTab, adminPurchaseTab.nextSibling);
+    appTabs.insertBefore(tourTab, adminRuptureTab.nextSibling);
+    appTabs.insertBefore(adminCentralesTab, adminRuptureTab.nextSibling);
     if (adminOffrePrixTab) appTabs.insertBefore(adminOffrePrixTab, adminCentralesTab.nextSibling);
     appTabs.insertBefore(tourTab, (adminOffrePrixTab || adminCentralesTab).nextSibling);
     appTabs.insertBefore(adminExecutiveExpensesTab, tourTab.nextSibling);
@@ -5364,6 +5654,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminExecutiveExpensesTab);
   appTabs.appendChild(adminPrenetTab);
   appTabs.appendChild(adminPurchaseTab);
+  appTabs.appendChild(adminRuptureTab);
   appTabs.appendChild(problemTab);
 }
 
@@ -5770,6 +6061,7 @@ function showApp(user, token = user.token || "") {
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
+  adminRuptureTab?.classList.toggle("is-hidden", !isAdmin);
   adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
   adminOffrePrixTab?.classList.toggle("is-hidden", !isAdmin);
   prospectionRecords = mergeProspectionRecords(prospectionRecords);
@@ -10438,6 +10730,7 @@ function setActiveTab(tabName) {
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
   const showAdminPrenet = tabName === "adminPrenet";
   const showAdminPurchase = tabName === "adminPurchase";
+  const showAdminRupture = tabName === "adminRupture";
   const showAdminCentrales = tabName === "adminCentrales";
   const showAdminOffrePrix = tabName === "adminOffrePrix";
   tutorialTab?.classList.toggle("is-active", showTutorial);
@@ -10461,6 +10754,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
+  adminRuptureTab?.classList.toggle("is-active", showAdminRupture);
   adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
   adminOffrePrixTab?.classList.toggle("is-active", showAdminOffrePrix);
   tutorialView?.classList.toggle("is-hidden", !showTutorial);
@@ -10484,6 +10778,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
   adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
+  adminRuptureView?.classList.toggle("is-hidden", !showAdminRupture);
   adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
   adminOffrePrixView?.classList.toggle("is-hidden", !showAdminOffrePrix);
 
@@ -10563,6 +10858,11 @@ function setActiveTab(tabName) {
   if (showAdminPurchase) {
     loadPurchaseComparatif();
     requestAnimationFrame(() => adminPurchaseSearch?.focus());
+  }
+
+  if (showAdminRupture) {
+    loadRuptureComparatif();
+    requestAnimationFrame(() => adminRuptureSearch?.focus());
   }
 
   if (showAdminCentrales) {
@@ -11209,6 +11509,49 @@ adminPurchaseBody?.addEventListener("change", (event) => {
   if (!input) return;
   saveAdminPurchasePrice(input.dataset.adminPurchasePriceInput, input.value);
 });
+adminRuptureFileInput?.addEventListener("change", () => {
+  const file = adminRuptureFileInput.files?.[0];
+  if (file) handleAdminRuptureFile(file);
+  adminRuptureFileInput.value = "";
+});
+if (adminRuptureDropzone) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    adminRuptureDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      adminRuptureDropzone.classList.add("is-dragover");
+    });
+  });
+  ["dragleave", "dragend"].forEach((eventName) => {
+    adminRuptureDropzone.addEventListener(eventName, () => adminRuptureDropzone.classList.remove("is-dragover"));
+  });
+  adminRuptureDropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    adminRuptureDropzone.classList.remove("is-dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) handleAdminRuptureFile(file);
+  });
+}
+adminRuptureSearch?.addEventListener("input", () => renderAdminRupture());
+adminRuptureStatusSelect?.addEventListener("change", () => setAdminRuptureStatusFilter(adminRuptureStatusSelect.value));
+adminRuptureSummary?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-rupture-filter]");
+  if (!button) return;
+  const status = button.dataset.adminRuptureFilter;
+  if (status === "retour") {
+    adminRuptureRetourBox?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  setAdminRuptureStatusFilter(status);
+});
+document.querySelectorAll("[data-admin-rupture-sort-btn]").forEach((button) => {
+  button.addEventListener("click", () => setAdminRuptureSort(button.dataset.adminRuptureSortBtn));
+});
+adminRuptureBody?.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-admin-rupture-history-btn]");
+  if (!btn) return;
+  toggleAdminRuptureHistory(btn.dataset.adminRuptureHistoryBtn);
+});
+adminRuptureTab?.addEventListener("click", () => setActiveTab("adminRupture"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
