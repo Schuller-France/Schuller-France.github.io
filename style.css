@@ -3440,7 +3440,7 @@ h2 {
 
 .prenet-send-form {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(160px, .8fr);
+  grid-template-columns: minmax(220px, 1fr) auto auto minmax(160px, .8fr);
   gap: 12px;
   align-items: end;
   padding: 18px 30px;
@@ -3471,7 +3471,8 @@ h2 {
   outline: 3px solid rgba(227, 6, 19, 0.1);
 }
 
-.prenet-send-form .primary-button {
+.prenet-send-form .primary-button,
+.prenet-send-form .ghost-button {
   min-height: 48px;
 }
 

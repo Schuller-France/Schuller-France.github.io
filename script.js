@@ -654,6 +654,7 @@ const prenetSendForm = document.querySelector("#prenetSendForm");
 const prenetRecipient = document.querySelector("#prenetRecipient");
 const prenetSendStatus = document.querySelector("#prenetSendStatus");
 const sendPrenetPrices = document.querySelector("#sendPrenetPrices");
+const previewPrenetPrices = document.querySelector("#previewPrenetPrices");
 const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
 const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
@@ -2408,6 +2409,60 @@ function resetPrenetSendForm() {
     prenetSendStatus.className = "tarif-send-status";
   }
   if (sendPrenetPrices) sendPrenetPrices.disabled = false;
+  if (previewPrenetPrices) previewPrenetPrices.disabled = false;
+}
+
+async function previewCommercialPrenetPrices() {
+  if (!selectedPrenetClient) {
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = "Sélectionnez d'abord un client.";
+      prenetSendStatus.className = "tarif-send-status is-error";
+    }
+    return;
+  }
+  const rows = getCommercialPrenetRows(selectedPrenetClient);
+  if (!rows.length) {
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = "Aucun prix net à prévisualiser.";
+      prenetSendStatus.className = "tarif-send-status is-error";
+    }
+    return;
+  }
+  const commercial = getAdminCommercialForPrenetClient(selectedPrenetClient) || currentUser || {};
+  if (previewPrenetPrices) previewPrenetPrices.disabled = true;
+  if (prenetSendStatus) {
+    prenetSendStatus.dataset.keepMessage = "1";
+    prenetSendStatus.textContent = "Préparation de l'aperçu...";
+    prenetSendStatus.className = "tarif-send-status";
+  }
+  // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
+  // navigateur ne bloque le window.open() une fois la réponse serveur arrivée (après un await).
+  const previewWindow = window.open("", "_blank");
+  try {
+    const result = await postService({
+      action: "buildAdminPrenetPricesPdf",
+      client: JSON.stringify({
+        name: selectedPrenetClient.name || "",
+        code: selectedPrenetClient.code || "",
+        sector: normalizeStatsSector(selectedPrenetClient.sector || "") || selectedPrenetClient.sector || "",
+        commercial: commercial.name || currentUser?.name || "",
+        address: formatAdminPrenetClientAddress(selectedPrenetClient),
+      }),
+      rows: JSON.stringify(rows),
+    });
+    if (!result.data) throw new Error("Aperçu indisponible.");
+    previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
+    if (prenetSendStatus) prenetSendStatus.textContent = "Aperçu généré.";
+  } catch (error) {
+    previewWindow?.close();
+    if (prenetSendStatus) {
+      prenetSendStatus.textContent = error.message || "Aperçu impossible.";
+      prenetSendStatus.className = "tarif-send-status is-error";
+    }
+  } finally {
+    if (previewPrenetPrices) previewPrenetPrices.disabled = false;
+    if (prenetSendStatus) delete prenetSendStatus.dataset.keepMessage;
+  }
 }
 
 function showPrenetSendForm(client) {
@@ -11508,6 +11563,7 @@ homeRemindersList.addEventListener("click", (event) => {
 });
 prenetClientSearch.addEventListener("input", (event) => handlePrenetClientSearchInput(event.target.value));
 prenetSendForm?.addEventListener("submit", sendCommercialPrenetPrices);
+previewPrenetPrices?.addEventListener("click", previewCommercialPrenetPrices);
 prenetResult.addEventListener("input", (event) => {
   if (event.target?.id !== "prenetReferenceSearch" || !selectedPrenetClient) return;
   const results = document.querySelector("#prenetReferenceResults");
