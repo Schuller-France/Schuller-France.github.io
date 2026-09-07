@@ -836,14 +836,15 @@ async function postService(parameters) {
     setSyncStatus("local", "Local");
     throw new Error("Service indisponible.");
   }
-  const { skipSessionToken = false, ...payload } = parameters;
+  const { skipSessionToken = false, timeoutMs, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   const action = String(payload.action || "");
   const maxAttempts = POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
+  const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_MS;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), POST_SERVICE_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeoutMs);
     let response;
     try {
       response = await fetch(tariffConfig.endpoint, {
@@ -3603,8 +3604,26 @@ async function handleAdminStockFile(file) {
       if (adminStockStatus) adminStockStatus.textContent = "Aucune ligne exploitable trouvée dans ce fichier (colonnes Artikel/Bezeichnung/Lagermenge attendues).";
       return;
     }
-    if (adminStockStatus) adminStockStatus.textContent = `Import de ${rows.length} référence(s) en cours...`;
-    const result = await postService({ action: "importStockExport", rows: JSON.stringify(rows) });
+    if (adminStockStatus) adminStockStatus.textContent = `Import de ${rows.length} référence(s) en cours... (peut prendre jusqu'à une minute pour un fichier complet)`;
+    let result;
+    try {
+      result = await postService({ action: "importStockExport", rows: JSON.stringify(rows), timeoutMs: 90000 });
+    } catch (importError) {
+      // Le traitement cote serveur continue meme si le client abandonne l'attente :
+      // on verifie si l'import a quand meme abouti avant d'afficher une erreur.
+      if (adminStockStatus) adminStockStatus.textContent = "Toujours en cours... verification du resultat.";
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const check = await postService({ action: "getStockComparatif" }).catch(() => null);
+      const checkDate = check?.lastDiff?.date;
+      const today = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", year: "numeric" })
+        .format(new Date())
+        .replace(/\./g, "/");
+      if (checkDate === today) {
+        result = check;
+      } else {
+        throw importError;
+      }
+    }
     adminStockLastDiff = result.lastDiff || null;
     adminStockOpenHistoryRef = null;
     adminStockHistoryCache = {};
