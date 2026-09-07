@@ -3435,7 +3435,10 @@ function renderAdminRuptureSummary() {
 function renderAdminRuptureRows(rows) {
   if (!adminRuptureBody) return;
   if (!rows.length) {
-    const message = adminRuptureLoaded ? "Aucune référence ne correspond à ce filtre." : "Chargement...";
+    let message = "Chargement...";
+    if (adminRuptureLoaded) {
+      message = adminRuptureLastDiff ? "Aucune référence ne correspond à ce filtre." : "Déposez le PDF fournisseur ci-dessus pour lancer le premier suivi.";
+    }
     adminRuptureBody.innerHTML = `<tr><td colspan="8" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
   }
