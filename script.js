@@ -1,4 +1,4 @@
-﻿const APP_BUILD_VERSION = "2026-08-27.3";
+const APP_BUILD_VERSION = "2026-09-08.2";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -126,6 +126,8 @@ const prospectionLocalStorageKey = "schullerProspectionFollowup";
 const prospectionDismissedStorageKey = "schullerProspectionDismissed";
 const orderDraftStorageKey = "schullerOrderDraft";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
+let deliveryOrderHistory = [];
+let deliveryOrderHistoryLoaded = false;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -440,6 +442,14 @@ const quoteView = document.querySelector("#quoteView");
 const sampleView = document.querySelector("#sampleView");
 const expensesView = document.querySelector("#expensesView");
 const historyView = document.querySelector("#historyView");
+const historyDescription = document.querySelector("#historyDescription");
+const historyRefresh = document.querySelector("#historyRefresh");
+const historySearch = document.querySelector("#historySearch");
+const historyCommercialField = document.querySelector("#historyCommercialField");
+const historyCommercialFilter = document.querySelector("#historyCommercialFilter");
+const historySort = document.querySelector("#historySort");
+const historySummary = document.querySelector("#historySummary");
+const deliveryHistoryList = document.querySelector("#deliveryHistoryList");
 const notesView = document.querySelector("#notesView");
 const tourView = document.querySelector("#tourView");
 const backlogView = document.querySelector("#backlogView");
@@ -850,7 +860,7 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 const POST_SERVICE_TIMEOUT_MS = 25000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
-const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "login", "session"]);
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "getDeliveryOrderHistory", "login", "session"]);
 
 async function postService(parameters) {
   setSyncStatus("syncing", "Synchro...");
@@ -4429,6 +4439,98 @@ function renderDashboard(user) {
   markTutorialTabDone("notes");
 }
 
+function deliveryHistoryDateValue(value) {
+  const text = String(value || "").trim();
+  const french = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (french) return Date.parse(`${french[3]}-${french[2]}-${french[1]}T00:00:00`);
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function populateDeliveryHistoryCommercials() {
+  if (!historyCommercialFilter) return;
+  const selected = historyCommercialFilter.value || "all";
+  const values = [...new Map(deliveryOrderHistory
+    .filter((order) => order.commercialId || order.commercialName)
+    .map((order) => [order.commercialId || order.commercialName, order.commercialName || order.commercialId])).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], "fr"));
+  historyCommercialFilter.innerHTML = '<option value="all">Tous les commerciaux</option>'
+    + values.map(([id, name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
+  historyCommercialFilter.value = values.some(([id]) => id === selected) ? selected : "all";
+}
+
+function renderDeliveryOrderHistory() {
+  if (!deliveryHistoryList || !historySummary) return;
+  const query = normalize(historySearch?.value || "").trim();
+  const commercial = historyCommercialFilter?.value || "all";
+  const sort = historySort?.value || "dateDesc";
+  const orders = deliveryOrderHistory.filter((order) => {
+    if (commercial !== "all" && String(order.commercialId || order.commercialName) !== commercial) return false;
+    if (!query) return true;
+    const haystack = [order.number, order.clientCode, order.clientName, order.commercialName, order.date]
+      .concat((order.lines || []).flatMap((line) => [line.reference, line.designation, line.gencode]))
+      .map((value) => normalize(value || "")).join(" ");
+    return haystack.includes(query);
+  });
+  orders.sort((a, b) => {
+    if (sort === "dateAsc") return deliveryHistoryDateValue(a.date) - deliveryHistoryDateValue(b.date);
+    if (sort === "clientAsc") return String(a.clientName || "").localeCompare(String(b.clientName || ""), "fr");
+    if (sort === "commercialAsc") return String(a.commercialName || "").localeCompare(String(b.commercialName || ""), "fr");
+    if (sort === "totalDesc") return Number(b.totalHt || 0) - Number(a.totalHt || 0);
+    return deliveryHistoryDateValue(b.date) - deliveryHistoryDateValue(a.date);
+  });
+  const total = orders.reduce((sum, order) => sum + (Number(order.totalHt) || 0), 0);
+  historySummary.textContent = `${orders.length} commande${orders.length > 1 ? "s" : ""} · ${formatter.format(total)} HT`;
+  if (!orders.length) {
+    deliveryHistoryList.innerHTML = '<div class="delivery-history-empty"><strong>Aucune commande trouvée</strong><span>Modifiez les filtres ou actualisez les données.</span></div>';
+    return;
+  }
+  deliveryHistoryList.innerHTML = orders.map((order) => {
+    const lines = Array.isArray(order.lines) ? order.lines : [];
+    const commercialLabel = order.commercialName || order.sector || "Commercial non identifié";
+    return `
+      <details class="delivery-order-card">
+        <summary>
+          <span class="delivery-order-chevron" aria-hidden="true"></span>
+          <span class="delivery-order-main"><strong>${escapeHtml(order.clientName || "Client non identifié")}</strong><small>${escapeHtml(order.clientCode || "Code client inconnu")}</small></span>
+          <span><small>Bon de livraison</small><strong>${escapeHtml(order.number || "-")}</strong></span>
+          <span><small>Date</small><strong>${escapeHtml(order.date || "-")}</strong></span>
+          <span class="delivery-order-commercial"><small>Commercial</small><strong>${escapeHtml(commercialLabel)}</strong></span>
+          <span class="delivery-order-total"><small>Total HT</small><strong>${escapeHtml(formatter.format(Number(order.totalHt) || 0))}</strong></span>
+        </summary>
+        <div class="delivery-order-details">
+          <div class="delivery-order-meta"><span>${lines.length} produit${lines.length > 1 ? "s" : ""}</span>${order.reference ? `<span>Référence client : ${escapeHtml(order.reference)}</span>` : ""}</div>
+          <div class="delivery-order-table-wrap">
+            <table class="delivery-order-table">
+              <thead><tr><th>Référence</th><th>Désignation</th><th>Qté</th><th>Prix net HT</th><th>Total HT</th></tr></thead>
+              <tbody>${lines.map((line) => `<tr><td><strong>${escapeHtml(line.reference || "-")}</strong>${line.gencode ? `<small>${escapeHtml(line.gencode)}</small>` : ""}</td><td>${escapeHtml(line.designation || "-")}</td><td>${escapeHtml(String(line.quantity ?? "-"))}</td><td>${escapeHtml(formatter.format(Number(line.netUnitPrice) || 0))}</td><td><strong>${escapeHtml(formatter.format(Number(line.totalHt) || 0))}</strong></td></tr>`).join("") || '<tr><td colspan="5">Aucune ligne disponible.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>`;
+  }).join("");
+}
+
+async function loadDeliveryOrderHistory(force = false) {
+  if (!deliveryHistoryList || !currentSessionToken || (deliveryOrderHistoryLoaded && !force)) {
+    renderDeliveryOrderHistory();
+    return;
+  }
+  historySummary.textContent = "Chargement de l’historique…";
+  deliveryHistoryList.innerHTML = '<div class="delivery-history-empty">Connexion aux bons de livraison…</div>';
+  try {
+    const result = await postService({ action: "getDeliveryOrderHistory", token: currentSessionToken });
+    if (!result?.ok) throw new Error(result?.message || "Historique indisponible.");
+    deliveryOrderHistory = Array.isArray(result.orders) ? result.orders : [];
+    deliveryOrderHistoryLoaded = true;
+    populateDeliveryHistoryCommercials();
+    renderDeliveryOrderHistory();
+  } catch (error) {
+    historySummary.textContent = "Historique indisponible";
+    deliveryHistoryList.innerHTML = `<div class="delivery-history-empty"><strong>Impossible de charger les commandes</strong><span>${escapeHtml(error.message || "Réessayez dans quelques instants.")}</span></div>`;
+  }
+}
+
 function escapeHtml(value) {
   return value
     .toString()
@@ -5953,6 +6055,10 @@ function arrangeTabsForUser(user) {
       appTabs.insertBefore(adminOrderTab, lastTab.nextSibling);
       lastTab = adminOrderTab;
     }
+    if (historyTab) {
+      appTabs.insertBefore(historyTab, lastTab.nextSibling);
+      lastTab = historyTab;
+    }
     appTabs.insertBefore(adminExecutiveExpensesTab, lastTab.nextSibling);
     appTabs.insertBefore(adminTab, adminExecutiveExpensesTab.nextSibling);
     appTabs.insertBefore(adminCentralesTab, adminTab.nextSibling);
@@ -5968,6 +6074,7 @@ function arrangeTabsForUser(user) {
     client360Tab,
     statsTab,
     orderTab,
+    historyTab,
     quoteTab,
     sampleTab,
     expensesTab,
@@ -6354,8 +6461,8 @@ function getLaunchTabFromUrl() {
 function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
-  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour"]);
-  const commercialTabs = new Set(["home", "client360", "stats", "order", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour", "history"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
     : (commercialTabs.has(tab) ? tab : "");
@@ -6385,6 +6492,13 @@ function showApp(user, token = user.token || "") {
   arrangeTabsForUser(currentUser);
   tutorialTab?.classList.toggle("is-hidden", isAdmin || !isTrainingAccount(currentUser));
   [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab, problemTab].forEach((tab) => tab?.classList.toggle("is-hidden", isAdmin));
+  historyTab?.classList.remove("is-hidden");
+  historyCommercialField?.classList.toggle("is-hidden", !isAdmin);
+  if (historyDescription) historyDescription.textContent = isAdmin
+    ? "Visualisez les commandes de tous les commerciaux, puis filtrez et triez la liste."
+    : "Retrouvez les commandes livrées de vos clients et ouvrez le détail sans quitter la page.";
+  deliveryOrderHistory = [];
+  deliveryOrderHistoryLoaded = false;
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
@@ -11693,6 +11807,7 @@ function setActiveTab(tabName) {
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
   const showOrder = tabName === "order";
+  const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
   const showSample = tabName === "sample";
   const showExpenses = tabName === "expenses";
@@ -11719,6 +11834,7 @@ function setActiveTab(tabName) {
   client360Tab.classList.toggle("is-active", showClient360);
   statsTab.classList.toggle("is-active", showStats);
   orderTab.classList.toggle("is-active", showOrder);
+  historyTab?.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
   sampleTab.classList.toggle("is-active", showSample);
   expensesTab.classList.toggle("is-active", showExpenses);
@@ -11745,6 +11861,7 @@ function setActiveTab(tabName) {
   client360View.classList.toggle("is-hidden", !showClient360);
   statsView.classList.toggle("is-hidden", !showStats);
   orderView.classList.toggle("is-hidden", !showOrder);
+  historyView?.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
   sampleView.classList.toggle("is-hidden", !showSample);
   expensesView.classList.toggle("is-hidden", !showExpenses);
@@ -11768,7 +11885,7 @@ function setActiveTab(tabName) {
   adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", history: "Historique commandes", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -11791,6 +11908,11 @@ function setActiveTab(tabName) {
   if (showOrder) {
     renderOrderHistory();
     requestAnimationFrame(() => clientSearch.focus());
+  }
+
+  if (showHistory) {
+    loadDeliveryOrderHistory();
+    requestAnimationFrame(() => historySearch?.focus());
   }
 
   if (showSample) {
@@ -12471,6 +12593,11 @@ homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
+historyTab?.addEventListener("click", () => setActiveTab("history"));
+historyRefresh?.addEventListener("click", () => loadDeliveryOrderHistory(true));
+historySearch?.addEventListener("input", renderDeliveryOrderHistory);
+historyCommercialFilter?.addEventListener("change", renderDeliveryOrderHistory);
+historySort?.addEventListener("change", renderDeliveryOrderHistory);
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
 sampleTab.addEventListener("click", () => setActiveTab("sample"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));

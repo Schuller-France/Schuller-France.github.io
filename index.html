@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260908pdf1" />
-    <link rel="icon" href="assets/favicon.ico?v=20260908pdf1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260908pdf1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260908pdf1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260908pdf1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260908history1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260908history1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260908history1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260908history1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260908history1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260908pdf1" />
+    <link rel="stylesheet" href="style.css?v=20260908history1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -144,6 +144,7 @@
         <button class="tab-button" type="button" id="client360Tab" data-icon="👤">Fiche client</button>
         <button class="tab-button" type="button" id="statsTab" data-icon="📊">Statistiques</button>
         <button class="tab-button" type="button" id="orderTab" data-icon="🧾">Saisie commande</button>
+        <button class="tab-button" type="button" id="historyTab" data-icon="📋">Historique commandes</button>
         <button class="tab-button" type="button" id="quoteTab" data-icon="📝">Demande de devis</button>
         <button class="tab-button" type="button" id="sampleTab" data-icon="📦">Demande &eacute;chantillon</button>
         <button class="tab-button" type="button" id="expensesTab" data-icon="💳">Frais</button>
@@ -335,6 +336,45 @@
               <div class="client360-list" id="client360Orders"></div>
             </article>
           </section>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="historyView">
+        <section class="panel delivery-history-panel" aria-labelledby="historyTitle">
+          <div class="panel-heading delivery-history-heading">
+            <div>
+              <p class="step">Bons de livraison</p>
+              <h2 id="historyTitle">Historique commandes</h2>
+              <p class="helper-text" id="historyDescription">Retrouvez les commandes livrées de vos clients et ouvrez le détail sans quitter la page.</p>
+            </div>
+            <button class="ghost-button compact" type="button" id="historyRefresh">Actualiser</button>
+          </div>
+
+          <section class="delivery-history-filters" aria-label="Filtres de l'historique commandes">
+            <label class="delivery-history-search">
+              Rechercher
+              <input id="historySearch" type="search" autocomplete="off" placeholder="Client, numéro de BL, référence ou article…" />
+            </label>
+            <label class="is-hidden" id="historyCommercialField">
+              Commercial
+              <select id="historyCommercialFilter"><option value="all">Tous les commerciaux</option></select>
+            </label>
+            <label>
+              Trier par
+              <select id="historySort">
+                <option value="dateDesc">Date la plus récente</option>
+                <option value="dateAsc">Date la plus ancienne</option>
+                <option value="clientAsc">Client A-Z</option>
+                <option value="commercialAsc">Commercial A-Z</option>
+                <option value="totalDesc">Total décroissant</option>
+              </select>
+            </label>
+          </section>
+
+          <div class="delivery-history-summary" id="historySummary" aria-live="polite">Chargement de l’historique…</div>
+          <div class="delivery-history-list" id="deliveryHistoryList">
+            <div class="delivery-history-empty">Les commandes apparaîtront ici après chargement.</div>
+          </div>
         </section>
       </main>
 
@@ -2087,11 +2127,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260908pdf1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260908history1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260908pdf1" charset="UTF-8"></script>
+    <script src="script.js?v=20260908history1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
