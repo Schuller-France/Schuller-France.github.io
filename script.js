@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-08.2";
+const APP_BUILD_VERSION = "2026-09-08.3";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -4514,6 +4514,7 @@ function renderDeliveryOrderHistory() {
 async function loadDeliveryOrderHistory(force = false) {
   if (!deliveryHistoryList || !currentSessionToken || (deliveryOrderHistoryLoaded && !force)) {
     renderDeliveryOrderHistory();
+    if (deliveryOrderHistoryLoaded) setSyncStatus("ready", "Synchronisé");
     return;
   }
   historySummary.textContent = "Chargement de l’historique…";
@@ -4525,6 +4526,7 @@ async function loadDeliveryOrderHistory(force = false) {
     deliveryOrderHistoryLoaded = true;
     populateDeliveryHistoryCommercials();
     renderDeliveryOrderHistory();
+    setSyncStatus("ready", "Synchronisé");
   } catch (error) {
     historySummary.textContent = "Historique indisponible";
     deliveryHistoryList.innerHTML = `<div class="delivery-history-empty"><strong>Impossible de charger les commandes</strong><span>${escapeHtml(error.message || "Réessayez dans quelques instants.")}</span></div>`;
