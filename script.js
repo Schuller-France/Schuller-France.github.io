@@ -11936,14 +11936,12 @@ function pdfText(value) {
     .trim();
 }
 
-function toUtf16Hex(value) {
-  const text = pdfText(value);
-  const bytes = [0xfe, 0xff];
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    bytes.push((code >> 8) & 0xff, code & 0xff);
-  }
-  return `<${bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("")}>`;
+function toPdfHex(value) {
+  const special = { "€": 128, "Œ": 140, "œ": 156, "Ÿ": 159, "–": 150, "—": 151, "…": 133 };
+  return `<${Array.from(pdfText(value), (char) => {
+    const code = special[char] ?? char.charCodeAt(0);
+    return (code <= 255 ? code : 63).toString(16).padStart(2, "0");
+  }).join("")}>`;
 }
 
 function pdfEscapeNumber(value) {
@@ -11973,32 +11971,42 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
   }
 
   function ensureSpace(height) {
-    if (y - height < 74) {
+    if (y - height < 100) {
       addPage();
     }
   }
 
-  function approximateTextWidth(text, size) {
-    return String(text || "").length * size * 0.55;
+  const measureContext = document.createElement("canvas").getContext("2d");
+  function textWidth(value, size, bold = false) {
+    measureContext.font = `${bold ? "bold " : ""}${size}px Arial`;
+    return measureContext.measureText(pdfText(value)).width;
   }
-
-  function truncateToWidth(text, size, maxWidth) {
-    let str = String(text || "");
-    if (approximateTextWidth(str, size) <= maxWidth) return str;
-    while (str.length > 1 && approximateTextWidth(`${str}…`, size) > maxWidth) {
-      str = str.slice(0, -1);
+  function wrapText(value, size, width, bold = false) {
+    const lines = [];
+    let current = "";
+    for (const word of pdfText(value || "-").split(" ")) {
+      if (current && textWidth(`${current} ${word}`, size, bold) > width - 3) {
+        lines.push(current);
+        current = "";
+      }
+      for (const char of (current ? " " : "") + word) {
+        if (current && textWidth(current + char, size, bold) > width - 3) {
+          lines.push(current);
+          current = "";
+        }
+        current += char;
+      }
     }
-    return `${str}…`;
+    if (current) lines.push(current);
+    return lines;
+  }
+  function rightText(right, currentY, size, value, options = {}) {
+    textAt(right - textWidth(value, size, options.bold), currentY, size, value, options);
   }
 
   function textAt(x, currentY, size, value, options = {}) {
     const font = options.bold ? "F2" : "F1";
-    const drawX = options.align === "right"
-      ? x - approximateTextWidth(value, size)
-      : options.align === "center"
-        ? x - approximateTextWidth(value, size) / 2
-        : x;
-    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(drawX)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
+    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(currentY)} Td ${toPdfHex(value)} Tj ET`);
   }
 
   function textLine(x, size, value, options = {}) {
@@ -12040,27 +12048,6 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     setStroke("#1E1E22");
   }
 
-  function vline(x, yBottom, yTop, color = "#DEDFE3") {
-    setStroke(color);
-    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(yBottom)} m ${pdfEscapeNumber(x)} ${pdfEscapeNumber(yTop)} l S`);
-    setStroke("#1E1E22");
-  }
-
-  // Colonnes du tableau produits : bornes verticales utilisees pour l'entete,
-  // les lignes et les separateurs de colonnes (alignement chiffres a droite).
-  const TABLE_LEFT = margin;
-  const TABLE_RIGHT = pageWidth - margin;
-  const COL = {
-    ref: TABLE_LEFT,
-    gencod: TABLE_LEFT + 56,
-    designation: TABLE_LEFT + 142,
-    qty: TABLE_LEFT + 356,
-    unitPrice: TABLE_LEFT + 394,
-    total: TABLE_LEFT + 459,
-    end: TABLE_RIGHT,
-  };
-  const ROW_HEIGHT = 24;
-
   function drawHeader() {
     fillRect(margin, pageHeight - 50, 76, 4, "#E30613");
     textAt(margin, pageHeight - 30, 18, "Schuller Eh'klar", { bold: true });
@@ -12068,7 +12055,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lhen - 67560 ROSHEIM - Tel. 03 88 04 68 04");
     textAt(margin, pageHeight - 70, 7.5, `www.schuller.eu - ${schullerOperationsEmail}`);
 
-    textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
+    textAt(pageWidth - 198, pageHeight - 30, 14, "BON DE COMMANDE", { bold: true });
     fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
     strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
     textAt(pageWidth - 190, pageHeight - 47, 8.5, `N° ${orderNumber}`, { bold: true });
@@ -12086,80 +12073,70 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
   }
 
   function drawInfoBoxes() {
-    const boxY = y - 96;
     const boxW = (pageWidth - margin * 2 - 14) / 2;
-    fillRect(margin, boxY + 74, boxW, 22, "#1E1E22");
-    fillRect(margin + boxW + 14, boxY + 74, boxW, 22, "#1E1E22");
-    strokeRect(margin, boxY, boxW, 96);
-    strokeRect(margin + boxW + 14, boxY, boxW, 96);
-    setColor("#FFFFFF");
-    textAt(margin + 10, boxY + 82, 9, "Adresse de facturation", { bold: true });
-    textAt(margin + boxW + 24, boxY + 82, 9, "Adresse de livraison", { bold: true });
-    setColor("#1E1E22");
-
-    const leftX = margin + 10;
-    const rightX = margin + boxW + 24;
-    textAt(leftX, boxY + 60, 10, pdfClient.name, { bold: true });
-    textAt(leftX, boxY + 45, 8, pdfClient.billingAddress || "-");
-    textAt(leftX, boxY + 33, 8, `${pdfClient.billingZip} ${pdfClient.billingCity}`);
-    textAt(leftX, boxY + 18, 8, `Code client : ${pdfClient.code}`);
-    textAt(leftX, boxY + 7, 8, pdfClient.sector || "");
-
-    textAt(rightX, boxY + 60, 10, pdfClient.name, { bold: true });
-    textAt(rightX, boxY + 45, 8, pdfClient.deliveryAddress || "-");
-    textAt(rightX, boxY + 33, 8, `${pdfClient.deliveryZip} ${pdfClient.deliveryCity}`);
-    textAt(rightX, boxY + 18, 8, pdfClient.phone || "");
-    textAt(rightX, boxY + 7, 8, pdfClient.email || "");
-    y = boxY - 26;
+    const fields = [
+      [pdfClient.name, pdfClient.billingAddress || "-", `${pdfClient.billingZip} ${pdfClient.billingCity}`, `Code client : ${pdfClient.code}`, pdfClient.sector || ""],
+      [pdfClient.name, pdfClient.deliveryAddress || "-", `${pdfClient.deliveryZip} ${pdfClient.deliveryCity}`, pdfClient.phone || "", pdfClient.email || ""]
+    ].map((items) => items.flatMap((value, index) => wrapText(value, index === 0 ? 10 : 9, boxW - 20, index === 0).map((text) => ({ text, bold: index === 0 }))));
+    const height = 38 + Math.max(...fields.map((rows) => rows.length)) * 13;
+    fields.forEach((rows, index) => {
+      const x = margin + index * (boxW + 14);
+      strokeRect(x, y - height, boxW, height);
+      fillRect(x, y - 24, boxW, 24, "#1E1E22");
+      setColor("#FFFFFF");
+      textAt(x + 10, y - 16, 9, index ? "Adresse de livraison" : "Adresse de facturation", { bold: true });
+      setColor("#1E1E22");
+      rows.forEach((row, n) => textAt(x + 10, y - 40 - n * 13, row.bold ? 10 : 9, row.text, { bold: row.bold }));
+    });
+    y -= height + 28;
   }
 
   function drawTableHeader() {
-    const headerTop = y + 17;
-    const headerBottom = y - 7;
-    fillRect(TABLE_LEFT, headerBottom, TABLE_RIGHT - TABLE_LEFT, headerTop - headerBottom, "#E30613");
+    fillRect(margin, y - 6, pageWidth - margin * 2, 23, "#E30613");
     setColor("#FFFFFF");
-    textAt(COL.ref + 6, y + 3, 7.5, "Réf.", { bold: true });
-    textAt(COL.gencod + 6, y + 3, 7.5, "Gencod", { bold: true });
-    textAt(COL.designation + 6, y + 3, 7.5, "Désignation", { bold: true });
-    textAt(COL.unitPrice - 6, y + 3, 7.5, "Qté", { bold: true, align: "right" });
-    textAt(COL.total - 6, y + 3, 7.5, "Prix net HT", { bold: true, align: "right" });
-    textAt(COL.end - 6, y + 3, 7.5, "Total HT", { bold: true, align: "right" });
-    [COL.gencod, COL.designation, COL.qty, COL.unitPrice, COL.total].forEach((x) => {
-      vline(x, headerBottom, headerTop, "#FFFFFF");
-    });
+    textAt(42, y + 2, 8, "Réf.", { bold: true });
+    textAt(87, y + 2, 8, "Gencod", { bold: true });
+    textAt(171, y + 2, 8, "Désignation", { bold: true });
+    rightText(422, y + 2, 8, "Qté", { bold: true });
+    rightText(487, y + 2, 8, "Prix net HT", { bold: true });
+    rightText(553, y + 2, 8, "Total HT", { bold: true });
     setColor("#1E1E22");
-    strokeRect(TABLE_LEFT, headerBottom, TABLE_RIGHT - TABLE_LEFT, headerTop - headerBottom, "#C9403A");
-    y -= 25;
+    y -= 23;
   }
 
   function drawProductRow(line, index) {
-    ensureSpace(ROW_HEIGHT + 4);
-    if (y > pageHeight - 110) {
-      drawTableHeader();
+    const cells = [
+      wrapText(line.product.ref, 8.5, 41),
+      wrapText(line.product.gencod, 8, 80),
+      wrapText(line.product.name, 9, 204, true),
+      wrapText(line.qty, 9, 43),
+      wrapText(formatter.format(line.unitPrice), 9, 61),
+      wrapText(formatter.format(line.lineTotal), 9, 62)
+    ];
+    const rowHeight = Math.max(25, Math.max(...cells.map((cell) => cell.length)) * 12 + 10);
+    // Keep ordinary rows together; split only a row taller than a full page.
+    if (rowHeight < pageHeight - 250 && y - rowHeight < 100) { addPage(); drawTableHeader(); }
+    let offset = 0;
+    const count = Math.max(...cells.map((cell) => cell.length));
+    while (offset < count) {
+      if (y - 26 < 100) { addPage(); drawTableHeader(); }
+      const take = Math.min(count - offset, Math.max(1, Math.floor((y - 110) / 12)));
+      const height = Math.max(25, take * 12 + 10);
+      if (index % 2 === 1) fillRect(margin, y - height + 12, pageWidth - margin * 2, height, "#F8F8F9");
+      cells.forEach((rows, col) => rows.slice(offset, offset + take).forEach((value, n) => {
+        const currentY = y - n * 12;
+        if (col < 3) textAt([42, 87, 171][col], currentY, [8.5, 8, 9][col], value, { bold: col === 2 });
+        else rightText([422, 487, 553][col - 3], currentY, 9, value);
+      }));
+      y -= height;
+      hline(margin, pageWidth - margin, y + 12);
+      offset += take;
     }
-    const rowTop = y + 15;
-    const rowBottom = y - (ROW_HEIGHT - 15);
-    if (index % 2 === 1) {
-      fillRect(TABLE_LEFT, rowBottom, TABLE_RIGHT - TABLE_LEFT, rowTop - rowBottom, "#F3F4F6");
-    }
-    const lineTotal = line.lineTotal;
-    const designationMaxWidth = COL.qty - COL.designation - 12;
-    textAt(COL.ref + 6, y, 7.5, line.product.ref);
-    textAt(COL.gencod + 6, y, 7, line.product.gencod);
-    textAt(COL.designation + 6, y, 7.5, truncateToWidth(line.product.name, 7.5, designationMaxWidth), { bold: true });
-    textAt(COL.unitPrice - 6, y, 7.5, String(line.qty), { align: "right" });
-    textAt(COL.total - 6, y, 7.5, formatter.format(line.unitPrice), { align: "right" });
-    textAt(COL.end - 6, y, 7.5, formatter.format(lineTotal), { bold: true, align: "right" });
-    [COL.gencod, COL.designation, COL.qty, COL.unitPrice, COL.total].forEach((x) => {
-      vline(x, rowBottom, rowTop, "#DEDFE3");
-    });
-    strokeRect(TABLE_LEFT, rowBottom, TABLE_RIGHT - TABLE_LEFT, rowTop - rowBottom, "#DEDFE3");
-    y -= ROW_HEIGHT;
   }
 
   addPage();
   drawInfoBoxes();
-  textLine(margin, 12, "Produits commandés", { bold: true, lineHeight: 17 });
+  textLine(margin, 12, "Produits commandés", { bold: true, lineHeight: 25 });
   drawTableHeader();
   validLines.forEach((line, index) => drawProductRow(line, index));
 
@@ -12171,16 +12148,18 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
   fillRect(recapX, y - 38, 4, 46, "#E30613");
   textAt(recapX + 14, y - 6, 9, "Récapitulatif", { bold: true });
   textAt(recapX + 14, y - 25, 8, "Total HT");
-  textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
+  rightText(pageWidth - margin - 12, y - 25, 10, formatter.format(pdfTotal), { bold: true });
   y -= 56;
 
   if (note) {
-    ensureSpace(46);
-    fillRect(margin, y - 28, pageWidth - margin * 2 - 190, 38, "#F8F8F9");
-    strokeRect(margin, y - 28, pageWidth - margin * 2 - 190, 38);
-    textAt(margin + 10, y - 4, 8, "Note", { bold: true });
-    textAt(margin + 10, y - 18, 8, note.slice(0, 95));
-    y -= 48;
+    ensureSpace(48);
+    textLine(margin, 10, "Note de commande", { bold: true, lineHeight: 18 });
+    for (const paragraph of String(note).split(/\r?\n/)) {
+      for (const row of wrapText(paragraph, 9, pageWidth - margin * 2)) {
+        ensureSpace(15);
+        textLine(margin, 9, row, { lineHeight: 14 });
+      }
+    }
   }
 
   textAt(margin, 74, 7, "Tous nos prix sont indiqués en Euros. Prix nets valables uniquement pour cette commande.");
@@ -12195,8 +12174,8 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     return objects.length;
   };
 
-  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
   const pageRefs = [];
 
   pages.forEach((pageCommands) => {
