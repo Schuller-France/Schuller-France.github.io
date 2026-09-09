@@ -3604,7 +3604,7 @@ async function extractStockFileRows(file) {
   } else {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheet = fixSheetDimensions(workbook.Sheets[workbook.SheetNames[0]]);
     matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
   }
   const rows = matrix
@@ -7171,7 +7171,7 @@ async function handleOffrePrixImportFile(file) {
     if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const sheet = fixSheetDimensions(workbook.Sheets[workbook.SheetNames[0]]);
       matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
     } else {
       const text = await file.text();
