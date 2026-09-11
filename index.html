@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260909stockfix1" />
-    <link rel="icon" href="assets/favicon.ico?v=20260909stockfix1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260909stockfix1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260909stockfix1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260909stockfix1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260911offreprix1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260911offreprix1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260911offreprix1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260911offreprix1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260911offreprix1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260909stockfix1" />
+    <link rel="stylesheet" href="style.css?v=20260911offreprix1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1968,7 +1968,8 @@
               <div class="quote-actions">
                 <button class="ghost-button" type="button" id="offrePrixPreview">Aper&ccedil;u PDF</button>
                 <button class="ghost-button" type="button" id="offrePrixExportCsv">Exporter en CSV</button>
-                <input id="offrePrixEmail" type="email" autocomplete="off" placeholder="destinataire@exemple.fr" />
+                <input id="offrePrixEmail" type="text" autocomplete="off" placeholder="destinataire@exemple.fr, autre@exemple.fr" />
+                <button class="ghost-button compact is-hidden" type="button" id="offrePrixCancelEdit">Annuler la modification</button>
                 <button class="primary-button" type="button" id="offrePrixSend">Envoyer l'offre</button>
               </div>
             </section>
@@ -2127,11 +2128,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260909stockfix1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260911offreprix1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260909stockfix1" charset="UTF-8"></script>
+    <script src="script.js?v=20260911offreprix1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

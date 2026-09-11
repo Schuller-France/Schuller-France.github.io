@@ -11,7 +11,7 @@ Frontend statique de l'application commerciale Schuller, publié avec GitHub Pag
 - `tarifs.js` : adresse publique du service Apps Script, sans données confidentielles ;
 - `assets/` : images et icônes.
 
-Le backend Google Apps Script est maintenu séparément. La version active issue de cette mise à niveau est la version 87. Tant que `clasp` n'est pas reconnecté, l'historique Apps Script reste la source canonique : ne pas publier une ancienne copie locale. Le frontend ne doit contenir aucun mot de passe, jeton, fichier client ou statistique confidentielle.
+Le backend Google Apps Script est maintenu séparément. La version active issue de cette mise à niveau est la version 105 (offre de prix : destinataires multiples + modification/renvoi depuis l'historique). Tant que `clasp` n'est pas reconnecté, l'historique Apps Script reste la source canonique : ne pas publier une ancienne copie locale. Le frontend ne doit contenir aucun mot de passe, jeton, fichier client ou statistique confidentielle.
 
 ## Vérification locale
 
