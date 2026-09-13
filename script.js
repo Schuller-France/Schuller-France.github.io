@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.4";
+const APP_BUILD_VERSION = "2026-09-13.5";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -4297,7 +4297,7 @@ async function refreshDashboardDataFromDrive() {
   }
 }
 
-async function loadClientArticleStatsFromDrive() {
+async function loadClientArticleStatsFromDrive({ throwOnError = false } = {}) {
   if (!currentSessionToken) return;
   try {
     const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
@@ -4305,8 +4305,11 @@ async function loadClientArticleStatsFromDrive() {
     commercialStatsRowsCache = null;
     if (selectedClient360) selectClient360(selectedClient360);
     renderCommercialStats();
+    return true;
   } catch (error) {
     // On garde la derniere version chargee pour ne pas bloquer le terrain.
+    if (throwOnError) throw error;
+    return false;
   }
 }
 
@@ -12103,7 +12106,9 @@ async function loadAntiErosion(force = false) {
   const period = document.querySelector("#erosionPeriod");
   if (period) period.textContent = "Actualisation des données client / produit…";
   try {
-    if (force || !clientArticleStats360?.available) await loadClientArticleStatsFromDrive();
+    if (force || !clientArticleStats360?.available) {
+      await loadClientArticleStatsFromDrive({ throwOnError: true });
+    }
     try {
       const result = await postService({ action: "getAntiErosionRequests" });
       antiErosionRequests = Array.isArray(result.requests) ? result.requests : [];
