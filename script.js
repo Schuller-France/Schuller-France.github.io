@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.6";
+const APP_BUILD_VERSION = "2026-09-13.7";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -417,6 +417,7 @@ const homeTab = document.querySelector("#homeTab");
 const client360Tab = document.querySelector("#client360Tab");
 const statsTab = document.querySelector("#statsTab");
 const antiErosionTab = document.querySelector("#antiErosionTab");
+const opportunitiesTab = document.querySelector("#opportunitiesTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -444,6 +445,7 @@ const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const statsView = document.querySelector("#statsView");
 const antiErosionView = document.querySelector("#antiErosionView");
+const opportunitiesView = document.querySelector("#opportunitiesView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const sampleView = document.querySelector("#sampleView");
@@ -868,13 +870,21 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 const POST_SERVICE_TIMEOUT_MS = 25000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
-const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getDeliveryOrderHistory", "login", "session"]);
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
+  "getDeliveryOrderHistory", "getClientArticleStats", "getAntiErosionRequests",
+  "getDashboardStats", "getPromotions", "getReliquatsReprises", "getProspectionData",
+  "getPriceOffers", "getMyExpenseDrafts", "login", "session",
+]);
 
 async function postService(parameters) {
   setSyncStatus("syncing", "Synchro...");
   if (!tariffConfig.endpoint) {
     setSyncStatus("local", "Local");
     throw new Error("Service indisponible.");
+  }
+  if (navigator.onLine === false) {
+    setSyncStatus("error", "Hors ligne");
+    throw new Error("Vous êtes hors ligne. Votre saisie reste sur la tablette et la synchronisation reprendra au retour du réseau.");
   }
   const { skipSessionToken = false, timeoutMs, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
@@ -6061,7 +6071,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
     appTabs.insertBefore(antiErosionTab, statsTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, antiErosionTab.nextSibling);
+    appTabs.insertBefore(opportunitiesTab, antiErosionTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, opportunitiesTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
     let lastTab = adminPurchaseTab;
     if (adminOffrePrixTab) {
@@ -6091,6 +6102,7 @@ function arrangeTabsForUser(user) {
     client360Tab,
     statsTab,
     antiErosionTab,
+    opportunitiesTab,
     orderTab,
     historyTab,
     quoteTab,
@@ -6454,6 +6466,7 @@ function getLaunchTabFromUrl() {
       "client360",
       "stats",
       "antiErosion",
+      "opportunities",
       "order",
       "quote",
       "sample",
@@ -6480,8 +6493,8 @@ function getLaunchTabFromUrl() {
 function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
-  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "prospection", "tour", "history"]);
-  const commercialTabs = new Set(["home", "client360", "stats", "antiErosion", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "opportunities", "prospection", "tour", "history"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "antiErosion", "opportunities", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
     : (commercialTabs.has(tab) ? tab : "");
@@ -6494,7 +6507,16 @@ function showApp(user, token = user.token || "") {
   activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
   const remembered = Boolean(user.remember || rememberLogin.checked);
-  const storedUser = { ...currentUser, remember: remembered };
+  const storedUser = {
+    id: currentUser.id,
+    name: currentUser.name,
+    role: currentUser.role,
+    sectors: [...(currentUser.sectors || [])],
+    sector: currentUser.sector || "",
+    training: Boolean(currentUser.training),
+    token,
+    remember: remembered,
+  };
   sessionStorage.setItem(sessionStorageKey, JSON.stringify(storedUser));
   if (remembered) {
     localStorage.setItem(rememberedSessionKey, JSON.stringify(storedUser));
@@ -6521,6 +6543,7 @@ function showApp(user, token = user.token || "") {
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
   antiErosionTab?.classList.remove("is-hidden");
+  opportunitiesTab?.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
@@ -12127,6 +12150,147 @@ async function loadAntiErosion(force = false) {
   }
 }
 
+function deliveredReferencesByClient() {
+  const result = new Map();
+  deliveryOrderHistory.forEach((order) => {
+    const key = normalize(order.clientCode || order.clientName || "");
+    if (!key) return;
+    if (!result.has(key)) result.set(key, new Set());
+    const lines = order.lines || order.products || order.items || [];
+    lines.forEach((line) => result.get(key).add(normalize(line.reference || line.ref || line.articleCode || "")));
+  });
+  return result;
+}
+
+function buildCommercialOpportunities() {
+  const rows = getCommercialStatsRows();
+  const clients = new Map();
+  const productBenchmarks = new Map();
+  const delivered = deliveredReferencesByClient();
+  rows.forEach((row) => {
+    const clientKey = normalize(row.clientCode || row.clientName || "");
+    const refKey = normalize(row.articleCode || "");
+    if (!clientKey || !refKey) return;
+    if (!clients.has(clientKey)) clients.set(clientKey, {
+      key: clientKey, clientCode: row.clientCode || "", clientName: row.clientName || "Client inconnu",
+      sector: row.sector || "", products: new Set(), rows: [],
+    });
+    const client = clients.get(clientKey);
+    client.products.add(refKey);
+    client.rows.push(row);
+    if ((Number(row.ca2026) || 0) > 0) {
+      if (!productBenchmarks.has(refKey)) productBenchmarks.set(refKey, { reference: row.articleCode, designation: row.articleName, family: row.family, totalCa: 0, buyers: new Set() });
+      const benchmark = productBenchmarks.get(refKey);
+      benchmark.totalCa += Number(row.ca2026) || 0;
+      benchmark.buyers.add(clientKey);
+    }
+  });
+  const opportunities = [];
+  clients.forEach((client) => {
+    client.rows.forEach((row) => {
+      const previous = Number(row.ca2025) || 0;
+      const current = Number(row.ca2026) || 0;
+      const potential = Math.max(0, previous - current);
+      if (potential <= 0) return;
+      opportunities.push({
+        id: `reconquest:${client.key}:${normalize(row.articleCode)}`, type: "reconquest", client,
+        reference: row.articleCode || "", designation: row.articleName || "Article", family: row.family || "Famille non renseignée",
+        potential, previousCa: previous, currentCa: current,
+        reason: current <= 0 ? "Article acheté auparavant, absent de la période actuelle" : "Article en baisse par rapport à la période précédente",
+        sourceRow: row,
+      });
+    });
+    const knownRefs = new Set([...client.products, ...(delivered.get(client.key) || [])]);
+    [...productBenchmarks.values()]
+      .filter((product) => product.buyers.size >= 2 && !knownRefs.has(normalize(product.reference)))
+      .map((product) => ({ product, potential: product.totalCa / product.buyers.size }))
+      .sort((a, b) => b.potential - a.potential)
+      .slice(0, 3)
+      .forEach(({ product, potential }) => opportunities.push({
+        id: `complement:${client.key}:${normalize(product.reference)}`, type: "complement", client,
+        reference: product.reference || "", designation: product.designation || "Article", family: product.family || "Famille non renseignée",
+        potential, previousCa: 0, currentCa: 0,
+        reason: `Acheté par ${product.buyers.size} autres clients comparables de votre périmètre`,
+      }));
+  });
+  return opportunities.sort((a, b) => b.potential - a.potential);
+}
+
+function filteredCommercialOpportunities() {
+  const query = normalize(document.querySelector("#opportunitiesClientFilter")?.value || "");
+  const type = document.querySelector("#opportunitiesTypeFilter")?.value || "all";
+  const family = document.querySelector("#opportunitiesFamilyFilter")?.value || "all";
+  const amount = Number(document.querySelector("#opportunitiesAmountFilter")?.value) || 0;
+  return buildCommercialOpportunities().filter((item) => {
+    if (query && !normalize(`${item.client.clientName} ${item.client.clientCode}`).includes(query)) return false;
+    if (type !== "all" && item.type !== type) return false;
+    if (family !== "all" && item.family !== family) return false;
+    return item.potential >= amount;
+  });
+}
+
+function openOpportunityClient(client) {
+  const match = (currentUser?.role === "admin" ? allClients : visibleClients).find((item) =>
+    normalize(item.code || "") === normalize(client.clientCode || "") || normalize(item.name || "") === normalize(client.clientName || "")
+  );
+  if (!match) return;
+  selectedClient360 = match;
+  setActiveTab("client360");
+  selectClient360(match);
+}
+
+function renderCommercialOpportunities() {
+  const all = buildCommercialOpportunities();
+  const familySelect = document.querySelector("#opportunitiesFamilyFilter");
+  if (familySelect) {
+    const current = familySelect.value || "all";
+    const families = [...new Set(all.map((item) => item.family).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+    familySelect.innerHTML = '<option value="all">Toutes les familles</option>' + families.map((family) => `<option value="${escapeHtml(family)}">${escapeHtml(family)}</option>`).join("");
+    if ([...familySelect.options].some((option) => option.value === current)) familySelect.value = current;
+  }
+  const items = filteredCommercialOpportunities();
+  const reconquest = items.filter((item) => item.type === "reconquest");
+  const complement = items.filter((item) => item.type === "complement");
+  const potential = items.reduce((sum, item) => sum + item.potential, 0);
+  const kpis = document.querySelector("#opportunitiesKpis");
+  if (kpis) kpis.innerHTML = [["Opportunités", items.length], ["À reconquérir", reconquest.length], ["Ventes complémentaires", complement.length], ["Potentiel indicatif", formatWholeCurrency(potential)]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+  const status = document.querySelector("#opportunitiesStatus");
+  if (status) status.textContent = `${currentUser?.role === "admin" ? "Tous les secteurs" : currentUser?.sectors?.join(" + ") || "Votre secteur"} · CA uniquement · aucune marge ni prix d’achat`;
+  const list = document.querySelector("#opportunitiesList");
+  if (!list) return;
+  list.innerHTML = items.length ? items.slice(0, 250).map((item) => `
+    <article class="opportunity-card">
+      <div class="opportunity-card-head"><span class="opportunity-type is-${item.type}">${item.type === "reconquest" ? "À reconquérir" : "Vente complémentaire"}</span><strong>${escapeHtml(formatWholeCurrency(item.potential))}</strong></div>
+      <h3>${escapeHtml(item.client.clientName)}</h3><p>${escapeHtml(item.client.clientCode)} · ${escapeHtml(item.client.sector)}</p>
+      <div class="opportunity-product"><strong>${escapeHtml(item.reference)}</strong><span>${escapeHtml(item.designation)}</span><small>${escapeHtml(item.family)}</small></div>
+      <p class="opportunity-reason">${escapeHtml(item.reason)}</p>
+      <div class="opportunity-actions"><button type="button" class="ghost-button" data-opportunity-client="${escapeHtml(item.id)}">Voir la fiche client</button>${item.type === "reconquest" ? `<button type="button" class="primary-button" data-opportunity-study="${escapeHtml(item.id)}">Demander une étude</button>` : ""}</div>
+    </article>`).join("") : '<div class="dashboard-empty">Aucune opportunité ne correspond aux filtres actuels.</div>';
+  const byId = new Map(items.map((item) => [item.id, item]));
+  list.querySelectorAll("[data-opportunity-client]").forEach((button) => button.addEventListener("click", () => openOpportunityClient(byId.get(button.dataset.opportunityClient)?.client || {})));
+  list.querySelectorAll("[data-opportunity-study]").forEach((button) => button.addEventListener("click", () => {
+    const item = byId.get(button.dataset.opportunityStudy);
+    if (!item) return;
+    openAntiErosionRequest(item.client, {
+      reference: item.reference, designation: item.designation, family: item.family,
+      quantityPrevious: Number(item.sourceRow?.quantity2025) || 0, quantityN: Number(item.sourceRow?.quantity2026) || 0,
+      caPrevious: item.previousCa, caN: item.currentCa, gapCa: item.currentCa - item.previousCa,
+    });
+  }));
+}
+
+async function loadCommercialOpportunities(force = false) {
+  const status = document.querySelector("#opportunitiesStatus");
+  if (status) status.textContent = "Actualisation du CA et des commandes livrées…";
+  const tasks = [];
+  if (force || !clientArticleStats360?.available) tasks.push(loadClientArticleStatsFromDrive({ throwOnError: true }));
+  if (force || !deliveryOrderHistoryLoaded) tasks.push(loadDeliveryOrderHistory(force));
+  const results = await Promise.allSettled(tasks);
+  const failure = results.find((result) => result.status === "rejected");
+  renderCommercialOpportunities();
+  if (failure && status) status.textContent = failure.reason?.message || "Certaines données n’ont pas pu être actualisées.";
+}
+
 function setActiveTab(tabName) {
   setTabletMenuOpen(false);
   const showTutorial = tabName === "tutorial";
@@ -12134,6 +12298,7 @@ function setActiveTab(tabName) {
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
   const showAntiErosion = tabName === "antiErosion";
+  const showOpportunities = tabName === "opportunities";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
@@ -12162,6 +12327,7 @@ function setActiveTab(tabName) {
   client360Tab.classList.toggle("is-active", showClient360);
   statsTab.classList.toggle("is-active", showStats);
   antiErosionTab?.classList.toggle("is-active", showAntiErosion);
+  opportunitiesTab?.classList.toggle("is-active", showOpportunities);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab?.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
@@ -12190,6 +12356,7 @@ function setActiveTab(tabName) {
   client360View.classList.toggle("is-hidden", !showClient360);
   statsView.classList.toggle("is-hidden", !showStats);
   antiErosionView?.classList.toggle("is-hidden", !showAntiErosion);
+  opportunitiesView?.classList.toggle("is-hidden", !showOpportunities);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView?.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
@@ -12215,7 +12382,7 @@ function setActiveTab(tabName) {
   adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", order: "Saisie commande", history: "Historique commandes", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", opportunities: "Opportunités", order: "Saisie commande", history: "Historique commandes", quote: "Demande devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -12229,6 +12396,7 @@ function setActiveTab(tabName) {
   }
 
   if (showAntiErosion) loadAntiErosion();
+  if (showOpportunities) loadCommercialOpportunities();
 
   if (showClient360) {
     loadClientArticleStatsFromDrive();
@@ -12925,7 +13093,11 @@ homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
 antiErosionTab?.addEventListener("click", () => setActiveTab("antiErosion"));
+opportunitiesTab?.addEventListener("click", () => setActiveTab("opportunities"));
 document.querySelector("#erosionRefresh")?.addEventListener("click", () => loadAntiErosion(true));
+document.querySelector("#opportunitiesRefresh")?.addEventListener("click", () => loadCommercialOpportunities(true));
+["#opportunitiesTypeFilter", "#opportunitiesFamilyFilter", "#opportunitiesAmountFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("change", renderCommercialOpportunities));
+document.querySelector("#opportunitiesClientFilter")?.addEventListener("input", renderCommercialOpportunities);
 ["#erosionCommercialFilter", "#erosionSectorFilter", "#erosionFamilyFilter", "#erosionPercentFilter", "#erosionAmountFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("change", renderAntiErosionClients));
 ["#erosionClientFilter", "#erosionReferenceFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("input", renderAntiErosionClients));
 document.querySelector("#erosionRequestForm")?.addEventListener("submit", submitAntiErosionRequest);
@@ -13656,7 +13828,16 @@ document.addEventListener("click", (event) => {
 
 setupVoiceNotes();
 updateOfflineStatus();
-window.addEventListener("online", updateOfflineStatus);
+window.addEventListener("online", () => {
+  updateOfflineStatus();
+  if (!currentSessionToken) return;
+  const activeId = document.querySelector(".tab-button.is-active")?.id || "";
+  if (activeId === "antiErosionTab") loadAntiErosion(true);
+  else if (activeId === "opportunitiesTab") loadCommercialOpportunities(true);
+  else if (activeId === "historyTab") loadDeliveryOrderHistory(true);
+  else if (activeId === "statsTab") loadClientArticleStatsFromDrive();
+  else loadDashboardStatsFromDrive();
+});
 window.addEventListener("offline", updateOfflineStatus);
 setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
 setThemeMode(localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light");
