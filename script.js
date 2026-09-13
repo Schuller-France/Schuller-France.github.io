@@ -903,6 +903,7 @@ async function postService(parameters) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), effectiveTimeoutMs);
     let response;
+    let rawText;
     try {
       response = await fetch(tariffConfig.endpoint, {
         method: "POST",
@@ -910,6 +911,7 @@ async function postService(parameters) {
         body: new URLSearchParams(payload).toString(),
         signal: controller.signal,
       });
+      rawText = await response.text();
     } catch (error) {
       clearTimeout(timeoutId);
       const isTimeout = error?.name === "AbortError";
@@ -925,7 +927,6 @@ async function postService(parameters) {
       );
     }
     clearTimeout(timeoutId);
-    const rawText = await response.text();
     let result;
     try {
       result = JSON.parse(rawText);
