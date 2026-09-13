@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.1";
+const APP_BUILD_VERSION = "2026-09-13.2";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -868,7 +868,7 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 const POST_SERVICE_TIMEOUT_MS = 25000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
-const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "getDeliveryOrderHistory", "login", "session"]);
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getDeliveryOrderHistory", "login", "session"]);
 
 async function postService(parameters) {
   setSyncStatus("syncing", "Synchro...");
@@ -1008,14 +1008,17 @@ function restoreSecureDataCache(userId) {
 
 async function loadSecureAppData(token, userId = "") {
   if (secureDataLoaded && allClients.length && products.length) return;
-  const result = await postService({ action: "getAppData", token });
+  // Le premier chargement peut être volumineux (clients, articles et prix nets).
+  // Un seul appel long évite deux exécutions Apps Script concurrentes et les faux
+  // messages « Session expirée » observés après le timeout court de 25 secondes.
+  const result = await postService({ action: "getAppData", token, timeoutMs: 90000 });
   applySecureAppData(result);
   saveSecureDataCache(userId || currentUser?.id || "", result);
 }
 
 async function refreshSecureAppDataInBackground(token, userId) {
   try {
-    const result = await postService({ action: "getAppData", token });
+    const result = await postService({ action: "getAppData", token, timeoutMs: 90000 });
     applySecureAppData(result);
     saveSecureDataCache(userId || currentUser?.id || "", result);
     if (currentUser) {
@@ -6671,16 +6674,18 @@ async function submitLogin() {
     }
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
-      loginSubmitButton.textContent = "Chargement des données…";
-      updateLoginProgress(82, "Chargement Drive", "Récupération des données commerciales sécurisées...", "data");
-      await loadSecureAppData(result.token, result.user?.id || "");
+      // La session est déjà valide : on ouvre l'application immédiatement et on
+      // charge le gros catalogue Drive ensuite. L'utilisateur ne reste plus bloqué
+      // à 91 % si Google Apps Script a un démarrage lent.
+      loginSubmitButton.textContent = "Ouverture de votre espace…";
+      updateLoginProgress(92, "Compte connecté", "Ouverture immédiate, synchronisation Drive en arrière-plan...", "dashboard");
     } else {
       updateLoginProgress(82, "Données locales prêtes", "Ouverture rapide avec les dernières données connues...", "data");
     }
     updateLoginProgress(96, "Préparation de l'interface", "Mise en place du tableau de bord...", "dashboard");
     await waitForLoginProgressComplete();
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
-    if (cached) refreshSecureAppDataInBackground(result.token, result.user?.id || "");
+    refreshSecureAppDataInBackground(result.token, result.user?.id || "");
   } catch (error) {
     resetLoginProgress();
     loginError.textContent = error.message || "Connexion impossible.";
@@ -6765,10 +6770,9 @@ async function restoreSession() {
       loginError.className = "login-error";
       const restored = await postService({ action: "session", token: savedUser.token || "" });
       const verifiedUser = { ...restored.user, remember: Boolean(savedUser.remember) };
-      const cached = restoreSecureDataCache(verifiedUser.id);
-      if (!cached) await loadSecureAppData(restored.token || "", verifiedUser.id);
+      restoreSecureDataCache(verifiedUser.id);
       showApp(verifiedUser, restored.token || "");
-      if (cached) refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id);
+      refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id);
       return;
     }
   } catch (error) {
