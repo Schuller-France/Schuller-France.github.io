@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.3";
+const APP_BUILD_VERSION = "2026-09-13.4";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
