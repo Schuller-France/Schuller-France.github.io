@@ -872,10 +872,13 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 };
 
 const POST_SERVICE_TIMEOUT_MS = 25000;
+const POST_SERVICE_TIMEOUT_BY_ACTION = {
+  getClientArticleStats: 15000,
+};
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
 const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
-  "getDeliveryOrderHistory", "getClientArticleStats", "getAntiErosionRequests",
+  "getDeliveryOrderHistory", "getAntiErosionRequests",
   "getDashboardStats", "getPromotions", "getReliquatsReprises", "getProspectionData",
   "getPriceOffers", "getMyExpenseDrafts", "login", "session",
 ]);
@@ -894,7 +897,7 @@ async function postService(parameters) {
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   const action = String(payload.action || "");
   const maxAttempts = POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
-  const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_MS;
+  const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_BY_ACTION[action] || POST_SERVICE_TIMEOUT_MS;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
@@ -4316,6 +4319,12 @@ async function loadClientArticleStatsFromDrive({ throwOnError = false } = {}) {
   try {
     const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
     clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+    if (!clientArticleStats360.available) {
+      throw new Error(clientArticleStats360.message || "Les statistiques clients ne sont pas disponibles dans Drive.");
+    }
+    if (!Object.keys(clientArticleStats360.byClient || {}).length) {
+      throw new Error("Le fichier de statistiques est accessible, mais aucune donnée client n'a été reconnue.");
+    }
     commercialStatsRowsCache = null;
     if (selectedClient360) selectClient360(selectedClient360);
     renderCommercialStats();
