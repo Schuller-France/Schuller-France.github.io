@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260911offreprix1" />
-    <link rel="icon" href="assets/favicon.ico?v=20260911offreprix1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260911offreprix1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260911offreprix1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260911offreprix1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260913erosion1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260913erosion1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260913erosion1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260913erosion1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260913erosion1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260911offreprix1" />
+    <link rel="stylesheet" href="style.css?v=20260913erosion1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -143,6 +143,7 @@
         <button class="tab-button is-active" type="button" id="homeTab" data-icon="🏠">Accueil</button>
         <button class="tab-button" type="button" id="client360Tab" data-icon="👤">Fiche client</button>
         <button class="tab-button" type="button" id="statsTab" data-icon="📊">Statistiques</button>
+        <button class="tab-button" type="button" id="antiErosionTab" data-icon="🛡️">Anti-&eacute;rosion</button>
         <button class="tab-button" type="button" id="orderTab" data-icon="🧾">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab" data-icon="🕘">Historique commandes</button>
         <button class="tab-button" type="button" id="quoteTab" data-icon="📝">Demande de devis</button>
@@ -376,6 +377,67 @@
             <div class="delivery-history-empty">Les commandes apparaîtront ici après chargement.</div>
           </div>
         </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="antiErosionView">
+        <section class="panel erosion-panel" aria-labelledby="antiErosionTitle">
+          <div class="erosion-hero">
+            <div>
+              <p class="step">Client → produit → perte → action</p>
+              <h2 id="antiErosionTitle">Anti-&eacute;rosion</h2>
+              <p>Rep&eacute;rez les pertes de chiffre d&rsquo;affaires et concentrez l&rsquo;action sur les produits qui les expliquent.</p>
+            </div>
+            <div class="erosion-hero-actions">
+              <span class="status-pill" id="erosionSourceBadge">Drive</span>
+              <button class="ghost-button compact" type="button" id="erosionRefresh">Actualiser</button>
+            </div>
+          </div>
+
+          <section class="erosion-filters" aria-label="Filtres anti-érosion">
+            <label>Commercial<select id="erosionCommercialFilter"><option value="all">Tous les commerciaux</option></select></label>
+            <label>Secteur<select id="erosionSectorFilter"><option value="all">Tous les secteurs</option></select></label>
+            <label>Client<input id="erosionClientFilter" type="search" placeholder="Nom ou code client…" /></label>
+            <label>Famille<select id="erosionFamilyFilter"><option value="all">Toutes les familles</option></select></label>
+            <label>Référence<input id="erosionReferenceFilter" type="search" placeholder="Référence…" /></label>
+            <label>Période<select id="erosionPeriodFilter"><option>Même période N / N-1</option></select></label>
+            <label>Baisse minimum<select id="erosionPercentFilter"><option value="0">Toutes</option><option value="10">10 %</option><option value="20" selected>20 %</option><option value="30">30 %</option><option value="50">50 %</option></select></label>
+            <label>Perte minimum<select id="erosionAmountFilter"><option value="0">Toutes</option><option value="500" selected>500 €</option><option value="2000">2 000 €</option><option value="5000">5 000 €</option></select></label>
+          </section>
+
+          <section class="erosion-kpis" id="erosionKpis" aria-label="Indicateurs anti-érosion"></section>
+          <p class="erosion-period" id="erosionPeriod">Comparaison de la période disponible N avec la même période N-1.</p>
+
+          <section class="erosion-director is-hidden" id="erosionDirectorDashboard">
+            <div class="panel-heading"><div><p class="step">Vue directeur commercial</p><h3>Pilotage global</h3></div></div>
+            <div class="erosion-rankings" id="erosionRankings"></div>
+          </section>
+
+          <section class="erosion-workspace">
+            <div>
+              <div class="erosion-section-title"><div><p class="step">Priorités</p><h3>Clients en érosion</h3></div><span id="erosionResultCount">0 client</span></div>
+              <div class="erosion-client-list" id="erosionClientList"></div>
+            </div>
+            <div class="erosion-detail" id="erosionDetail">
+              <div class="erosion-empty"><strong>Sélectionnez un client</strong><span>Vous verrez les produits qui expliquent sa baisse et l’action recommandée.</span></div>
+            </div>
+          </section>
+
+          <section class="erosion-requests" id="erosionRequestsSection">
+            <div class="erosion-section-title"><div><p class="step">Suivi</p><h3>Demandes d'étude commerciale</h3></div><span id="erosionRequestCount">0 demande</span></div>
+            <div class="erosion-request-list" id="erosionRequestList"></div>
+          </section>
+        </section>
+
+        <dialog class="erosion-dialog" id="erosionRequestDialog">
+          <form method="dialog" id="erosionRequestForm">
+            <div class="erosion-dialog-head"><div><p class="step">Remontée au directeur commercial</p><h3>Demander une étude commerciale</h3></div><button type="button" class="icon-button" id="erosionRequestClose" aria-label="Fermer">&times;</button></div>
+            <div class="erosion-request-context" id="erosionRequestContext"></div>
+            <label>Raison de la baisse<select id="erosionReason" required><option value="Inconnue">Inconnue</option><option>Prix concurrent</option><option>Produit concurrent déjà implanté</option><option>Accord national / référencement concurrent</option><option>Problème de qualité</option><option>Produit plus adapté chez le concurrent</option><option>Client ne consomme plus ce produit</option><option>Changement de fournisseur</option><option>Rupture / problème de disponibilité</option><option>Mauvaise connaissance de notre gamme</option><option>Client perdu</option><option>Baisse d’activité du client</option><option>Autre</option></select></label>
+            <label>Commentaire du commercial<textarea id="erosionComment" rows="5" required placeholder="Contexte terrain, concurrent identifié, problème de prix ou autre information utile…"></textarea></label>
+            <p class="tarif-send-status" id="erosionRequestStatus" aria-live="polite"></p>
+            <div class="erosion-dialog-actions"><button type="button" class="ghost-button" id="erosionRequestCancel">Annuler</button><button type="submit" class="primary-button" id="erosionRequestSend">Envoyer la demande</button></div>
+          </form>
+        </dialog>
       </main>
 
       <main class="app-shell is-hidden" id="statsView">
@@ -2128,11 +2190,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260911offreprix1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260913erosion1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260911offreprix1" charset="UTF-8"></script>
+    <script src="script.js?v=20260913erosion1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

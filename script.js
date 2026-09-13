@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-08.3";
+const APP_BUILD_VERSION = "2026-09-13.1";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -129,6 +129,10 @@ const orderDraftStorageKey = "schullerOrderDraft";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
 let deliveryOrderHistory = [];
 let deliveryOrderHistoryLoaded = false;
+let antiErosionRequests = [];
+let antiErosionSelectedClient = "";
+let antiErosionSelectedProduct = null;
+let antiErosionLoaded = false;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -412,6 +416,7 @@ const tutorialTab = document.querySelector("#tutorialTab");
 const homeTab = document.querySelector("#homeTab");
 const client360Tab = document.querySelector("#client360Tab");
 const statsTab = document.querySelector("#statsTab");
+const antiErosionTab = document.querySelector("#antiErosionTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -438,6 +443,7 @@ const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const statsView = document.querySelector("#statsView");
+const antiErosionView = document.querySelector("#antiErosionView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const sampleView = document.querySelector("#sampleView");
@@ -11857,12 +11863,263 @@ async function importProspectionFile(event) {
   event.target.value = "";
 }
 
+const erosionReasonOptions = ["Prix concurrent", "Produit concurrent déjà implanté", "Accord national / référencement concurrent", "Problème de qualité", "Produit plus adapté chez le concurrent", "Client ne consomme plus ce produit", "Changement de fournisseur", "Rupture / problème de disponibilité", "Mauvaise connaissance de notre gamme", "Client perdu", "Baisse d’activité du client", "Inconnue", "Autre"];
+
+function erosionPercent(current, previous) {
+  if (!previous) return current > 0 ? 1 : 0;
+  return (current - previous) / previous;
+}
+
+function erosionPriority(loss) {
+  const amount = Math.abs(Number(loss) || 0);
+  if (amount > 5000) return { key: "critical", label: "Priorité critique" };
+  if (amount >= 2000) return { key: "high", label: "Priorité haute" };
+  if (amount >= 500) return { key: "medium", label: "Priorité moyenne" };
+  return { key: "low", label: "Priorité faible" };
+}
+
+function buildAntiErosionClients() {
+  const grouped = new Map();
+  getCommercialStatsRows().forEach((row) => {
+    const key = normalize(row.clientCode || row.clientName || "");
+    if (!key) return;
+    if (!grouped.has(key)) grouped.set(key, {
+      key, clientName: row.clientName, clientCode: row.clientCode, sector: row.sector,
+      commercialName: row.commercialName || row.sector || "Non attribué", caN: 0, caPrevious: 0, products: [],
+    });
+    const client = grouped.get(key);
+    const caN = Number(row.ca2026) || 0;
+    const caPrevious = Number(row.ca2025) || 0;
+    const quantityN = Number(row.quantity2026) || 0;
+    const quantityPrevious = Number(row.quantity2025) || 0;
+    client.caN += caN;
+    client.caPrevious += caPrevious;
+    client.products.push({
+      reference: row.articleCode || "", designation: row.articleName || "Article sans désignation",
+      family: row.family || "Famille non renseignée", quantityN, quantityPrevious,
+      caN, caPrevious, gapQuantity: quantityN - quantityPrevious, gapCa: caN - caPrevious,
+      evolution: erosionPercent(caN, caPrevious),
+    });
+  });
+  return [...grouped.values()].map((client) => {
+    client.gapCa = client.caN - client.caPrevious;
+    client.loss = Math.max(0, -client.gapCa);
+    client.evolution = erosionPercent(client.caN, client.caPrevious);
+    client.products.sort((a, b) => a.gapCa - b.gapCa);
+    const familyLosses = new Map();
+    client.products.forEach((product) => {
+      if (product.gapCa < 0) familyLosses.set(product.family, (familyLosses.get(product.family) || 0) + Math.abs(product.gapCa));
+    });
+    client.mainFamily = [...familyLosses.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Non identifiée";
+    client.priority = erosionPriority(client.loss);
+    return client;
+  }).filter((client) => client.gapCa < 0).sort((a, b) => b.loss - a.loss);
+}
+
+function antiErosionFilteredClients() {
+  const commercial = document.querySelector("#erosionCommercialFilter")?.value || "all";
+  const sector = document.querySelector("#erosionSectorFilter")?.value || "all";
+  const query = normalize(document.querySelector("#erosionClientFilter")?.value || "");
+  const family = document.querySelector("#erosionFamilyFilter")?.value || "all";
+  const reference = normalize(document.querySelector("#erosionReferenceFilter")?.value || "");
+  const minimumPercent = Number(document.querySelector("#erosionPercentFilter")?.value) || 0;
+  const minimumAmount = Number(document.querySelector("#erosionAmountFilter")?.value) || 0;
+  return buildAntiErosionClients().filter((client) => {
+    if (commercial !== "all" && client.commercialName !== commercial) return false;
+    if (sector !== "all" && client.sector !== sector) return false;
+    if (query && !normalize(`${client.clientName} ${client.clientCode}`).includes(query)) return false;
+    if (Math.abs(client.evolution * 100) < minimumPercent || client.loss < minimumAmount) return false;
+    if (family !== "all" && !client.products.some((product) => product.family === family && product.gapCa < 0)) return false;
+    if (reference && !client.products.some((product) => normalize(`${product.reference} ${product.designation}`).includes(reference) && product.gapCa < 0)) return false;
+    return true;
+  });
+}
+
+function populateAntiErosionFilters(clients) {
+  const fill = (selector, values, allLabel) => {
+    const select = document.querySelector(selector);
+    if (!select) return;
+    const current = select.value || "all";
+    select.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>` + [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr")).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+    if ([...select.options].some((option) => option.value === current)) select.value = current;
+  };
+  fill("#erosionCommercialFilter", clients.map((client) => client.commercialName), "Tous les commerciaux");
+  fill("#erosionSectorFilter", clients.map((client) => client.sector), "Tous les secteurs");
+  fill("#erosionFamilyFilter", clients.flatMap((client) => client.products.map((product) => product.family)), "Toutes les familles");
+}
+
+function renderAntiErosionKpis(clients) {
+  const container = document.querySelector("#erosionKpis");
+  if (!container) return;
+  const totalLoss = clients.reduce((sum, client) => sum + client.loss, 0);
+  const visibleKeys = new Set(clients.map((client) => client.key));
+  const requests = antiErosionRequests.filter((item) => visibleKeys.has(normalize(item.clientCode || item.clientName || "")) || currentUser?.role === "admin");
+  const accepted = requests.filter((item) => ["Acceptée", "Offre créée", "Offre transmise au client", "Gagnée"].includes(item.status)).length;
+  const recovered = requests.filter((item) => item.status === "Gagnée").reduce((sum, item) => sum + (Number(item.recoveredRevenue) || 0), 0);
+  const successRate = requests.length ? Math.round((requests.filter((item) => item.status === "Gagnée").length / requests.length) * 100) : 0;
+  const values = currentUser?.role === "admin"
+    ? [["CA total en érosion", formatter.format(totalLoss)], ["Clients en baisse", formatNumber(clients.length)], ["Potentiel récupérable", formatter.format(totalLoss)], ["Demandes envoyées", formatNumber(requests.length)], ["Opérations acceptées", formatNumber(accepted)], ["CA récupéré", formatter.format(recovered)], ["Taux de réussite", `${successRate} %`]]
+    : [["CA en érosion", formatter.format(totalLoss)], ["Clients prioritaires", formatNumber(clients.length)], ["Demandes envoyées", formatNumber(requests.length)], ["Potentiel récupérable", formatter.format(totalLoss)]];
+  container.innerHTML = values.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+}
+
+function renderAntiErosionDirector(clients) {
+  const dashboard = document.querySelector("#erosionDirectorDashboard");
+  const rankings = document.querySelector("#erosionRankings");
+  if (!dashboard || !rankings) return;
+  dashboard.classList.toggle("is-hidden", currentUser?.role !== "admin");
+  if (currentUser?.role !== "admin") return;
+  const aggregate = (entries, keyFn, valueFn) => {
+    const map = new Map();
+    entries.forEach((entry) => map.set(keyFn(entry), (map.get(keyFn(entry)) || 0) + valueFn(entry)));
+    return [...map.entries()].filter(([key]) => key).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  };
+  const products = clients.flatMap((client) => client.products.filter((product) => product.gapCa < 0));
+  const blocks = [
+    ["Top 10 clients en érosion", clients.slice(0, 10).map((item) => [item.clientName, item.loss])],
+    ["Top 10 produits responsables", aggregate(products, (item) => `${item.reference} · ${item.designation}`, (item) => Math.abs(item.gapCa))],
+    ["Top 10 familles en baisse", aggregate(products, (item) => item.family, (item) => Math.abs(item.gapCa))],
+    ["Top secteurs en érosion", aggregate(clients, (item) => item.sector, (item) => item.loss)],
+  ];
+  rankings.innerHTML = blocks.map(([title, rows]) => `<article><h4>${escapeHtml(title)}</h4>${rows.length ? rows.map(([label, value], index) => `<div><span><b>${index + 1}</b>${escapeHtml(label)}</span><strong>-${escapeHtml(formatWholeCurrency(value))}</strong></div>`).join("") : '<p class="dashboard-empty">Aucune donnée.</p>'}</article>`).join("");
+}
+
+function renderAntiErosionDetail(client) {
+  const detail = document.querySelector("#erosionDetail");
+  if (!detail) return;
+  if (!client) {
+    detail.innerHTML = '<div class="erosion-empty"><strong>Sélectionnez un client</strong><span>Vous verrez les produits qui expliquent sa baisse et l’action recommandée.</span></div>';
+    return;
+  }
+  const losses = client.products.filter((product) => product.gapCa < 0);
+  detail.innerHTML = `
+    <div class="erosion-detail-head"><div><p class="step">Analyse produit</p><h3>${escapeHtml(client.clientName)}</h3><span>${escapeHtml(client.clientCode)} · ${escapeHtml(client.sector)}</span></div><span class="erosion-priority is-${client.priority.key}">${escapeHtml(client.priority.label)}</span></div>
+    <div class="erosion-loss-summary"><span>Perte client <strong>-${escapeHtml(formatWholeCurrency(client.loss))}</strong></span><span>Évolution <strong>${escapeHtml(formatEvolutionPercent(client.evolution))}</strong></span></div>
+    <div class="erosion-source"><span>Principale source d’érosion</span><strong>${escapeHtml(client.mainFamily)}</strong></div>
+    <div class="erosion-product-list">${losses.map((product, index) => `
+      <article class="erosion-product">
+        <div class="erosion-product-title"><span class="client360-rank">${index + 1}</span><div><strong>${escapeHtml(product.reference)}</strong><span>${escapeHtml(product.designation)}</span><small>${escapeHtml(product.family)}</small></div><b>-${escapeHtml(formatWholeCurrency(Math.abs(product.gapCa)))}</b></div>
+        <div class="erosion-product-metrics"><span><small>Qté N-1</small><strong>${escapeHtml(formatNumber(product.quantityPrevious))}</strong></span><span><small>Qté N</small><strong>${escapeHtml(formatNumber(product.quantityN))}</strong></span><span><small>Écart Qté</small><strong>${escapeHtml(formatNumberDelta(product.gapQuantity))}</strong></span><span><small>CA N-1</small><strong>${escapeHtml(formatWholeCurrency(product.caPrevious))}</strong></span><span><small>CA N</small><strong>${escapeHtml(formatWholeCurrency(product.caN))}</strong></span><span><small>Évolution</small><strong>${escapeHtml(formatEvolutionPercent(product.evolution))}</strong></span></div>
+        <button type="button" class="erosion-study-button" data-erosion-study="${index}">Demander une étude commerciale</button>
+      </article>`).join("") || '<div class="dashboard-empty">Aucun produit en baisse identifié.</div>'}</div>`;
+  detail.querySelectorAll("[data-erosion-study]").forEach((button) => button.addEventListener("click", () => openAntiErosionRequest(client, losses[Number(button.dataset.erosionStudy)])));
+}
+
+function renderAntiErosionClients() {
+  const allClientsErosion = buildAntiErosionClients();
+  populateAntiErosionFilters(allClientsErosion);
+  const clients = antiErosionFilteredClients();
+  const list = document.querySelector("#erosionClientList");
+  const count = document.querySelector("#erosionResultCount");
+  if (count) count.textContent = `${clients.length} client${clients.length > 1 ? "s" : ""}`;
+  if (list) list.innerHTML = clients.length ? clients.map((client) => `
+    <button type="button" class="erosion-client${antiErosionSelectedClient === client.key ? " is-active" : ""}" data-erosion-client="${escapeHtml(client.key)}">
+      <span class="erosion-priority is-${client.priority.key}">${escapeHtml(client.priority.label.replace("Priorité ", ""))}</span>
+      <strong>${escapeHtml(client.clientName)}</strong><small>${escapeHtml(client.clientCode)} · ${escapeHtml(client.sector)}</small>
+      <span class="erosion-client-loss"><b>-${escapeHtml(formatWholeCurrency(client.loss))}</b><em>${escapeHtml(formatEvolutionPercent(client.evolution))}</em></span>
+      <span class="erosion-client-cause">Source : ${escapeHtml(client.mainFamily)}</span>
+    </button>`).join("") : '<div class="erosion-empty"><strong>Aucun client avec ces critères</strong><span>Réduisez les seuils ou actualisez les données Drive.</span></div>';
+  list?.querySelectorAll("[data-erosion-client]").forEach((button) => button.addEventListener("click", () => {
+    antiErosionSelectedClient = button.dataset.erosionClient;
+    renderAntiErosionClients();
+  }));
+  const selected = clients.find((client) => client.key === antiErosionSelectedClient) || clients[0];
+  antiErosionSelectedClient = selected?.key || "";
+  renderAntiErosionDetail(selected);
+  renderAntiErosionKpis(clients);
+  renderAntiErosionDirector(clients);
+  const badge = document.querySelector("#erosionSourceBadge");
+  if (badge) badge.textContent = clientArticleStats360?.sourceFile ? `Drive · ${clientArticleStats360.sourceFile}` : "Drive";
+}
+
+function openAntiErosionRequest(client, product) {
+  antiErosionSelectedProduct = { client, product };
+  const context = document.querySelector("#erosionRequestContext");
+  if (context) context.innerHTML = `<strong>${escapeHtml(client.clientName)}</strong><span>${escapeHtml(client.clientCode)} · ${escapeHtml(client.commercialName)} · ${escapeHtml(client.sector)}</span><strong>${escapeHtml(product.reference)} · ${escapeHtml(product.designation)}</strong><span>Qté ${escapeHtml(formatNumber(product.quantityPrevious))} → ${escapeHtml(formatNumber(product.quantityN))} · perte estimée : ${escapeHtml(formatWholeCurrency(Math.abs(product.gapCa)))}</span>`;
+  document.querySelector("#erosionComment").value = "";
+  document.querySelector("#erosionReason").value = "Inconnue";
+  const status = document.querySelector("#erosionRequestStatus");
+  if (status) { status.textContent = ""; status.className = "tarif-send-status"; }
+  document.querySelector("#erosionRequestDialog")?.showModal();
+}
+
+async function submitAntiErosionRequest(event) {
+  event.preventDefault();
+  if (!antiErosionSelectedProduct) return;
+  const { client, product } = antiErosionSelectedProduct;
+  const payload = {
+    id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: "À étudier",
+    commercialId: currentUser?.id || "", commercialName: currentUser?.name || client.commercialName,
+    sector: client.sector, clientName: client.clientName, clientCode: client.clientCode,
+    productReference: product.reference, productName: product.designation, family: product.family,
+    quantityPrevious: product.quantityPrevious, quantityN: product.quantityN, caPrevious: product.caPrevious, caN: product.caN,
+    estimatedLoss: Math.abs(product.gapCa), reason: document.querySelector("#erosionReason").value,
+    comment: document.querySelector("#erosionComment").value.trim(), historyAvailable: true,
+  };
+  const status = document.querySelector("#erosionRequestStatus");
+  const button = document.querySelector("#erosionRequestSend");
+  button.disabled = true;
+  status.textContent = "Envoi au directeur commercial…";
+  try {
+    const result = await postService({ action: "createAntiErosionRequest", request: JSON.stringify(payload) });
+    antiErosionRequests = Array.isArray(result.requests) ? result.requests : [payload, ...antiErosionRequests];
+    status.textContent = "Demande envoyée et enregistrée.";
+    status.classList.add("is-success");
+    renderAntiErosionRequests();
+    renderAntiErosionClients();
+    window.setTimeout(() => document.querySelector("#erosionRequestDialog")?.close(), 700);
+  } catch (error) {
+    status.textContent = error.message || "Impossible d’envoyer la demande.";
+    status.classList.add("is-error");
+  } finally { button.disabled = false; }
+}
+
+async function updateAntiErosionRequest(id, changes) {
+  try {
+    const result = await postService({ action: "updateAntiErosionRequest", id, changes: JSON.stringify(changes) });
+    antiErosionRequests = Array.isArray(result.requests) ? result.requests : antiErosionRequests.map((item) => item.id === id ? { ...item, ...changes } : item);
+    renderAntiErosionRequests();
+    renderAntiErosionClients();
+  } catch (error) { window.alert(error.message || "Mise à jour impossible."); }
+}
+
+function renderAntiErosionRequests() {
+  const list = document.querySelector("#erosionRequestList");
+  const count = document.querySelector("#erosionRequestCount");
+  if (!list || !count) return;
+  count.textContent = `${antiErosionRequests.length} demande${antiErosionRequests.length > 1 ? "s" : ""}`;
+  const statuses = ["À étudier", "En attente d’informations", "Acceptée", "Refusée", "Offre créée", "Offre transmise au client", "Gagnée", "Perdue"];
+  list.innerHTML = antiErosionRequests.length ? antiErosionRequests.map((item) => `
+    <article class="erosion-request-card"><div><span class="erosion-request-status">${escapeHtml(item.status || "À étudier")}</span><strong>${escapeHtml(item.clientName)} · ${escapeHtml(item.productReference)}</strong><small>${escapeHtml(item.commercialName || item.sector)} · ${escapeHtml(new Date(item.createdAt).toLocaleDateString("fr-FR"))} · perte ${escapeHtml(formatWholeCurrency(item.estimatedLoss))}</small><p>${escapeHtml(item.reason || "Inconnue")} — ${escapeHtml(item.comment || "")}</p></div>${currentUser?.role === "admin" ? `<label>Décision<select data-erosion-status="${escapeHtml(item.id)}">${statuses.map((status) => `<option${status === item.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>` : ""}</article>`).join("") : '<div class="dashboard-empty">Aucune demande envoyée.</div>';
+  list.querySelectorAll("[data-erosion-status]").forEach((select) => select.addEventListener("change", () => updateAntiErosionRequest(select.dataset.erosionStatus, { status: select.value, decisionDate: new Date().toISOString() })));
+}
+
+async function loadAntiErosion(force = false) {
+  if (!currentSessionToken) return;
+  const period = document.querySelector("#erosionPeriod");
+  if (period) period.textContent = "Actualisation des données client / produit…";
+  try {
+    if (force || !clientArticleStats360?.available) await loadClientArticleStatsFromDrive();
+    try {
+      const result = await postService({ action: "getAntiErosionRequests" });
+      antiErosionRequests = Array.isArray(result.requests) ? result.requests : [];
+    } catch (error) { antiErosionRequests = []; }
+    antiErosionLoaded = true;
+    if (period) period.textContent = `Même période N / N-1 · données actualisées ${clientArticleStats360?.updatedAt || "depuis Drive"}`;
+    renderAntiErosionClients();
+    renderAntiErosionRequests();
+  } catch (error) {
+    if (period) period.textContent = error.message || "Données anti-érosion indisponibles.";
+  }
+}
+
 function setActiveTab(tabName) {
   setTabletMenuOpen(false);
   const showTutorial = tabName === "tutorial";
   const showHome = tabName === "home";
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
+  const showAntiErosion = tabName === "antiErosion";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
@@ -11890,6 +12147,7 @@ function setActiveTab(tabName) {
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
   statsTab.classList.toggle("is-active", showStats);
+  antiErosionTab?.classList.toggle("is-active", showAntiErosion);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab?.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
@@ -11917,6 +12175,7 @@ function setActiveTab(tabName) {
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
   statsView.classList.toggle("is-hidden", !showStats);
+  antiErosionView?.classList.toggle("is-hidden", !showAntiErosion);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView?.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
@@ -11942,7 +12201,7 @@ function setActiveTab(tabName) {
   adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", history: "Historique commandes", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", order: "Saisie commande", history: "Historique commandes", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -11954,6 +12213,8 @@ function setActiveTab(tabName) {
     renderCommercialStats();
     requestAnimationFrame(() => statsClientFilter?.focus());
   }
+
+  if (showAntiErosion) loadAntiErosion();
 
   if (showClient360) {
     loadClientArticleStatsFromDrive();
@@ -12649,6 +12910,13 @@ previewOrderFilesButton?.addEventListener("click", previewOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
+antiErosionTab?.addEventListener("click", () => setActiveTab("antiErosion"));
+document.querySelector("#erosionRefresh")?.addEventListener("click", () => loadAntiErosion(true));
+["#erosionCommercialFilter", "#erosionSectorFilter", "#erosionFamilyFilter", "#erosionPercentFilter", "#erosionAmountFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("change", renderAntiErosionClients));
+["#erosionClientFilter", "#erosionReferenceFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("input", renderAntiErosionClients));
+document.querySelector("#erosionRequestForm")?.addEventListener("submit", submitAntiErosionRequest);
+document.querySelector("#erosionRequestClose")?.addEventListener("click", () => document.querySelector("#erosionRequestDialog")?.close());
+document.querySelector("#erosionRequestCancel")?.addEventListener("click", () => document.querySelector("#erosionRequestDialog")?.close());
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab?.addEventListener("click", () => setActiveTab("history"));
 historyRefresh?.addEventListener("click", () => loadDeliveryOrderHistory(true));
