@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.5";
+const APP_BUILD_VERSION = "2026-09-13.6";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -6060,7 +6060,8 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
+    appTabs.insertBefore(antiErosionTab, statsTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, antiErosionTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
     let lastTab = adminPurchaseTab;
     if (adminOffrePrixTab) {
@@ -6089,6 +6090,7 @@ function arrangeTabsForUser(user) {
     homeTab,
     client360Tab,
     statsTab,
+    antiErosionTab,
     orderTab,
     historyTab,
     quoteTab,
@@ -6451,6 +6453,7 @@ function getLaunchTabFromUrl() {
       "home",
       "client360",
       "stats",
+      "antiErosion",
       "order",
       "quote",
       "sample",
@@ -6477,8 +6480,8 @@ function getLaunchTabFromUrl() {
 function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
-  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour", "history"]);
-  const commercialTabs = new Set(["home", "client360", "stats", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "prospection", "tour", "history"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "antiErosion", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
     : (commercialTabs.has(tab) ? tab : "");
@@ -6517,6 +6520,7 @@ function showApp(user, token = user.token || "") {
   deliveryOrderHistoryLoaded = false;
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
+  antiErosionTab?.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
@@ -11964,9 +11968,7 @@ function renderAntiErosionKpis(clients) {
   const accepted = requests.filter((item) => ["Acceptée", "Offre créée", "Offre transmise au client", "Gagnée"].includes(item.status)).length;
   const recovered = requests.filter((item) => item.status === "Gagnée").reduce((sum, item) => sum + (Number(item.recoveredRevenue) || 0), 0);
   const successRate = requests.length ? Math.round((requests.filter((item) => item.status === "Gagnée").length / requests.length) * 100) : 0;
-  const values = currentUser?.role === "admin"
-    ? [["CA total en érosion", formatter.format(totalLoss)], ["Clients en baisse", formatNumber(clients.length)], ["Potentiel récupérable", formatter.format(totalLoss)], ["Demandes envoyées", formatNumber(requests.length)], ["Opérations acceptées", formatNumber(accepted)], ["CA récupéré", formatter.format(recovered)], ["Taux de réussite", `${successRate} %`]]
-    : [["CA en érosion", formatter.format(totalLoss)], ["Clients prioritaires", formatNumber(clients.length)], ["Demandes envoyées", formatNumber(requests.length)], ["Potentiel récupérable", formatter.format(totalLoss)]];
+  const values = [["CA total en érosion", formatter.format(totalLoss)], ["Clients en baisse", formatNumber(clients.length)], ["Potentiel récupérable", formatter.format(totalLoss)], ["Demandes envoyées", formatNumber(requests.length)], ["Opérations acceptées", formatNumber(accepted)], ["CA récupéré", formatter.format(recovered)], ["Taux de réussite", `${successRate} %`]];
   container.innerHTML = values.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 }
 
@@ -11974,8 +11976,11 @@ function renderAntiErosionDirector(clients) {
   const dashboard = document.querySelector("#erosionDirectorDashboard");
   const rankings = document.querySelector("#erosionRankings");
   if (!dashboard || !rankings) return;
-  dashboard.classList.toggle("is-hidden", currentUser?.role !== "admin");
-  if (currentUser?.role !== "admin") return;
+  dashboard.classList.remove("is-hidden");
+  const viewLabel = document.querySelector("#erosionDashboardLabel");
+  const viewTitle = document.querySelector("#erosionDashboardTitle");
+  if (viewLabel) viewLabel.textContent = currentUser?.role === "admin" ? "Vue directeur commercial" : "Vue de votre secteur";
+  if (viewTitle) viewTitle.textContent = currentUser?.role === "admin" ? "Pilotage global" : `Pilotage ${currentUser?.sectors?.join(" + ") || "commercial"}`;
   const aggregate = (entries, keyFn, valueFn) => {
     const map = new Map();
     entries.forEach((entry) => map.set(keyFn(entry), (map.get(keyFn(entry)) || 0) + valueFn(entry)));

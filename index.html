@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260913anti1" />
-    <link rel="icon" href="assets/favicon.ico?v=20260913anti1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260913anti1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260913anti1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260913anti1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260913anti2" />
+    <link rel="icon" href="assets/favicon.ico?v=20260913anti2" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260913anti2" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260913anti2" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260913anti2" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260913anti1" />
+    <link rel="stylesheet" href="style.css?v=20260913anti2" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -408,7 +408,7 @@
           <p class="erosion-period" id="erosionPeriod">Comparaison de la période disponible N avec la même période N-1.</p>
 
           <section class="erosion-director is-hidden" id="erosionDirectorDashboard">
-            <div class="panel-heading"><div><p class="step">Vue directeur commercial</p><h3>Pilotage global</h3></div></div>
+            <div class="panel-heading"><div><p class="step" id="erosionDashboardLabel">Vue directeur commercial</p><h3 id="erosionDashboardTitle">Pilotage global</h3></div></div>
             <div class="erosion-rankings" id="erosionRankings"></div>
           </section>
 
@@ -2190,11 +2190,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260913anti1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260913anti2" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260913anti1" charset="UTF-8"></script>
+    <script src="script.js?v=20260913anti2" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
