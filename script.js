@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-14.2";
+const APP_BUILD_VERSION = "2026-09-14.3";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -15,6 +15,7 @@ let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
 let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
 let commercialStatsRowsCache = null;
+let clientArticleStatsLoadPromise = null;
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -874,12 +875,13 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 
 const POST_SERVICE_TIMEOUT_MS = 25000;
 const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  getClientArticleStats: 15000,
+  getClientArticleStats: 60000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
 const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
   "getDeliveryOrderHistory", "getAntiErosionRequests",
+  "getClientArticleStats",
   "getDashboardStats", "getPromotions", "getReliquatsReprises", "getProspectionData",
   "getPriceOffers", "getMyExpenseDrafts",
   "getPurchaseComparatif", "getRuptureComparatif", "getStockComparatif",
@@ -919,7 +921,9 @@ async function postService(parameters) {
     } catch (error) {
       clearTimeout(timeoutId);
       const isTimeout = error?.name === "AbortError";
-      if (attempt < maxAttempts) {
+      // Le fichier de statistiques est volumineux : ne pas relancer une seconde
+      // lecture complète après 60 s. Les réponses non JSON restent retentées plus bas.
+      if (attempt < maxAttempts && (!isTimeout || action !== "getClientArticleStats")) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
@@ -4321,8 +4325,20 @@ async function refreshDashboardDataFromDrive() {
 
 async function loadClientArticleStatsFromDrive({ throwOnError = false } = {}) {
   if (!currentSessionToken) return;
-  try {
-    const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
+  if (clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) return true;
+  if (clientArticleStatsLoadPromise) {
+    try {
+      return await clientArticleStatsLoadPromise;
+    } catch (error) {
+      if (throwOnError) throw error;
+      return false;
+    }
+  }
+  if (statsSourceBadge) statsSourceBadge.textContent = "Chargement Drive…";
+  const requestedToken = currentSessionToken;
+  clientArticleStatsLoadPromise = (async () => {
+    const result = await postService({ action: "getClientArticleStats", token: requestedToken });
+    if (!currentSessionToken || requestedToken !== currentSessionToken) throw new Error("La session a changé pendant le chargement.");
     clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
     if (!clientArticleStats360.available) {
       throw new Error(clientArticleStats360.message || "Les statistiques clients ne sont pas disponibles dans Drive.");
@@ -4334,10 +4350,15 @@ async function loadClientArticleStatsFromDrive({ throwOnError = false } = {}) {
     if (selectedClient360) selectClient360(selectedClient360);
     renderCommercialStats();
     return true;
+  })();
+  try {
+    return await clientArticleStatsLoadPromise;
   } catch (error) {
     // On garde la derniere version chargee pour ne pas bloquer le terrain.
     if (throwOnError) throw error;
     return false;
+  } finally {
+    clientArticleStatsLoadPromise = null;
   }
 }
 
