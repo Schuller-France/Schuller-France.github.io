@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-13.8";
+const APP_BUILD_VERSION = "2026-09-14.1";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -880,7 +880,10 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
 const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
   "getDeliveryOrderHistory", "getAntiErosionRequests",
   "getDashboardStats", "getPromotions", "getReliquatsReprises", "getProspectionData",
-  "getPriceOffers", "getMyExpenseDrafts", "login", "session",
+  "getPriceOffers", "getMyExpenseDrafts",
+  "getPurchaseComparatif", "getRuptureComparatif", "getStockComparatif",
+  "getPurchaseHistory", "getRuptureHistory", "getStockHistory",
+  "login", "session",
 ]);
 
 async function postService(parameters) {
