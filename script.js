@@ -6557,7 +6557,7 @@ function showApp(user, token = user.token || "") {
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
   antiErosionTab?.classList.remove("is-hidden");
-  opportunitiesTab?.classList.remove("is-hidden");
+  opportunitiesTab?.classList.add("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
@@ -12464,6 +12464,7 @@ async function loadCommercialOpportunities(force = false) {
 }
 
 function setActiveTab(tabName) {
+  if (tabName === "opportunities") tabName = "antiErosion";
   setTabletMenuOpen(false);
   const showTutorial = tabName === "tutorial";
   const showHome = tabName === "home";

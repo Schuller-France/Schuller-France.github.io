@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260913statsfix1" />
-    <link rel="icon" href="assets/favicon.ico?v=20260913statsfix1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260913statsfix1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260913statsfix1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260913statsfix1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260914menu1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260914menu1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260914menu1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260914menu1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260914menu1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260913statsfix1" />
+    <link rel="stylesheet" href="style.css?v=20260914menu1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -144,7 +144,7 @@
         <button class="tab-button" type="button" id="client360Tab" data-icon="👤">Fiche client</button>
         <button class="tab-button" type="button" id="statsTab" data-icon="📊">Statistiques</button>
         <button class="tab-button" type="button" id="antiErosionTab" data-icon="🛡️">Anti-&eacute;rosion</button>
-        <button class="tab-button" type="button" id="opportunitiesTab" data-icon="💡">Opportunit&eacute;s</button>
+        <button class="tab-button is-hidden" type="button" id="opportunitiesTab" data-icon="💡" aria-hidden="true" tabindex="-1">Opportunit&eacute;s</button>
         <button class="tab-button" type="button" id="orderTab" data-icon="🧾">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab" data-icon="🕘">Historique commandes</button>
         <button class="tab-button" type="button" id="quoteTab" data-icon="📝">Demande de devis</button>
@@ -269,7 +269,6 @@
           </div>
           <div class="tablet-action-grid">
             <button type="button" data-tablet-tab="order">Nouvelle commande</button>
-            <button type="button" data-tablet-tab="opportunities">Opportunit&eacute;s</button>
             <button type="button" data-tablet-tab="notes">Prise de notes</button>
             <button type="button" data-tablet-tab="quote">Demande de devis</button>
             <button type="button" data-tablet-tab="sample">Demande &eacute;chantillon</button>
@@ -2220,11 +2219,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260913statsfix1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260914menu1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260913statsfix1" charset="UTF-8"></script>
+    <script src="script.js?v=20260914menu1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
