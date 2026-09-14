@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-14.3";
+const APP_BUILD_VERSION = "2026-09-14.4";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -873,9 +873,9 @@ const SEND_HISTORY_CATEGORY_LABELS = {
   statistiques: "Statistiques",
 };
 
-const POST_SERVICE_TIMEOUT_MS = 25000;
+const POST_SERVICE_TIMEOUT_MS = 90000;
 const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  getClientArticleStats: 60000,
+  getClientArticleStats: 90000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
@@ -889,7 +889,22 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
   "login", "session",
 ]);
 
-async function postService(parameters) {
+const postServiceInFlightReads = new Map();
+
+function postService(parameters) {
+  const action = String(parameters?.action || "");
+  const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
+  if (!isReadOnlyAction) return executePostService(parameters);
+  const dedupePayload = { ...parameters };
+  delete dedupePayload.timeoutMs;
+  const dedupeKey = new URLSearchParams(dedupePayload).toString();
+  if (postServiceInFlightReads.has(dedupeKey)) return postServiceInFlightReads.get(dedupeKey);
+  const request = executePostService(parameters).finally(() => postServiceInFlightReads.delete(dedupeKey));
+  postServiceInFlightReads.set(dedupeKey, request);
+  return request;
+}
+
+async function executePostService(parameters) {
   setSyncStatus("syncing", "Synchro...");
   if (!tariffConfig.endpoint) {
     setSyncStatus("local", "Local");
@@ -902,7 +917,8 @@ async function postService(parameters) {
   const { skipSessionToken = false, timeoutMs, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   const action = String(payload.action || "");
-  const maxAttempts = POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
+  const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
+  const maxAttempts = isReadOnlyAction || POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
   const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_BY_ACTION[action] || POST_SERVICE_TIMEOUT_MS;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -921,9 +937,9 @@ async function postService(parameters) {
     } catch (error) {
       clearTimeout(timeoutId);
       const isTimeout = error?.name === "AbortError";
-      // Le fichier de statistiques est volumineux : ne pas relancer une seconde
-      // lecture complète après 60 s. Les réponses non JSON restent retentées plus bas.
-      if (attempt < maxAttempts && (!isTimeout || action !== "getClientArticleStats")) {
+      // Une lecture qui a déjà occupé Google pendant 90 s ne doit pas repartir pour
+      // 90 s supplémentaires. Les réponses non JSON restent retentées plus bas.
+      if (attempt < maxAttempts && !isTimeout) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
