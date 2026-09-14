@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-14.1";
+const APP_BUILD_VERSION = "2026-09-14.2";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -484,6 +484,7 @@ const offrePrixClearLines = document.querySelector("#offrePrixClearLines");
 const offrePrixTotal = document.querySelector("#offrePrixTotal");
 const offrePrixPreview = document.querySelector("#offrePrixPreview");
 const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
+const offrePrixValidUntil = document.querySelector("#offrePrixValidUntil");
 const offrePrixEmail = document.querySelector("#offrePrixEmail");
 const offrePrixSend = document.querySelector("#offrePrixSend");
 const offrePrixCancelEdit = document.querySelector("#offrePrixCancelEdit");
@@ -7285,6 +7286,28 @@ function previewPdfBlob(blob) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+function getDefaultOffrePrixValidityDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 30);
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function resetOffrePrixValidityDate() {
+  if (!offrePrixValidUntil) return;
+  offrePrixValidUntil.min = todayInputDate();
+  offrePrixValidUntil.value = getDefaultOffrePrixValidityDate();
+}
+
+function getOffrePrixValidityDate() {
+  const value = String(offrePrixValidUntil?.value || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < todayInputDate()) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Choisissez une date de validité égale ou postérieure à aujourd'hui.";
+    offrePrixValidUntil?.focus();
+    return "";
+  }
+  return value;
+}
+
 async function previewOffrePrix() {
   const rows = getOffrePrixRows();
   const effectiveClient = getOffrePrixEffectiveClient();
@@ -7296,6 +7319,8 @@ async function previewOffrePrix() {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
+  const validUntil = getOffrePrixValidityDate();
+  if (!validUntil) return;
   if (offrePrixPreview) offrePrixPreview.disabled = true;
   if (offrePrixStatus) offrePrixStatus.textContent = "Préparation de l'aperçu...";
   // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
@@ -7311,6 +7336,7 @@ async function previewOffrePrix() {
         address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
+      validUntil,
     });
     if (!result.data) throw new Error("Aperçu indisponible.");
     previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
@@ -7364,6 +7390,7 @@ function loadPriceOfferIntoForm(id) {
   }));
   renderOffrePrixLines();
   if (offrePrixEmail) offrePrixEmail.value = offer.recipient || "";
+  if (offrePrixValidUntil) offrePrixValidUntil.value = offer.validUntil || getDefaultOffrePrixValidityDate();
   if (offrePrixSend) offrePrixSend.textContent = "Mettre à jour et renvoyer";
   if (offrePrixCancelEdit) offrePrixCancelEdit.classList.remove("is-hidden");
   if (offrePrixStatus) {
@@ -7385,6 +7412,8 @@ async function sendOffrePrixEmail() {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
+  const validUntil = getOffrePrixValidityDate();
+  if (!validUntil) return;
   if (!recipients.length || recipients.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     if (offrePrixStatus) offrePrixStatus.textContent = "Adresse e-mail invalide.";
     offrePrixEmail?.focus();
@@ -7403,6 +7432,7 @@ async function sendOffrePrixEmail() {
         address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
+      validUntil,
     };
     if (editingOfferId) payload.offerId = editingOfferId;
     const result = await postService(payload);
@@ -7412,6 +7442,7 @@ async function sendOffrePrixEmail() {
       renderOffrePrixLines();
       clearOffrePrixClient();
       if (offrePrixEmail) offrePrixEmail.value = "";
+      resetOffrePrixValidityDate();
       cancelOffrePrixEdit(false);
       loadPriceOffers();
     }
@@ -7463,6 +7494,7 @@ function renderPriceOffersHistory() {
         <span class="quote-status-pill is-accepted">${escapeHtml(offer.sector || "Secteur -")}</span>
         <strong>${escapeHtml(offer.clientName || "Client")}</strong>
         <small>${escapeHtml(offer.clientCode || "")} - ${(offer.lines || []).length} ligne(s) - Total net HT ${formatter.format(Number(offer.totalHt) || 0)}</small>
+        <small>Valable jusqu'au ${escapeHtml(offer.validUntil ? new Date(`${offer.validUntil}T12:00:00`).toLocaleDateString("fr-FR") : "non renseigné")}</small>
         <p>Envoyée à ${escapeHtml(offer.recipient || "-")} le ${escapeHtml(new Date(offer.createdAt || Date.now()).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }))} par ${escapeHtml(offer.userName || "-")}</p>
       </div>
       <button class="icon-button" type="button" data-delete-price-offer="${escapeHtml(offer.id)}" aria-label="Supprimer">&times;</button>
@@ -13355,7 +13387,10 @@ offrePrixCancelEdit?.addEventListener("click", () => {
   renderOffrePrixLines();
   clearOffrePrixClient();
   if (offrePrixEmail) offrePrixEmail.value = "";
+  resetOffrePrixValidityDate();
 });
+
+resetOffrePrixValidityDate();
 
 offrePrixExportCsv?.addEventListener("click", exportOffrePrixCsv);
 

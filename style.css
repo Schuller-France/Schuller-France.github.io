@@ -119,6 +119,8 @@ body {
 .offre-prix-history-filters input { flex: 1 1 220px; }
 .offre-prix-total-label { font-weight: 800; color: #171717; }
 .offre-prix-total-label strong { color: #b8000d; font-size: 17px; }
+.offre-prix-validity { display: grid; gap: 4px; color: #4b5563; font-size: 11px; font-weight: 800; }
+.offre-prix-validity input { min-height: 44px; padding: 0 12px; border: 1px solid #d9dde3; border-radius: 10px; background: #fff; color: #171717; font: inherit; }
 .quote-history-actions button { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 8px 10px; color: var(--dark); font-weight: 900; cursor: pointer; }
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
