@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.2";
+const APP_BUILD_VERSION = "2026-09-15.3";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -885,6 +885,8 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
   getClientArticleStats: 25000,
   getDashboardStats: 15000,
   getDeliveryOrderHistory: 20000,
+  buildOffrePrixPdf: 45000,
+  sendOffrePrix: 60000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
@@ -7487,6 +7489,9 @@ async function sendOffrePrixEmail() {
   }
   if (offrePrixSend) offrePrixSend.disabled = true;
   if (offrePrixStatus) offrePrixStatus.textContent = editingOfferId ? "Mise à jour de l'offre en cours..." : "Envoi de l'offre en cours...";
+  const slowSendNotice = window.setTimeout(() => {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Création du PDF et envoi en cours… Ne recliquez pas sur le bouton.";
+  }, 6000);
   try {
     const payload = {
       action: "sendOffrePrix",
@@ -7515,6 +7520,7 @@ async function sendOffrePrixEmail() {
   } catch (error) {
     if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Envoi impossible.";
   } finally {
+    window.clearTimeout(slowSendNotice);
     if (offrePrixSend) offrePrixSend.disabled = false;
   }
 }

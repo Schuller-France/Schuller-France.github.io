@@ -121,6 +121,9 @@ body {
 .offre-prix-total-label strong { color: #b8000d; font-size: 17px; }
 .offre-prix-validity { display: grid; gap: 4px; color: #4b5563; font-size: 11px; font-weight: 800; }
 .offre-prix-validity input { min-height: 44px; padding: 0 12px; border: 1px solid #d9dde3; border-radius: 10px; background: #fff; color: #171717; font: inherit; }
+.offre-prix-email-field { display: grid; flex: 1 1 420px; gap: 4px; color: #4b5563; font-size: 11px; font-weight: 800; text-align: left; }
+.offre-prix-email-field input { width: 100%; min-height: 44px; }
+.offre-prix-email-field small { color: #6b7280; font-size: 11px; font-weight: 600; }
 .quote-history-actions button { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 8px 10px; color: var(--dark); font-weight: 900; cursor: pointer; }
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
