@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.1";
+const APP_BUILD_VERSION = "2026-09-15.2";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -83,6 +83,7 @@ let editingNoteId = null;
 let notesHistoryMode = "client";
 let dashboardStatsOverride = null;
 let dashboardStatsLoading = false;
+let dashboardStatsLoadPromise = null;
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
@@ -873,9 +874,17 @@ const SEND_HISTORY_CATEGORY_LABELS = {
   statistiques: "Statistiques",
 };
 
-const POST_SERVICE_TIMEOUT_MS = 90000;
+// Rend rapidement la main lorsque Google Apps Script ne répond pas. Les lectures
+// lourdes ont leur propre plafond et l'interface garde la dernière donnée valide.
+const POST_SERVICE_TIMEOUT_MS = 12000;
 const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  getClientArticleStats: 90000,
+  login: 12000,
+  session: 12000,
+  logout: 2500,
+  getAppData: 25000,
+  getClientArticleStats: 25000,
+  getDashboardStats: 15000,
+  getDeliveryOrderHistory: 20000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
@@ -890,6 +899,7 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
 ]);
 
 const postServiceInFlightReads = new Map();
+let latestVisibleSyncRequest = 0;
 
 function postService(parameters) {
   const action = String(parameters?.action || "");
@@ -897,24 +907,41 @@ function postService(parameters) {
   if (!isReadOnlyAction) return executePostService(parameters);
   const dedupePayload = { ...parameters };
   delete dedupePayload.timeoutMs;
+  delete dedupePayload.background;
   const dedupeKey = new URLSearchParams(dedupePayload).toString();
-  if (postServiceInFlightReads.has(dedupeKey)) return postServiceInFlightReads.get(dedupeKey);
+  if (postServiceInFlightReads.has(dedupeKey)) {
+    const existing = postServiceInFlightReads.get(dedupeKey);
+    if (parameters.background) return existing;
+    const visibleSyncRequest = ++latestVisibleSyncRequest;
+    setSyncStatus("syncing", "Synchro...");
+    return existing.then((result) => {
+      if (visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus("ready", "Synchronisé");
+      return result;
+    }).catch((error) => {
+      if (visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus("error", "Synchro à vérifier");
+      throw error;
+    });
+  }
   const request = executePostService(parameters).finally(() => postServiceInFlightReads.delete(dedupeKey));
   postServiceInFlightReads.set(dedupeKey, request);
   return request;
 }
 
 async function executePostService(parameters) {
-  setSyncStatus("syncing", "Synchro...");
+  const { skipSessionToken = false, timeoutMs, background = false, ...payload } = parameters;
+  const visibleSyncRequest = background ? 0 : ++latestVisibleSyncRequest;
+  const updateVisibleSync = (state, message) => {
+    if (visibleSyncRequest && visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus(state, message);
+  };
+  updateVisibleSync("syncing", "Synchro...");
   if (!tariffConfig.endpoint) {
-    setSyncStatus("local", "Local");
+    updateVisibleSync("local", "Local");
     throw new Error("Service indisponible.");
   }
   if (navigator.onLine === false) {
-    setSyncStatus("error", "Hors ligne");
+    updateVisibleSync("error", "Hors ligne");
     throw new Error("Vous êtes hors ligne. Votre saisie reste sur la tablette et la synchronisation reprendra au retour du réseau.");
   }
-  const { skipSessionToken = false, timeoutMs, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   const action = String(payload.action || "");
   const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
@@ -943,7 +970,7 @@ async function executePostService(parameters) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
-      setSyncStatus("error", isTimeout ? "Delai depasse" : "Hors ligne");
+      updateVisibleSync("error", isTimeout ? "Délai dépassé" : "Hors ligne");
       throw new Error(
         isTimeout
           ? "Le serveur met trop de temps a repondre. Reessayez dans quelques instants."
@@ -964,17 +991,17 @@ async function executePostService(parameters) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
-      setSyncStatus("error", "Synchro a verifier");
+      updateVisibleSync("error", "Synchro à vérifier");
       throw new Error("Le service Google a renvoye une reponse invalide. Reconnectez-vous ou reessayez dans quelques instants.");
     }
     if (!result.ok) {
-      setSyncStatus("error", "Synchro a verifier");
+      updateVisibleSync("error", "Synchro à vérifier");
       const serviceError = new Error(result.message || "Operation impossible.");
       serviceError.servicePayload = result;
       serviceError.serviceAction = payload.action;
       throw serviceError;
     }
-    setSyncStatus("ready", "Synchronise");
+    updateVisibleSync("ready", "Synchronisé");
     return result;
   }
   throw new Error("Connexion au service Google impossible. Verifiez la connexion internet puis reessayez.");
@@ -1053,14 +1080,14 @@ async function loadSecureAppData(token, userId = "") {
   // Le premier chargement peut être volumineux (clients, articles et prix nets).
   // Un seul appel long évite deux exécutions Apps Script concurrentes et les faux
   // messages « Session expirée » observés après le timeout court de 25 secondes.
-  const result = await postService({ action: "getAppData", token, timeoutMs: 90000 });
+  const result = await postService({ action: "getAppData", token, timeoutMs: 25000 });
   applySecureAppData(result);
   saveSecureDataCache(userId || currentUser?.id || "", result);
 }
 
 async function refreshSecureAppDataInBackground(token, userId) {
   try {
-    const result = await postService({ action: "getAppData", token, timeoutMs: 90000 });
+    const result = await postService({ action: "getAppData", token, timeoutMs: 25000, background: true });
     applySecureAppData(result);
     saveSecureDataCache(userId || currentUser?.id || "", result);
     if (currentUser) {
@@ -1152,19 +1179,15 @@ function clearSecureAppData() {
 
 async function logoutCurrentSession() {
   const token = currentSessionToken;
-  if (token) {
-    try {
-      await postService({ action: "logout", token });
-    } catch (error) {
-      // La déconnexion locale reste prioritaire si Google est indisponible.
-    }
-  }
+  // Fermer immédiatement l'espace local. La révocation distante continue sans
+  // bloquer le bouton si Apps Script est lent ou momentanément indisponible.
   showLogin();
+  if (token) postService({ action: "logout", token, timeoutMs: 2500, skipSessionToken: true, background: true }).catch(() => {});
 }
 
 function recordActivity(type, detail = "") {
   if (!currentSessionToken || currentUser?.role === "admin") return;
-  postService({ action: "logActivity", token: currentSessionToken, type, detail }).catch(() => {});
+  postService({ action: "logActivity", token: currentSessionToken, type, detail, background: true }).catch(() => {});
 }
 
 function setDisplayMode(mode) {
@@ -1219,11 +1242,12 @@ function toggleThemeMode() {
 
 function isSessionError(error) {
   const message = normalize(error?.message || "");
-  return message.includes("expir")
+  // Une panne réseau ou une réponse Google invalide ne déconnecte plus l'utilisateur.
+  // Seul le backend peut déclarer explicitement le jeton invalide.
+  return error?.servicePayload?.sessionExpired === true
     || message.includes("session expire")
     || message.includes("session invalide")
-    || message.includes("acces refuse")
-    || message.includes("reconnectez");
+    || message.includes("jeton invalide");
 }
 
 function expireCurrentSession(message = "Votre session a expiré. Reconnectez-vous.") {
@@ -4251,14 +4275,14 @@ async function loadDashboardStatsFromDrive(options = {}) {
   }
   // Ne vide jamais la derniere bonne lecture avant d'avoir une reponse Drive valide.
   // Ainsi, si le reseau est lent ou absent, l'accueil garde les derniers chiffres fiables.
-  if (dashboardStatsLoading) {
+  if (dashboardStatsLoadPromise) {
     if (currentUser?.role === "admin") {
       if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
       if (adminCheckingBody && !dashboardStatsOverride) {
         adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
       }
     }
-    return;
+    return dashboardStatsLoadPromise;
   }
   dashboardStatsLoading = true;
   const dashboardUpdatedEl = document.querySelector("#dashboardUpdatedAt");
@@ -4271,6 +4295,7 @@ async function loadDashboardStatsFromDrive(options = {}) {
   } else {
     if (dashboardUpdatedEl) dashboardUpdatedEl.textContent = "Actualisation Drive…";
   }
+  dashboardStatsLoadPromise = (async () => {
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -4319,11 +4344,14 @@ async function loadDashboardStatsFromDrive(options = {}) {
     }
   } finally {
     dashboardStatsLoading = false;
+    dashboardStatsLoadPromise = null;
   }
+  })();
+  return dashboardStatsLoadPromise;
 }
 
 async function refreshDashboardDataFromDrive() {
-  if (!currentSessionToken || dashboardStatsLoading) return;
+  if (!currentSessionToken) return;
   if (!refreshDashboardData) {
     await loadDashboardStatsFromDrive({ force: true });
     return;
@@ -4339,9 +4367,9 @@ async function refreshDashboardDataFromDrive() {
   }
 }
 
-async function loadClientArticleStatsFromDrive({ throwOnError = false } = {}) {
+async function loadClientArticleStatsFromDrive({ throwOnError = false, force = false } = {}) {
   if (!currentSessionToken) return;
-  if (clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) return true;
+  if (!force && clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) return true;
   if (clientArticleStatsLoadPromise) {
     try {
       return await clientArticleStatsLoadPromise;
@@ -6626,9 +6654,9 @@ function showApp(user, token = user.token || "") {
     renderDashboard(currentUser);
   }
   renderDashboard(currentUser);
+  // Une seule lecture Drive au démarrage. Les autres données sont chargées à
+  // l'ouverture de leur onglet pour ne plus saturer Apps Script à la connexion.
   loadDashboardStatsFromDrive();
-  loadClientArticleStatsFromDrive();
-  refreshPromotionsFromDrive();
   startDriveAutoRefresh();
   renderHomeReminders();
   resetQuoteRequest();
@@ -6638,7 +6666,6 @@ function showApp(user, token = user.token || "") {
   renderSampleLines();
   renderSampleHistory();
   resetExpenses();
-  syncExpenseDraftsFromServer();
   resetCommercialStatsFilters();
   renderPrenetEmpty();
   renderNotesEmpty();
@@ -6767,7 +6794,10 @@ async function submitLogin() {
     updateLoginProgress(96, "Préparation de l'interface", "Mise en place du tableau de bord...", "dashboard");
     await waitForLoginProgressComplete();
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
-    refreshSecureAppDataInBackground(result.token, result.user?.id || "");
+    // Évite deux gros traitements Apps Script simultanés juste après la connexion.
+    Promise.resolve(dashboardStatsLoadPromise)
+      .catch(() => {})
+      .finally(() => refreshSecureAppDataInBackground(result.token, result.user?.id || ""));
   } catch (error) {
     resetLoginProgress();
     loginError.textContent = error.message || "Connexion impossible.";
@@ -6854,7 +6884,9 @@ async function restoreSession() {
       const verifiedUser = { ...restored.user, remember: Boolean(savedUser.remember) };
       restoreSecureDataCache(verifiedUser.id);
       showApp(verifiedUser, restored.token || "");
-      refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id);
+      Promise.resolve(dashboardStatsLoadPromise)
+        .catch(() => {})
+        .finally(() => refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id));
       return;
     }
   } catch (error) {
@@ -12376,7 +12408,7 @@ async function loadAntiErosion(force = false) {
   if (period) period.textContent = "Actualisation des données client / produit…";
   try {
     if (force || !clientArticleStats360?.available) {
-      await loadClientArticleStatsFromDrive({ throwOnError: true });
+      await loadClientArticleStatsFromDrive({ throwOnError: true, force });
     }
     try {
       const result = await postService({ action: "getAntiErosionRequests" });
