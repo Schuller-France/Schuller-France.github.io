@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-14.4";
+const APP_BUILD_VERSION = "2026-09-15.1";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -4935,13 +4935,10 @@ function getCommercialStatsRows() {
     });
     commercialStatsRowsCache = rows;
   }
-  if (currentUser?.role === "admin") return [...commercialStatsRowsCache];
-  const visibleCodes = new Set(visibleClients.map((client) => normalize(client.code || "")));
-  const visibleNames = new Set(visibleClients.map((client) => normalize(client.name || "")));
-  return commercialStatsRowsCache.filter((row) =>
-    visibleCodes.has(normalize(row.clientCode || "")) ||
-    visibleNames.has(normalize(row.clientName || ""))
-  );
+  // Le serveur a déjà filtré clientArticleStats360 selon le rôle et les secteurs
+  // de la session. Un second filtre par code/nom supprimait des lignes lorsque
+  // les deux fichiers utilisaient des formats différents (ex. préfixe FR).
+  return [...commercialStatsRowsCache];
 }
 
 function getCommercialStatsClientMatches(query) {
