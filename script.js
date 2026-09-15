@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.3";
+const APP_BUILD_VERSION = "2026-09-15.4";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -12954,7 +12954,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     fillRect(margin, pageHeight - 50, 76, 4, "#E30613");
     textAt(margin, pageHeight - 30, 18, "Schuller Eh'klar", { bold: true });
     textAt(margin, pageHeight - 45, 7.5, "BROSSERIE ET OUTILLAGE POUR PEINTRES");
-    textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lhen - 67560 ROSHEIM - Tel. 03 88 04 68 04");
+    textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lehn - 67560 ROSHEIM - Tel. 03 88 04 68 04");
     textAt(margin, pageHeight - 70, 7.5, `www.schuller.eu - ${schullerOperationsEmail}`);
 
     textAt(pageWidth - 198, pageHeight - 30, 14, "BON DE COMMANDE", { bold: true });
