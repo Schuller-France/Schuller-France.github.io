@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.4";
+const APP_BUILD_VERSION = "2026-09-15.5";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -7149,7 +7149,31 @@ function updateOffrePrixLine(id, field, value) {
   const line = offrePrixLineItems.find((item) => item.id === id);
   if (!line) return;
   line[field] = value;
+  const row = offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(id)}"]`);
+  if (row) {
+    const purchasePrice = getOffrePrixPurchasePrice(line.ref);
+    const sellingPrice = Number(line.price) || 0;
+    const margin = purchasePrice != null && sellingPrice > 0 ? 1 - (purchasePrice / sellingPrice) : null;
+    const amount = sellingPrice * (Number(line.qty) || 0);
+    const marginCell = row.querySelector("[data-offre-margin]");
+    const amountCell = row.querySelector("[data-offre-amount]");
+    if (marginCell) {
+      marginCell.textContent = margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`;
+      marginCell.classList.toggle("is-low", margin != null && margin < 0.3);
+    }
+    if (amountCell) amountCell.textContent = formatter.format(amount);
+  }
   renderOffrePrixTotal();
+}
+
+function getOffrePrixPurchasePrice(ref) {
+  const key = normalizeRefForMatchClient(ref);
+  if (!key) return null;
+  const diffRow = adminPurchaseLastDiff?.rows?.find((row) => normalizeRefForMatchClient(row.ref) === key);
+  const catalogRow = findAdminPurchaseCatalogEntry(ref);
+  const candidates = [diffRow?.newPa, diffRow?.oldPa, catalogRow?.newPa, catalogRow?.purchasePrice, catalogRow?.pa, catalogRow?.latestPa];
+  const value = candidates.find((candidate) => candidate !== null && candidate !== undefined && isFinite(Number(candidate)));
+  return value === undefined ? null : Number(value);
 }
 
 function getOffrePrixUnitPrice(product, quantity = 0) {
@@ -7177,13 +7201,17 @@ function renderOffrePrixLines() {
     offrePrixLines.innerHTML = offrePrixLineItems.map((line, index) => {
       const product = findProduct(line.ref);
       const amount = (Number(line.price) || 0) * (Number(line.qty) || 0);
+      const purchasePrice = getOffrePrixPurchasePrice(line.ref);
+      const margin = purchasePrice != null && Number(line.price) > 0 ? 1 - (purchasePrice / Number(line.price)) : null;
       return `
         <tr data-offre-line="${escapeHtml(line.id)}">
           <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></td>
           <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
+          <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
-          <td>${formatter.format(amount)}</td>
+          <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
+          <td data-offre-amount>${formatter.format(amount)}</td>
           <td><button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
         </tr>
       `;
@@ -12764,6 +12792,7 @@ function setActiveTab(tabName) {
 
   if (showAdminOffrePrix) {
     renderOffrePrixLines();
+    if (!adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderOffrePrixLines());
     loadPriceOffers();
     requestAnimationFrame(() => offrePrixClientSearch?.focus());
   }

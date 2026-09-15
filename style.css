@@ -124,6 +124,18 @@ body {
 .offre-prix-email-field { display: grid; flex: 1 1 420px; gap: 4px; color: #4b5563; font-size: 11px; font-weight: 800; text-align: left; }
 .offre-prix-email-field input { width: 100%; min-height: 44px; }
 .offre-prix-email-field small { color: #6b7280; font-size: 11px; font-weight: 600; }
+.offre-prix-table { min-width: 1480px; }
+.offre-prix-table th:nth-child(1), .offre-prix-table td:nth-child(1) { width: 14%; }
+.offre-prix-table th:nth-child(2), .offre-prix-table td:nth-child(2) { width: 28%; }
+.offre-prix-table th:nth-child(3), .offre-prix-table td:nth-child(3) { width: 8%; }
+.offre-prix-table th:nth-child(4), .offre-prix-table td:nth-child(4) { width: 12%; }
+.offre-prix-table th:nth-child(5), .offre-prix-table td:nth-child(5) { width: 12%; }
+.offre-prix-table th:nth-child(6), .offre-prix-table td:nth-child(6) { width: 9%; }
+.offre-prix-table th:nth-child(7), .offre-prix-table td:nth-child(7) { width: 12%; }
+.offre-prix-table th:nth-child(8), .offre-prix-table td:nth-child(8) { width: 5%; text-align: center; }
+.offre-prix-purchase { color: #374151; font-weight: 850; }
+.offre-prix-margin { color: #15803d; font-size: 17px; font-weight: 950; }
+.offre-prix-margin.is-low { color: #dc2626; }
 .quote-history-actions button { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 8px 10px; color: var(--dark); font-weight: 900; cursor: pointer; }
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
@@ -10545,4 +10557,25 @@ body.dark-theme .delivery-order-table td { color: #f4f5f7; }
     flex: 1;
     min-width: 140px;
   }
+}
+
+/* Offre de prix admin : libellés des colonnes internes en affichage tablette/mobile. */
+body.tablet-mode .offre-prix-table td:nth-child(1)::before { content: "Référence"; }
+body.tablet-mode .offre-prix-table td:nth-child(2)::before { content: "Désignation"; }
+body.tablet-mode .offre-prix-table td:nth-child(3)::before { content: "Quantité"; }
+body.tablet-mode .offre-prix-table td:nth-child(4)::before { content: "Prix d'achat HT"; }
+body.tablet-mode .offre-prix-table td:nth-child(5)::before { content: "Prix net HT"; }
+body.tablet-mode .offre-prix-table td:nth-child(6)::before { content: "Marge"; }
+body.tablet-mode .offre-prix-table td:nth-child(7)::before { content: "Montant HT"; }
+body.tablet-mode .offre-prix-table td:nth-child(8)::before { content: ""; display: none; }
+
+@media (max-width: 760px) {
+  .offre-prix-table td:nth-child(1)::before { content: "Référence"; }
+  .offre-prix-table td:nth-child(2)::before { content: "Désignation"; }
+  .offre-prix-table td:nth-child(3)::before { content: "Quantité"; }
+  .offre-prix-table td:nth-child(4)::before { content: "Prix d'achat HT"; }
+  .offre-prix-table td:nth-child(5)::before { content: "Prix net HT"; }
+  .offre-prix-table td:nth-child(6)::before { content: "Marge"; }
+  .offre-prix-table td:nth-child(7)::before { content: "Montant HT"; }
+  .offre-prix-table td:nth-child(8)::before { content: ""; display: none; }
 }
