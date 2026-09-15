@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.5";
+const APP_BUILD_VERSION = "2026-09-15.6";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -7176,6 +7176,34 @@ function getOffrePrixPurchasePrice(ref) {
   return value === undefined ? null : Number(value);
 }
 
+function getOffrePrixClientNetPrices(product) {
+  if (!selectedOffrePrixClient || !product) return [];
+  const prenetClient = findPrenetClientForOrder(selectedOffrePrixClient);
+  const productRef = normalize(product.ref || "");
+  const productGencod = normalize(product.gencod || "");
+  return getPrenetNewEntries(prenetClient)
+    .filter((entry) => {
+      const entryRef = normalize(entry.ref || entry.reference || "");
+      const entryGencod = normalize(entry.gencod || entry.genCode || "");
+      return (productRef && entryRef === productRef) || (productGencod && entryGencod === productGencod);
+    })
+    .map((entry) => ({
+      quantity: getPrenetEntryQuantity(entry),
+      price: parseAmount(entry.price ?? entry.netPrice ?? entry.prixNet ?? entry.prix),
+    }))
+    .filter((entry) => entry.price > 0)
+    .sort((a, b) => a.quantity - b.quantity);
+}
+
+function renderOffrePrixClientNetPrices(product) {
+  const entries = getOffrePrixClientNetPrices(product);
+  if (!entries.length) return '<span class="offre-prix-no-prenet">Aucun</span>';
+  return entries.map((entry) => {
+    const quantity = entry.quantity > 0 ? `dès ${formatNumber(entry.quantity)}` : "sans seuil";
+    return `<span class="offre-prix-prenet-line"><strong>${formatter.format(entry.price)}</strong><small>${quantity}</small></span>`;
+  }).join("");
+}
+
 function getOffrePrixUnitPrice(product, quantity = 0) {
   if (!product) return 0;
   const prenetEntry = findPrenetEntryForProduct(selectedOffrePrixClient, product, quantity);
@@ -7209,6 +7237,7 @@ function renderOffrePrixLines() {
           <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
           <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
+          <td class="offre-prix-prenet">${renderOffrePrixClientNetPrices(product)}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
           <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
           <td data-offre-amount>${formatter.format(amount)}</td>

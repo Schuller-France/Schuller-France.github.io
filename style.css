@@ -124,16 +124,21 @@ body {
 .offre-prix-email-field { display: grid; flex: 1 1 420px; gap: 4px; color: #4b5563; font-size: 11px; font-weight: 800; text-align: left; }
 .offre-prix-email-field input { width: 100%; min-height: 44px; }
 .offre-prix-email-field small { color: #6b7280; font-size: 11px; font-weight: 600; }
-.offre-prix-table { min-width: 1480px; }
+.offre-prix-table { min-width: 1660px; }
 .offre-prix-table th:nth-child(1), .offre-prix-table td:nth-child(1) { width: 14%; }
-.offre-prix-table th:nth-child(2), .offre-prix-table td:nth-child(2) { width: 28%; }
+.offre-prix-table th:nth-child(2), .offre-prix-table td:nth-child(2) { width: 24%; }
 .offre-prix-table th:nth-child(3), .offre-prix-table td:nth-child(3) { width: 8%; }
-.offre-prix-table th:nth-child(4), .offre-prix-table td:nth-child(4) { width: 12%; }
-.offre-prix-table th:nth-child(5), .offre-prix-table td:nth-child(5) { width: 12%; }
-.offre-prix-table th:nth-child(6), .offre-prix-table td:nth-child(6) { width: 9%; }
-.offre-prix-table th:nth-child(7), .offre-prix-table td:nth-child(7) { width: 12%; }
-.offre-prix-table th:nth-child(8), .offre-prix-table td:nth-child(8) { width: 5%; text-align: center; }
+.offre-prix-table th:nth-child(4), .offre-prix-table td:nth-child(4) { width: 11%; }
+.offre-prix-table th:nth-child(5), .offre-prix-table td:nth-child(5) { width: 13%; }
+.offre-prix-table th:nth-child(6), .offre-prix-table td:nth-child(6) { width: 11%; }
+.offre-prix-table th:nth-child(7), .offre-prix-table td:nth-child(7) { width: 8%; }
+.offre-prix-table th:nth-child(8), .offre-prix-table td:nth-child(8) { width: 11%; }
+.offre-prix-table th:nth-child(9), .offre-prix-table td:nth-child(9) { width: 4%; text-align: center; }
 .offre-prix-purchase { color: #374151; font-weight: 850; }
+.offre-prix-prenet { color: #374151; }
+.offre-prix-prenet-line { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; padding: 2px 0; white-space: nowrap; }
+.offre-prix-prenet-line small { color: #6b7280; font-size: 10px; font-weight: 800; }
+.offre-prix-no-prenet { color: #9ca3af; font-size: 12px; font-weight: 700; }
 .offre-prix-margin { color: #15803d; font-size: 17px; font-weight: 950; }
 .offre-prix-margin.is-low { color: #dc2626; }
 .quote-history-actions button { border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 8px 10px; color: var(--dark); font-weight: 900; cursor: pointer; }
@@ -10564,18 +10569,20 @@ body.tablet-mode .offre-prix-table td:nth-child(1)::before { content: "Référen
 body.tablet-mode .offre-prix-table td:nth-child(2)::before { content: "Désignation"; }
 body.tablet-mode .offre-prix-table td:nth-child(3)::before { content: "Quantité"; }
 body.tablet-mode .offre-prix-table td:nth-child(4)::before { content: "Prix d'achat HT"; }
-body.tablet-mode .offre-prix-table td:nth-child(5)::before { content: "Prix net HT"; }
-body.tablet-mode .offre-prix-table td:nth-child(6)::before { content: "Marge"; }
-body.tablet-mode .offre-prix-table td:nth-child(7)::before { content: "Montant HT"; }
-body.tablet-mode .offre-prix-table td:nth-child(8)::before { content: ""; display: none; }
+body.tablet-mode .offre-prix-table td:nth-child(5)::before { content: "Prix net client existant"; }
+body.tablet-mode .offre-prix-table td:nth-child(6)::before { content: "Prix net HT"; }
+body.tablet-mode .offre-prix-table td:nth-child(7)::before { content: "Marge"; }
+body.tablet-mode .offre-prix-table td:nth-child(8)::before { content: "Montant HT"; }
+body.tablet-mode .offre-prix-table td:nth-child(9)::before { content: ""; display: none; }
 
 @media (max-width: 760px) {
   .offre-prix-table td:nth-child(1)::before { content: "Référence"; }
   .offre-prix-table td:nth-child(2)::before { content: "Désignation"; }
   .offre-prix-table td:nth-child(3)::before { content: "Quantité"; }
   .offre-prix-table td:nth-child(4)::before { content: "Prix d'achat HT"; }
-  .offre-prix-table td:nth-child(5)::before { content: "Prix net HT"; }
-  .offre-prix-table td:nth-child(6)::before { content: "Marge"; }
-  .offre-prix-table td:nth-child(7)::before { content: "Montant HT"; }
-  .offre-prix-table td:nth-child(8)::before { content: ""; display: none; }
+  .offre-prix-table td:nth-child(5)::before { content: "Prix net client existant"; }
+  .offre-prix-table td:nth-child(6)::before { content: "Prix net HT"; }
+  .offre-prix-table td:nth-child(7)::before { content: "Marge"; }
+  .offre-prix-table td:nth-child(8)::before { content: "Montant HT"; }
+  .offre-prix-table td:nth-child(9)::before { content: ""; display: none; }
 }
