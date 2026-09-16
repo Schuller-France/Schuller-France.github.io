@@ -878,8 +878,10 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 // lourdes ont leur propre plafond et l'interface garde la dernière donnée valide.
 const POST_SERVICE_TIMEOUT_MS = 12000;
 const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  login: 12000,
-  session: 12000,
+  // Un demarrage a froid d'Apps Script depasse regulierement 12 secondes.
+  // Laisser au premier appel le temps de terminer evite les echecs aleatoires.
+  login: 25000,
+  session: 20000,
   logout: 2500,
   getAppData: 25000,
   getClientArticleStats: 25000,
@@ -952,7 +954,12 @@ async function executePostService(parameters) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeoutMs);
+    // Le second essai de connexion dispose d'un delai plus long : le premier
+    // appel peut simplement avoir servi a reveiller Apps Script.
+    const attemptTimeoutMs = effectiveTimeoutMs + (
+      attempt > 1 && (action === "login" || action === "session") ? 15000 : 0
+    );
+    const timeoutId = setTimeout(() => controller.abort(), attemptTimeoutMs);
     let response;
     let rawText;
     try {
@@ -968,7 +975,7 @@ async function executePostService(parameters) {
       const isTimeout = error?.name === "AbortError";
       // Une lecture qui a déjà occupé Google pendant 90 s ne doit pas repartir pour
       // 90 s supplémentaires. Les réponses non JSON restent retentées plus bas.
-      if (attempt < maxAttempts && !isTimeout) {
+      if (attempt < maxAttempts && (!isTimeout || action === "login" || action === "session")) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
