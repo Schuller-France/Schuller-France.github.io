@@ -887,7 +887,8 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
   getClientArticleStats: 25000,
   getDashboardStats: 15000,
   getDeliveryOrderHistory: 20000,
-  buildOffrePrixPdf: 45000,
+  buildOffrePrixPdf: 90000,
+  buildAdminPrenetPricesPdf: 90000,
   sendOffrePrix: 60000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
@@ -899,6 +900,7 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
   "getPriceOffers", "getMyExpenseDrafts",
   "getPurchaseComparatif", "getRuptureComparatif", "getStockComparatif",
   "getPurchaseHistory", "getRuptureHistory", "getStockHistory",
+  "buildOffrePrixPdf", "buildAdminPrenetPricesPdf",
   "login", "session",
 ]);
 
@@ -975,7 +977,9 @@ async function executePostService(parameters) {
       const isTimeout = error?.name === "AbortError";
       // Une lecture qui a déjà occupé Google pendant 90 s ne doit pas repartir pour
       // 90 s supplémentaires. Les réponses non JSON restent retentées plus bas.
-      if (attempt < maxAttempts && (!isTimeout || action === "login" || action === "session")) {
+      const canRetryTimeout = action === "login" || action === "session"
+        || action === "buildOffrePrixPdf" || action === "buildAdminPrenetPricesPdf";
+      if (attempt < maxAttempts && (!isTimeout || canRetryTimeout)) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
       }
@@ -7407,9 +7411,23 @@ function previewBase64File(base64, mimeType, targetWindow) {
   for (let index = 0; index < length; index += 1) bytes[index] = binary.charCodeAt(index);
   const blob = new Blob([bytes], { type: mimeType || "application/pdf" });
   const url = URL.createObjectURL(blob);
-  if (targetWindow && !targetWindow.closed) targetWindow.location = url;
+  if (targetWindow && !targetWindow.closed) targetWindow.location.replace(url);
   else window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function renderPdfPreviewWindow(targetWindow, state, message = "") {
+  if (!targetWindow || targetWindow.closed) return;
+  const isError = state === "error";
+  targetWindow.document.title = isError ? "Aperçu PDF indisponible" : "Préparation de l’aperçu PDF";
+  targetWindow.document.body.innerHTML = `
+    <main style="min-height:100vh;display:grid;place-items:center;margin:0;background:#f4f5f7;font-family:Arial,sans-serif;color:#1f2329">
+      <section style="width:min(460px,calc(100% - 40px));padding:32px;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(24,29,39,.14);text-align:center">
+        <div style="width:48px;height:48px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:${isError ? "#fff1f2" : "#e30613"};color:${isError ? "#e30613" : "#fff"};font-size:24px;font-weight:900">${isError ? "!" : "…"}</div>
+        <h1 style="margin:0 0 10px;font-size:22px">${isError ? "Aperçu indisponible" : "Création de l’offre de prix"}</h1>
+        <p style="margin:0;color:#626975;line-height:1.55">${escapeHtml(message || (isError ? "Fermez cet onglet puis réessayez." : "Le PDF est en cours de préparation. Il va s’afficher automatiquement."))}</p>
+      </section>
+    </main>`;
 }
 
 function previewPdfBlob(blob) {
@@ -7458,6 +7476,7 @@ async function previewOffrePrix() {
   // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
   // navigateur ne bloque le window.open() une fois la réponse serveur arrivée (après un await).
   const previewWindow = window.open("", "_blank");
+  renderPdfPreviewWindow(previewWindow, "loading");
   try {
     const result = await postService({
       action: "buildOffrePrixPdf",
@@ -7474,7 +7493,7 @@ async function previewOffrePrix() {
     previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
     if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu généré.";
   } catch (error) {
-    previewWindow?.close();
+    renderPdfPreviewWindow(previewWindow, "error", error.message || "La génération du PDF a échoué.");
     if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Aperçu impossible.";
   } finally {
     if (offrePrixPreview) offrePrixPreview.disabled = false;
