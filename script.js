@@ -7235,6 +7235,7 @@ function applyOffrePrixReference(id, value) {
   const product = findProduct(value);
   line.ref = product ? product.ref : value;
   if (product) {
+    line.designation = product.name || "";
     line.qty = defaultQuantityForProduct(product);
     line.price = getOffrePrixUnitPrice(product, line.qty);
   }
@@ -7252,7 +7253,7 @@ function renderOffrePrixLines() {
       return `
         <tr data-offre-line="${escapeHtml(line.id)}">
           <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></td>
-          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
+          <td class="quote-name-cell ${product || line.designation ? "" : "empty-product"}">${product ? escapeHtml(product.name) : line.designation ? escapeHtml(line.designation) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
           <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
           <td class="offre-prix-prenet">${renderOffrePrixClientNetPrices(product)}</td>
@@ -7274,7 +7275,7 @@ function getOffrePrixRows() {
       const product = findProduct(line.ref);
       return {
         ref: line.ref,
-        designation: product ? product.name : "",
+        designation: product ? product.name : (line.designation || ""),
         quantity: Math.max(Number(line.qty) || 0, 0),
         price: Number(line.price) || 0,
       };
@@ -7543,6 +7544,7 @@ function loadPriceOfferIntoForm(id) {
   offrePrixLineItems = (offer.lines || []).map((line) => ({
     id: crypto.randomUUID(),
     ref: line.ref || "",
+    designation: line.designation || "",
     qty: line.quantity ?? line.qty ?? 1,
     price: Number(line.price) || 0,
   }));
