@@ -883,9 +883,9 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
   login: 25000,
   session: 20000,
   logout: 2500,
-  getAppData: 25000,
-  getClientArticleStats: 25000,
-  getDashboardStats: 15000,
+  getAppData: 60000,
+  getClientArticleStats: 60000,
+  getDashboardStats: 45000,
   getDeliveryOrderHistory: 20000,
   buildOffrePrixPdf: 90000,
   buildAdminPrenetPricesPdf: 90000,
@@ -978,6 +978,7 @@ async function executePostService(parameters) {
       // Une lecture qui a déjà occupé Google pendant 90 s ne doit pas repartir pour
       // 90 s supplémentaires. Les réponses non JSON restent retentées plus bas.
       const canRetryTimeout = action === "login" || action === "session"
+        || action === "getAppData" || action === "getClientArticleStats" || action === "getDashboardStats"
         || action === "buildOffrePrixPdf" || action === "buildAdminPrenetPricesPdf";
       if (attempt < maxAttempts && (!isTimeout || canRetryTimeout)) {
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -1093,14 +1094,14 @@ async function loadSecureAppData(token, userId = "") {
   // Le premier chargement peut être volumineux (clients, articles et prix nets).
   // Un seul appel long évite deux exécutions Apps Script concurrentes et les faux
   // messages « Session expirée » observés après le timeout court de 25 secondes.
-  const result = await postService({ action: "getAppData", token, timeoutMs: 25000 });
+  const result = await postService({ action: "getAppData", token });
   applySecureAppData(result);
   saveSecureDataCache(userId || currentUser?.id || "", result);
 }
 
 async function refreshSecureAppDataInBackground(token, userId) {
   try {
-    const result = await postService({ action: "getAppData", token, timeoutMs: 25000, background: true });
+    const result = await postService({ action: "getAppData", token, background: true });
     applySecureAppData(result);
     saveSecureDataCache(userId || currentUser?.id || "", result);
     if (currentUser) {
@@ -4412,6 +4413,12 @@ async function loadClientArticleStatsFromDrive({ throwOnError = false, force = f
     return await clientArticleStatsLoadPromise;
   } catch (error) {
     // On garde la derniere version chargee pour ne pas bloquer le terrain.
+    if (clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) {
+      commercialStatsRowsCache = null;
+      renderCommercialStats();
+      if (statsSourceBadge) statsSourceBadge.textContent = "Dernières données synchronisées";
+      return true;
+    }
     if (throwOnError) throw error;
     return false;
   } finally {
