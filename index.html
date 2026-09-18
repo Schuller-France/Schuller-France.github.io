@@ -143,6 +143,8 @@
         <button class="tab-button is-active" type="button" id="homeTab" data-icon="🏠">Accueil</button>
         <button class="tab-button" type="button" id="client360Tab" data-icon="👤">Fiche client</button>
         <button class="tab-button" type="button" id="statsTab" data-icon="📊">Statistiques</button>
+        <button class="tab-button" type="button" id="antiErosionTab" data-icon="🛡️">Anti-&eacute;rosion</button>
+        <button class="tab-button is-hidden" type="button" id="opportunitiesTab" data-icon="💡" aria-hidden="true" tabindex="-1">Opportunit&eacute;s</button>
         <button class="tab-button" type="button" id="orderTab" data-icon="🧾">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab" data-icon="🕘">Historique commandes</button>
         <button class="tab-button" type="button" id="quoteTab" data-icon="📝">Demande de devis</button>
@@ -375,6 +377,89 @@
           <div class="delivery-history-list" id="deliveryHistoryList">
             <div class="delivery-history-empty">Les commandes apparaîtront ici après chargement.</div>
           </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="antiErosionView">
+        <section class="panel erosion-panel" aria-labelledby="antiErosionTitle">
+          <div class="erosion-hero">
+            <div>
+              <p class="step">Client → produit → perte → action</p>
+              <h2 id="antiErosionTitle">Anti-&eacute;rosion</h2>
+              <p>Rep&eacute;rez les pertes de chiffre d&rsquo;affaires et concentrez l&rsquo;action sur les produits qui les expliquent.</p>
+            </div>
+            <div class="erosion-hero-actions">
+              <span class="status-pill" id="erosionSourceBadge">Drive</span>
+              <button class="ghost-button compact" type="button" id="erosionRefresh">Actualiser</button>
+            </div>
+          </div>
+
+          <section class="erosion-filters" aria-label="Filtres anti-érosion">
+            <label>Commercial<select id="erosionCommercialFilter"><option value="all">Tous les commerciaux</option></select></label>
+            <label>Secteur<select id="erosionSectorFilter"><option value="all">Tous les secteurs</option></select></label>
+            <label>Client<input id="erosionClientFilter" type="search" placeholder="Nom ou code client…" /></label>
+            <label>Famille<select id="erosionFamilyFilter"><option value="all">Toutes les familles</option></select></label>
+            <label>Référence<input id="erosionReferenceFilter" type="search" placeholder="Référence…" /></label>
+            <label>Période<select id="erosionPeriodFilter"><option>Même période N / N-1</option></select></label>
+            <label>Baisse minimum<select id="erosionPercentFilter"><option value="0">Toutes</option><option value="10">10 %</option><option value="20" selected>20 %</option><option value="30">30 %</option><option value="50">50 %</option></select></label>
+            <label>Perte minimum<select id="erosionAmountFilter"><option value="0">Toutes</option><option value="500" selected>500 €</option><option value="2000">2 000 €</option><option value="5000">5 000 €</option></select></label>
+          </section>
+
+          <section class="erosion-kpis" id="erosionKpis" aria-label="Indicateurs anti-érosion"></section>
+          <p class="erosion-period" id="erosionPeriod">Comparaison de la période disponible N avec la même période N-1.</p>
+
+          <section class="erosion-director is-hidden" id="erosionDirectorDashboard">
+            <div class="panel-heading"><div><p class="step" id="erosionDashboardLabel">Vue directeur commercial</p><h3 id="erosionDashboardTitle">Pilotage global</h3></div></div>
+            <div class="erosion-rankings" id="erosionRankings"></div>
+          </section>
+
+          <section class="erosion-workspace">
+            <div>
+              <div class="erosion-section-title"><div><p class="step">Priorités</p><h3>Clients en érosion</h3></div><span id="erosionResultCount">0 client</span></div>
+              <div class="erosion-client-list" id="erosionClientList"></div>
+            </div>
+            <div class="erosion-detail" id="erosionDetail">
+              <div class="erosion-empty"><strong>Sélectionnez un client</strong><span>Vous verrez les produits qui expliquent sa baisse et l’action recommandée.</span></div>
+            </div>
+          </section>
+
+          <section class="erosion-requests" id="erosionRequestsSection">
+            <div class="erosion-section-title"><div><p class="step">Suivi</p><h3>Demandes d'étude commerciale</h3></div><span id="erosionRequestCount">0 demande</span></div>
+            <div class="erosion-request-list" id="erosionRequestList"></div>
+          </section>
+        </section>
+
+        <dialog class="erosion-dialog" id="erosionRequestDialog">
+          <form method="dialog" id="erosionRequestForm">
+            <div class="erosion-dialog-head"><div><p class="step">Remontée au directeur commercial</p><h3>Demander une étude commerciale</h3></div><button type="button" class="icon-button" id="erosionRequestClose" aria-label="Fermer">&times;</button></div>
+            <div class="erosion-request-context" id="erosionRequestContext"></div>
+            <label>Raison de la baisse<select id="erosionReason" required><option value="Inconnue">Inconnue</option><option>Prix concurrent</option><option>Produit concurrent déjà implanté</option><option>Accord national / référencement concurrent</option><option>Problème de qualité</option><option>Produit plus adapté chez le concurrent</option><option>Client ne consomme plus ce produit</option><option>Changement de fournisseur</option><option>Rupture / problème de disponibilité</option><option>Mauvaise connaissance de notre gamme</option><option>Client perdu</option><option>Baisse d’activité du client</option><option>Autre</option></select></label>
+            <label>Commentaire du commercial<textarea id="erosionComment" rows="5" required placeholder="Contexte terrain, concurrent identifié, problème de prix ou autre information utile…"></textarea></label>
+            <p class="tarif-send-status" id="erosionRequestStatus" aria-live="polite"></p>
+            <div class="erosion-dialog-actions"><button type="button" class="ghost-button" id="erosionRequestCancel">Annuler</button><button type="submit" class="primary-button" id="erosionRequestSend">Envoyer la demande</button></div>
+          </form>
+        </dialog>
+      </main>
+
+      <main class="app-shell is-hidden" id="opportunitiesView">
+        <section class="panel opportunities-panel" aria-labelledby="opportunitiesTitle">
+          <div class="opportunities-hero">
+            <div>
+              <p class="step">D&eacute;tection automatique</p>
+              <h2 id="opportunitiesTitle">Opportunit&eacute;s</h2>
+              <p>Retrouvez les articles &agrave; reconqu&eacute;rir et les ventes compl&eacute;mentaires possibles &agrave; partir du CA et des commandes livr&eacute;es.</p>
+            </div>
+            <button class="ghost-button compact" type="button" id="opportunitiesRefresh">Actualiser</button>
+          </div>
+          <section class="opportunities-filters" aria-label="Filtres des opportunit&eacute;s">
+            <label>Client<input id="opportunitiesClientFilter" type="search" placeholder="Nom ou code client…" /></label>
+            <label>Type<select id="opportunitiesTypeFilter"><option value="all">Toutes</option><option value="reconquest">Articles &agrave; reconqu&eacute;rir</option><option value="complement">Ventes compl&eacute;mentaires</option></select></label>
+            <label>Famille<select id="opportunitiesFamilyFilter"><option value="all">Toutes les familles</option></select></label>
+            <label>Potentiel minimum<select id="opportunitiesAmountFilter"><option value="0">Tous</option><option value="250">250 &euro;</option><option value="500" selected>500 &euro;</option><option value="2000">2 000 &euro;</option></select></label>
+          </section>
+          <section class="opportunities-kpis" id="opportunitiesKpis" aria-label="Indicateurs d'opportunit&eacute;s"></section>
+          <p class="opportunities-status" id="opportunitiesStatus">Chargement des donn&eacute;es commerciales…</p>
+          <div class="opportunities-list" id="opportunitiesList"></div>
         </section>
       </main>
 
@@ -1949,13 +2034,16 @@
                 <input id="offrePrixImportInput" type="file" accept=".xlsx,.xls,.csv,.txt" class="is-visually-hidden" />
               </div>
               <div class="table-wrap quote-table-wrap">
-                <table class="order-table quote-table">
+                <table class="order-table quote-table offre-prix-table">
                   <thead>
                     <tr>
                       <th>R&eacute;f&eacute;rence</th>
                       <th>D&eacute;signation</th>
                       <th>Quantit&eacute;</th>
+                      <th>Prix d'achat HT</th>
+                      <th>Prix net client existant</th>
                       <th>Prix net HT</th>
+                      <th>Marge</th>
                       <th>Montant HT</th>
                       <th></th>
                     </tr>
@@ -1971,7 +2059,15 @@
               <div class="quote-actions">
                 <button class="ghost-button" type="button" id="offrePrixPreview">Aper&ccedil;u PDF</button>
                 <button class="ghost-button" type="button" id="offrePrixExportCsv">Exporter en CSV</button>
-                <input id="offrePrixEmail" type="text" autocomplete="off" placeholder="destinataire@exemple.fr, autre@exemple.fr" />
+                <label class="offre-prix-validity" for="offrePrixValidUntil">
+                  <span>Valable jusqu'au</span>
+                  <input id="offrePrixValidUntil" type="date" required />
+                </label>
+                <label class="offre-prix-email-field" for="offrePrixEmail">
+                  <span>Destinataire(s)</span>
+                  <input id="offrePrixEmail" type="text" autocomplete="off" placeholder="client@exemple.fr, copie@exemple.fr" aria-describedby="offrePrixEmailHelp" />
+                  <small id="offrePrixEmailHelp">Plusieurs adresses : séparez-les par une virgule ou un point-virgule.</small>
+                </label>
                 <button class="ghost-button compact is-hidden" type="button" id="offrePrixCancelEdit">Annuler la modification</button>
                 <button class="primary-button" type="button" id="offrePrixSend">Envoyer l'offre</button>
               </div>
@@ -2145,11 +2241,11 @@
           const toast = document.querySelector("#pwaUpdateToast");
           const refresh = document.querySelector("#pwaUpdateRefresh");
           const message = document.querySelector("#pwaUpdateMessage");
-          const AUTO_UPDATE_DELAY_MS = 8000;
           let refreshing = false;
-          let autoUpdateTimer = null;
+          let updateRequested = false;
 
           const applyUpdate = (registration) => {
+            updateRequested = true;
             if (registration.waiting) {
               registration.waiting.postMessage({ type: "SKIP_WAITING" });
             } else {
@@ -2159,27 +2255,20 @@
 
           const showUpdate = (registration) => {
             toast?.classList.remove("is-hidden");
-            let remaining = Math.ceil(AUTO_UPDATE_DELAY_MS / 1000);
-            if (message) message.textContent = `L'application va se recharger automatiquement dans ${remaining}s pour appliquer la derniere version.`;
-            const countdown = setInterval(() => {
-              remaining -= 1;
-              if (message && remaining > 0) {
-                message.textContent = `L'application va se recharger automatiquement dans ${remaining}s pour appliquer la derniere version.`;
-              }
-            }, 1000);
+            const loginVisible = !document.querySelector("#loginView")?.classList.contains("is-hidden");
+            if (loginVisible && registration.waiting) {
+              if (message) message.textContent = "Installation automatique de la nouvelle version…";
+              window.setTimeout(() => applyUpdate(registration), 500);
+              return;
+            }
+            if (message) message.textContent = "Une nouvelle version est prête. Cliquez sur le bouton lorsque vous avez terminé votre saisie en cours.";
             refresh?.addEventListener("click", () => {
-              clearInterval(countdown);
-              if (autoUpdateTimer) clearTimeout(autoUpdateTimer);
               applyUpdate(registration);
             }, { once: true });
-            autoUpdateTimer = setTimeout(() => {
-              clearInterval(countdown);
-              applyUpdate(registration);
-            }, AUTO_UPDATE_DELAY_MS);
           };
 
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            if (refreshing) return;
+            if (!updateRequested || refreshing) return;
             refreshing = true;
             window.location.reload();
           });
@@ -2197,6 +2286,7 @@
                 }
               });
             });
+            registration.update().catch(() => {});
             // Verifie activement les mises a jour pendant que l'onglet reste ouvert,
             // sans attendre le prochain rechargement de page (throttle navigateur ~24h sinon).
             setInterval(() => {
