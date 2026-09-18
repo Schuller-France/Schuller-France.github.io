@@ -5142,10 +5142,33 @@ function renderCommercialStats() {
     return;
   }
   const rows = filterCommercialStatsRows();
-  const totalCa = rows.reduce((sum, row) => sum + row.ca2026, 0);
-  const totalPreviousCa = rows.reduce((sum, row) => sum + row.ca2025, 0);
-  const totalGapCa = totalCa - totalPreviousCa;
-  const totalGapQty = rows.reduce((sum, row) => sum + row.gapQuantity, 0);
+  // Le tableau n'affiche que le top 10 articles par client (limite backend
+  // identique a l'ancien systeme), donc sommer les lignes affichees sous-
+  // estime le CA reel des clients ayant plus de 10 references. Quand aucun
+  // filtre article/reference n'est actif, on recalcule les totaux a partir
+  // du "summary" complet (non plafonne) de chaque client selectionne.
+  const articleQueryActive = Boolean(normalize(statsArticleFilter?.value || ""));
+  const refQueryActive = Boolean(normalize(statsReferenceFilter?.value || ""));
+  const hasArticleFilter = articleQueryActive || refQueryActive;
+  const selectedSummaries = selectedStatsClients
+    .map((client) => getClientArticleStats360(client)?.summary)
+    .filter(Boolean);
+  const useFullSummary = selectedSummaries.length > 0 && !hasArticleFilter;
+  let totalCa, totalPreviousCa, totalGapCa, totalGapQty, lineCountLabel;
+  if (useFullSummary) {
+    totalCa = selectedSummaries.reduce((sum, summary) => sum + (Number(summary.ca2026) || 0), 0);
+    totalPreviousCa = selectedSummaries.reduce((sum, summary) => sum + (Number(summary.ca2025) || 0), 0);
+    totalGapCa = totalCa - totalPreviousCa;
+    totalGapQty = selectedSummaries.reduce((sum, summary) => sum + ((Number(summary.quantity2026) || 0) - (Number(summary.quantity2025) || 0)), 0);
+    const totalArticleCount = selectedSummaries.reduce((sum, summary) => sum + (Number(summary.articleCount) || 0), 0);
+    lineCountLabel = `${formatNumber(totalArticleCount)} référence${totalArticleCount > 1 ? "s" : ""}`;
+  } else {
+    totalCa = rows.reduce((sum, row) => sum + row.ca2026, 0);
+    totalPreviousCa = rows.reduce((sum, row) => sum + row.ca2025, 0);
+    totalGapCa = totalCa - totalPreviousCa;
+    totalGapQty = rows.reduce((sum, row) => sum + row.gapQuantity, 0);
+    lineCountLabel = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
+  }
   if (statsSourceBadge) statsSourceBadge.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
   if (statsTotalCa) statsTotalCa.textContent = formatWholeCurrency(totalCa);
   if (statsTotalPreviousCa) statsTotalPreviousCa.textContent = formatWholeCurrency(totalPreviousCa);
@@ -5154,7 +5177,7 @@ function renderCommercialStats() {
     statsTotalGapCa.classList.toggle("is-up", totalGapCa > 0);
     statsTotalGapCa.classList.toggle("is-down", totalGapCa < 0);
   }
-  if (statsTotalRows) statsTotalRows.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
+  if (statsTotalRows) statsTotalRows.textContent = lineCountLabel;
   if (statsTotalGapQty) statsTotalGapQty.textContent = `Écart quantités : ${formatNumberDelta(totalGapQty)}`;
   if (!rows.length) {
     statsArticleBody.innerHTML = `<tr><td colspan="9" class="dashboard-empty">${
