@@ -1,4 +1,4 @@
-const APP_BUILD_VERSION = "2026-09-15.6";
+const APP_BUILD_VERSION = "2026-09-18.1";
 if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
@@ -15,7 +15,6 @@ let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
 let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
 let commercialStatsRowsCache = null;
-let clientArticleStatsLoadPromise = null;
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -83,7 +82,6 @@ let editingNoteId = null;
 let notesHistoryMode = "client";
 let dashboardStatsOverride = null;
 let dashboardStatsLoading = false;
-let dashboardStatsLoadPromise = null;
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
@@ -115,7 +113,7 @@ const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
 const themeStorageKey = "schullerTheme";
 const secureDataCachePrefix = "schullerSecureDataCache:";
-const secureDataCacheMaxAgeMs = 12 * 60 * 60 * 1000;
+const secureDataCacheMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 const dashboardStatsCacheKey = "schullerDashboardStatsCache";
 const dashboardStatsCacheMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
 const driveAutoRefreshMs = 10 * 60 * 1000;
@@ -133,10 +131,6 @@ const orderDraftStorageKey = "schullerOrderDraft";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
 let deliveryOrderHistory = [];
 let deliveryOrderHistoryLoaded = false;
-let antiErosionRequests = [];
-let antiErosionSelectedClient = "";
-let antiErosionSelectedProduct = null;
-let antiErosionLoaded = false;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -420,8 +414,6 @@ const tutorialTab = document.querySelector("#tutorialTab");
 const homeTab = document.querySelector("#homeTab");
 const client360Tab = document.querySelector("#client360Tab");
 const statsTab = document.querySelector("#statsTab");
-const antiErosionTab = document.querySelector("#antiErosionTab");
-const opportunitiesTab = document.querySelector("#opportunitiesTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -448,8 +440,6 @@ const tutorialView = document.querySelector("#tutorialView");
 const homeView = document.querySelector("#homeView");
 const client360View = document.querySelector("#client360View");
 const statsView = document.querySelector("#statsView");
-const antiErosionView = document.querySelector("#antiErosionView");
-const opportunitiesView = document.querySelector("#opportunitiesView");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const sampleView = document.querySelector("#sampleView");
@@ -486,7 +476,6 @@ const offrePrixClearLines = document.querySelector("#offrePrixClearLines");
 const offrePrixTotal = document.querySelector("#offrePrixTotal");
 const offrePrixPreview = document.querySelector("#offrePrixPreview");
 const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
-const offrePrixValidUntil = document.querySelector("#offrePrixValidUntil");
 const offrePrixEmail = document.querySelector("#offrePrixEmail");
 const offrePrixSend = document.querySelector("#offrePrixSend");
 const offrePrixCancelEdit = document.querySelector("#offrePrixCancelEdit");
@@ -874,96 +863,36 @@ const SEND_HISTORY_CATEGORY_LABELS = {
   statistiques: "Statistiques",
 };
 
-// Rend rapidement la main lorsque Google Apps Script ne répond pas. Les lectures
-// lourdes ont leur propre plafond et l'interface garde la dernière donnée valide.
-const POST_SERVICE_TIMEOUT_MS = 12000;
-const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  // Un demarrage a froid d'Apps Script depasse regulierement 12 secondes.
-  // Laisser au premier appel le temps de terminer evite les echecs aleatoires.
-  login: 25000,
-  session: 20000,
-  logout: 2500,
-  getAppData: 60000,
-  getClientArticleStats: 60000,
-  getDashboardStats: 45000,
-  getDeliveryOrderHistory: 20000,
-  buildOffrePrixPdf: 90000,
-  buildAdminPrenetPricesPdf: 90000,
-  sendOffrePrix: 60000,
-};
+const POST_SERVICE_TIMEOUT_MS = 35000;
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
-// une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
-const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
-  "getDeliveryOrderHistory", "getAntiErosionRequests",
-  "getClientArticleStats",
-  "getDashboardStats", "getPromotions", "getReliquatsReprises", "getProspectionData",
-  "getPriceOffers", "getMyExpenseDrafts",
-  "getPurchaseComparatif", "getRuptureComparatif", "getStockComparatif",
-  "getPurchaseHistory", "getRuptureHistory", "getStockHistory",
-  "buildOffrePrixPdf", "buildAdminPrenetPricesPdf",
-  "login", "session",
-]);
+// en cas de coupure reseau ou de reponse invalide, sans risque de doublon. Apps Script peut
+// avoir un demarrage a froid lent (plusieurs dizaines de secondes) : on retente plusieurs fois
+// avant d'afficher une erreur, plutot que de forcer l'utilisateur a rafraichir la page a la main.
+const POST_SERVICE_RETRYABLE_ACTIONS = new Set(["getAppData", "getDeliveryOrderHistory", "login", "session"]);
+const POST_SERVICE_MAX_RETRYABLE_ATTEMPTS = 3;
+// Parmi les actions retentables, celles-ci sont aussi retentees si le serveur repond avec une
+// erreur metier (ok:false) : ce sont des lectures pures sans saisie utilisateur, donc une erreur
+// est presque toujours un incident cote Apps Script (verrou, quota, feuille indisponible) plutot
+// qu'une vraie erreur a montrer telle quelle. "login" en est exclu : un mot de passe errone est
+// une reponse ok:false legitime qu'il ne faut jamais retenter.
+const POST_SERVICE_RETRY_ON_BUSINESS_ERROR = new Set(["getAppData", "getDeliveryOrderHistory", "session"]);
 
-const postServiceInFlightReads = new Map();
-let latestVisibleSyncRequest = 0;
-
-function postService(parameters) {
-  const action = String(parameters?.action || "");
-  const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
-  if (!isReadOnlyAction) return executePostService(parameters);
-  const dedupePayload = { ...parameters };
-  delete dedupePayload.timeoutMs;
-  delete dedupePayload.background;
-  const dedupeKey = new URLSearchParams(dedupePayload).toString();
-  if (postServiceInFlightReads.has(dedupeKey)) {
-    const existing = postServiceInFlightReads.get(dedupeKey);
-    if (parameters.background) return existing;
-    const visibleSyncRequest = ++latestVisibleSyncRequest;
-    setSyncStatus("syncing", "Synchro...");
-    return existing.then((result) => {
-      if (visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus("ready", "Synchronisé");
-      return result;
-    }).catch((error) => {
-      if (visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus("error", "Synchro à vérifier");
-      throw error;
-    });
-  }
-  const request = executePostService(parameters).finally(() => postServiceInFlightReads.delete(dedupeKey));
-  postServiceInFlightReads.set(dedupeKey, request);
-  return request;
-}
-
-async function executePostService(parameters) {
-  const { skipSessionToken = false, timeoutMs, background = false, ...payload } = parameters;
-  const visibleSyncRequest = background ? 0 : ++latestVisibleSyncRequest;
-  const updateVisibleSync = (state, message) => {
-    if (visibleSyncRequest && visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus(state, message);
-  };
-  updateVisibleSync("syncing", "Synchro...");
+async function postService(parameters) {
+  setSyncStatus("syncing", "Synchro...");
   if (!tariffConfig.endpoint) {
-    updateVisibleSync("local", "Local");
+    setSyncStatus("local", "Local");
     throw new Error("Service indisponible.");
   }
-  if (navigator.onLine === false) {
-    updateVisibleSync("error", "Hors ligne");
-    throw new Error("Vous êtes hors ligne. Votre saisie reste sur la tablette et la synchronisation reprendra au retour du réseau.");
-  }
+  const { skipSessionToken = false, timeoutMs, ...payload } = parameters;
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
   const action = String(payload.action || "");
-  const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
-  const maxAttempts = isReadOnlyAction || POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
-  const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_BY_ACTION[action] || POST_SERVICE_TIMEOUT_MS;
+  const maxAttempts = POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? POST_SERVICE_MAX_RETRYABLE_ATTEMPTS : 1;
+  const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_MS;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    // Le second essai de connexion dispose d'un delai plus long : le premier
-    // appel peut simplement avoir servi a reveiller Apps Script.
-    const attemptTimeoutMs = effectiveTimeoutMs + (
-      attempt > 1 && (action === "login" || action === "session") ? 15000 : 0
-    );
-    const timeoutId = setTimeout(() => controller.abort(), attemptTimeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeoutMs);
     let response;
-    let rawText;
     try {
       response = await fetch(tariffConfig.endpoint, {
         method: "POST",
@@ -971,20 +900,15 @@ async function executePostService(parameters) {
         body: new URLSearchParams(payload).toString(),
         signal: controller.signal,
       });
-      rawText = await response.text();
     } catch (error) {
       clearTimeout(timeoutId);
       const isTimeout = error?.name === "AbortError";
-      // Une lecture qui a déjà occupé Google pendant 90 s ne doit pas repartir pour
-      // 90 s supplémentaires. Les réponses non JSON restent retentées plus bas.
-      const canRetryTimeout = action === "login" || action === "session"
-        || action === "getAppData" || action === "getClientArticleStats" || action === "getDashboardStats"
-        || action === "buildOffrePrixPdf" || action === "buildAdminPrenetPricesPdf";
-      if (attempt < maxAttempts && (!isTimeout || canRetryTimeout)) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+      if (attempt < maxAttempts) {
+        setSyncStatus("syncing", `Nouvelle tentative (${attempt}/${maxAttempts - 1})...`);
+        await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
         continue;
       }
-      updateVisibleSync("error", isTimeout ? "Délai dépassé" : "Hors ligne");
+      setSyncStatus("error", isTimeout ? "Delai depasse" : "Hors ligne");
       throw new Error(
         isTimeout
           ? "Le serveur met trop de temps a repondre. Reessayez dans quelques instants."
@@ -992,6 +916,7 @@ async function executePostService(parameters) {
       );
     }
     clearTimeout(timeoutId);
+    const rawText = await response.text();
     let result;
     try {
       result = JSON.parse(rawText);
@@ -1002,20 +927,26 @@ async function executePostService(parameters) {
         preview: rawText.slice(0, 300),
       });
       if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        setSyncStatus("syncing", `Nouvelle tentative (${attempt}/${maxAttempts - 1})...`);
+        await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
         continue;
       }
-      updateVisibleSync("error", "Synchro à vérifier");
+      setSyncStatus("error", "Synchro a verifier");
       throw new Error("Le service Google a renvoye une reponse invalide. Reconnectez-vous ou reessayez dans quelques instants.");
     }
     if (!result.ok) {
-      updateVisibleSync("error", "Synchro à vérifier");
+      if (attempt < maxAttempts && POST_SERVICE_RETRY_ON_BUSINESS_ERROR.has(action)) {
+        setSyncStatus("syncing", `Nouvelle tentative (${attempt}/${maxAttempts - 1})...`);
+        await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
+        continue;
+      }
+      setSyncStatus("error", "Synchro a verifier");
       const serviceError = new Error(result.message || "Operation impossible.");
       serviceError.servicePayload = result;
       serviceError.serviceAction = payload.action;
       throw serviceError;
     }
-    updateVisibleSync("ready", "Synchronisé");
+    setSyncStatus("ready", "Synchronise");
     return result;
   }
   throw new Error("Connexion au service Google impossible. Verifiez la connexion internet puis reessayez.");
@@ -1051,10 +982,12 @@ function secureDataCacheKey(userId) {
 function saveSecureDataCache(userId, result) {
   if (!userId || !result?.appData) return;
   try {
-    localStorage.removeItem(secureDataCacheKey(userId));
-    sessionStorage.setItem(secureDataCacheKey(userId), JSON.stringify({ savedAt: Date.now(), result }));
-  } catch (error) {
+    localStorage.setItem(secureDataCacheKey(userId), JSON.stringify({ savedAt: Date.now(), result }));
     sessionStorage.removeItem(secureDataCacheKey(userId));
+  } catch (error) {
+    // Cache local plein ou indisponible (mode privé) : l'app continue de fonctionner avec les
+    // donnees deja chargees en memoire, simplement sans acceleration au prochain demarrage.
+    try { localStorage.removeItem(secureDataCacheKey(userId)); } catch (cleanupError) {}
   }
 }
 
@@ -1062,7 +995,7 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
   if (!userId || !updatedTariffConfig) return;
   try {
     const key = secureDataCacheKey(userId);
-    const cached = JSON.parse(sessionStorage.getItem(key) || "null");
+    const cached = JSON.parse(localStorage.getItem(key) || "null");
     if (!cached?.result) return;
     cached.savedAt = Date.now();
     cached.result.tariffConfig = {
@@ -1070,7 +1003,7 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
       ...updatedTariffConfig,
       endpoint: cached.result.tariffConfig?.endpoint || tariffConfig.endpoint || "",
     };
-    sessionStorage.setItem(key, JSON.stringify(cached));
+    localStorage.setItem(key, JSON.stringify(cached));
   } catch (error) {
     // Le cache local n'est qu'un accélérateur : s'il est invalide, Drive reste la source.
   }
@@ -1078,22 +1011,18 @@ function savePromotionConfigCache(userId, updatedTariffConfig) {
 
 function restoreSecureDataCache(userId) {
   try {
-    localStorage.removeItem(secureDataCacheKey(userId));
-    const cached = JSON.parse(sessionStorage.getItem(secureDataCacheKey(userId)) || "null");
+    const cached = JSON.parse(localStorage.getItem(secureDataCacheKey(userId)) || "null");
     if (!cached?.result || Date.now() - Number(cached.savedAt || 0) > secureDataCacheMaxAgeMs) return false;
     applySecureAppData(cached.result);
     return true;
   } catch (error) {
-    sessionStorage.removeItem(secureDataCacheKey(userId));
+    localStorage.removeItem(secureDataCacheKey(userId));
     return false;
   }
 }
 
 async function loadSecureAppData(token, userId = "") {
   if (secureDataLoaded && allClients.length && products.length) return;
-  // Le premier chargement peut être volumineux (clients, articles et prix nets).
-  // Un seul appel long évite deux exécutions Apps Script concurrentes et les faux
-  // messages « Session expirée » observés après le timeout court de 25 secondes.
   const result = await postService({ action: "getAppData", token });
   applySecureAppData(result);
   saveSecureDataCache(userId || currentUser?.id || "", result);
@@ -1101,7 +1030,7 @@ async function loadSecureAppData(token, userId = "") {
 
 async function refreshSecureAppDataInBackground(token, userId) {
   try {
-    const result = await postService({ action: "getAppData", token, background: true });
+    const result = await postService({ action: "getAppData", token });
     applySecureAppData(result);
     saveSecureDataCache(userId || currentUser?.id || "", result);
     if (currentUser) {
@@ -1193,15 +1122,19 @@ function clearSecureAppData() {
 
 async function logoutCurrentSession() {
   const token = currentSessionToken;
-  // Fermer immédiatement l'espace local. La révocation distante continue sans
-  // bloquer le bouton si Apps Script est lent ou momentanément indisponible.
+  if (token) {
+    try {
+      await postService({ action: "logout", token });
+    } catch (error) {
+      // La déconnexion locale reste prioritaire si Google est indisponible.
+    }
+  }
   showLogin();
-  if (token) postService({ action: "logout", token, timeoutMs: 2500, skipSessionToken: true, background: true }).catch(() => {});
 }
 
 function recordActivity(type, detail = "") {
   if (!currentSessionToken || currentUser?.role === "admin") return;
-  postService({ action: "logActivity", token: currentSessionToken, type, detail, background: true }).catch(() => {});
+  postService({ action: "logActivity", token: currentSessionToken, type, detail }).catch(() => {});
 }
 
 function setDisplayMode(mode) {
@@ -1256,12 +1189,11 @@ function toggleThemeMode() {
 
 function isSessionError(error) {
   const message = normalize(error?.message || "");
-  // Une panne réseau ou une réponse Google invalide ne déconnecte plus l'utilisateur.
-  // Seul le backend peut déclarer explicitement le jeton invalide.
-  return error?.servicePayload?.sessionExpired === true
+  return message.includes("expir")
     || message.includes("session expire")
     || message.includes("session invalide")
-    || message.includes("jeton invalide");
+    || message.includes("acces refuse")
+    || message.includes("reconnectez");
 }
 
 function expireCurrentSession(message = "Votre session a expiré. Reconnectez-vous.") {
@@ -1697,27 +1629,26 @@ function sumCommercialStat(commercial, getter) {
 function saveDashboardStatsCache() {
   if (!dashboardStatsOverride) return;
   try {
-    localStorage.removeItem(dashboardStatsCacheKey);
-    sessionStorage.setItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`, JSON.stringify({
+    localStorage.setItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`, JSON.stringify({
       savedAt: Date.now(),
       sourceFile: dashboardStatsOverride.sourceFile || "",
       updatedAt: dashboardStatsOverride.updatedAt || "",
       stats: dashboardStatsOverride,
     }));
-  } catch (error) {
     sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
+  } catch (error) {
+    try { localStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`); } catch (cleanupError) {}
   }
 }
 
 function restoreDashboardStatsCache() {
   try {
-    localStorage.removeItem(dashboardStatsCacheKey);
-    const cached = JSON.parse(sessionStorage.getItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`) || "null");
+    const cached = JSON.parse(localStorage.getItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`) || "null");
     if (!cached?.stats || Date.now() - Number(cached.savedAt || 0) > dashboardStatsCacheMaxAgeMs) return false;
     dashboardStatsOverride = cached.stats;
     return true;
   } catch (error) {
-    sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
+    localStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
     return false;
   }
 }
@@ -1725,7 +1656,7 @@ function restoreDashboardStatsCache() {
 function clearDashboardStatsCache() {
   dashboardStatsOverride = null;
   try {
-    localStorage.removeItem(dashboardStatsCacheKey);
+    localStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
     sessionStorage.removeItem(`${dashboardStatsCacheKey}:${currentUser?.id || "anonymous"}`);
   } catch (error) {}
 }
@@ -4289,14 +4220,14 @@ async function loadDashboardStatsFromDrive(options = {}) {
   }
   // Ne vide jamais la derniere bonne lecture avant d'avoir une reponse Drive valide.
   // Ainsi, si le reseau est lent ou absent, l'accueil garde les derniers chiffres fiables.
-  if (dashboardStatsLoadPromise) {
+  if (dashboardStatsLoading) {
     if (currentUser?.role === "admin") {
       if (checkingStatus) checkingStatus.textContent = "Actualisation Drive…";
       if (adminCheckingBody && !dashboardStatsOverride) {
         adminCheckingBody.innerHTML = '<tr><td colspan="8" class="admin-empty">Chargement des statistiques Drive en cours…</td></tr>';
       }
     }
-    return dashboardStatsLoadPromise;
+    return;
   }
   dashboardStatsLoading = true;
   const dashboardUpdatedEl = document.querySelector("#dashboardUpdatedAt");
@@ -4309,7 +4240,6 @@ async function loadDashboardStatsFromDrive(options = {}) {
   } else {
     if (dashboardUpdatedEl) dashboardUpdatedEl.textContent = "Actualisation Drive…";
   }
-  dashboardStatsLoadPromise = (async () => {
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
     dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
@@ -4358,14 +4288,11 @@ async function loadDashboardStatsFromDrive(options = {}) {
     }
   } finally {
     dashboardStatsLoading = false;
-    dashboardStatsLoadPromise = null;
   }
-  })();
-  return dashboardStatsLoadPromise;
 }
 
 async function refreshDashboardDataFromDrive() {
-  if (!currentSessionToken) return;
+  if (!currentSessionToken || dashboardStatsLoading) return;
   if (!refreshDashboardData) {
     await loadDashboardStatsFromDrive({ force: true });
     return;
@@ -4381,48 +4308,16 @@ async function refreshDashboardDataFromDrive() {
   }
 }
 
-async function loadClientArticleStatsFromDrive({ throwOnError = false, force = false } = {}) {
+async function loadClientArticleStatsFromDrive() {
   if (!currentSessionToken) return;
-  if (!force && clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) return true;
-  if (clientArticleStatsLoadPromise) {
-    try {
-      return await clientArticleStatsLoadPromise;
-    } catch (error) {
-      if (throwOnError) throw error;
-      return false;
-    }
-  }
-  if (statsSourceBadge) statsSourceBadge.textContent = "Chargement Drive…";
-  const requestedToken = currentSessionToken;
-  clientArticleStatsLoadPromise = (async () => {
-    const result = await postService({ action: "getClientArticleStats", token: requestedToken });
-    if (!currentSessionToken || requestedToken !== currentSessionToken) throw new Error("La session a changé pendant le chargement.");
+  try {
+    const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
     clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
-    if (!clientArticleStats360.available) {
-      throw new Error(clientArticleStats360.message || "Les statistiques clients ne sont pas disponibles dans Drive.");
-    }
-    if (!Object.keys(clientArticleStats360.byClient || {}).length) {
-      throw new Error("Le fichier de statistiques est accessible, mais aucune donnée client n'a été reconnue.");
-    }
     commercialStatsRowsCache = null;
     if (selectedClient360) selectClient360(selectedClient360);
     renderCommercialStats();
-    return true;
-  })();
-  try {
-    return await clientArticleStatsLoadPromise;
   } catch (error) {
     // On garde la derniere version chargee pour ne pas bloquer le terrain.
-    if (clientArticleStats360?.available && Object.keys(clientArticleStats360.byClient || {}).length) {
-      commercialStatsRowsCache = null;
-      renderCommercialStats();
-      if (statsSourceBadge) statsSourceBadge.textContent = "Dernières données synchronisées";
-      return true;
-    }
-    if (throwOnError) throw error;
-    return false;
-  } finally {
-    clientArticleStatsLoadPromise = null;
   }
 }
 
@@ -4983,10 +4878,13 @@ function getCommercialStatsRows() {
     });
     commercialStatsRowsCache = rows;
   }
-  // Le serveur a déjà filtré clientArticleStats360 selon le rôle et les secteurs
-  // de la session. Un second filtre par code/nom supprimait des lignes lorsque
-  // les deux fichiers utilisaient des formats différents (ex. préfixe FR).
-  return [...commercialStatsRowsCache];
+  if (currentUser?.role === "admin") return [...commercialStatsRowsCache];
+  const visibleCodes = new Set(visibleClients.map((client) => normalize(client.code || "")));
+  const visibleNames = new Set(visibleClients.map((client) => normalize(client.name || "")));
+  return commercialStatsRowsCache.filter((row) =>
+    visibleCodes.has(normalize(row.clientCode || "")) ||
+    visibleNames.has(normalize(row.clientName || ""))
+  );
 }
 
 function getCommercialStatsClientMatches(query) {
@@ -6170,9 +6068,7 @@ function arrangeTabsForUser(user) {
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(antiErosionTab, statsTab.nextSibling);
-    appTabs.insertBefore(opportunitiesTab, antiErosionTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, opportunitiesTab.nextSibling);
+    appTabs.insertBefore(adminPrenetTab, statsTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
     let lastTab = adminPurchaseTab;
     if (adminOffrePrixTab) {
@@ -6201,8 +6097,6 @@ function arrangeTabsForUser(user) {
     homeTab,
     client360Tab,
     statsTab,
-    antiErosionTab,
-    opportunitiesTab,
     orderTab,
     historyTab,
     quoteTab,
@@ -6464,6 +6358,7 @@ function showLogin() {
     sessionStorage.removeItem(secureDataCacheKey(previousUserId));
     sessionStorage.removeItem(`${dashboardStatsCacheKey}:${previousUserId}`);
     localStorage.removeItem(secureDataCacheKey(previousUserId));
+    localStorage.removeItem(`${dashboardStatsCacheKey}:${previousUserId}`);
   }
   stopDriveAutoRefresh();
   currentUser = null;
@@ -6565,8 +6460,6 @@ function getLaunchTabFromUrl() {
       "home",
       "client360",
       "stats",
-      "antiErosion",
-      "opportunities",
       "order",
       "quote",
       "sample",
@@ -6593,8 +6486,8 @@ function getLaunchTabFromUrl() {
 function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
-  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "opportunities", "prospection", "tour", "history"]);
-  const commercialTabs = new Set(["home", "client360", "stats", "antiErosion", "opportunities", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "prospection", "tour", "history"]);
+  const commercialTabs = new Set(["home", "client360", "stats", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
     : (commercialTabs.has(tab) ? tab : "");
@@ -6607,16 +6500,7 @@ function showApp(user, token = user.token || "") {
   activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
   const remembered = Boolean(user.remember || rememberLogin.checked);
-  const storedUser = {
-    id: currentUser.id,
-    name: currentUser.name,
-    role: currentUser.role,
-    sectors: [...(currentUser.sectors || [])],
-    sector: currentUser.sector || "",
-    training: Boolean(currentUser.training),
-    token,
-    remember: remembered,
-  };
+  const storedUser = { ...currentUser, remember: remembered };
   sessionStorage.setItem(sessionStorageKey, JSON.stringify(storedUser));
   if (remembered) {
     localStorage.setItem(rememberedSessionKey, JSON.stringify(storedUser));
@@ -6642,8 +6526,6 @@ function showApp(user, token = user.token || "") {
   deliveryOrderHistoryLoaded = false;
   prospectionTab.classList.remove("is-hidden");
   statsTab.classList.remove("is-hidden");
-  antiErosionTab?.classList.remove("is-hidden");
-  opportunitiesTab?.classList.add("is-hidden");
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
@@ -6674,9 +6556,9 @@ function showApp(user, token = user.token || "") {
     renderDashboard(currentUser);
   }
   renderDashboard(currentUser);
-  // Une seule lecture Drive au démarrage. Les autres données sont chargées à
-  // l'ouverture de leur onglet pour ne plus saturer Apps Script à la connexion.
   loadDashboardStatsFromDrive();
+  loadClientArticleStatsFromDrive();
+  refreshPromotionsFromDrive();
   startDriveAutoRefresh();
   renderHomeReminders();
   resetQuoteRequest();
@@ -6686,6 +6568,7 @@ function showApp(user, token = user.token || "") {
   renderSampleLines();
   renderSampleHistory();
   resetExpenses();
+  syncExpenseDraftsFromServer();
   resetCommercialStatsFilters();
   renderPrenetEmpty();
   renderNotesEmpty();
@@ -6803,21 +6686,16 @@ async function submitLogin() {
     }
     const cached = restoreSecureDataCache(result.user?.id || "");
     if (!cached) {
-      // La session est déjà valide : on ouvre l'application immédiatement et on
-      // charge le gros catalogue Drive ensuite. L'utilisateur ne reste plus bloqué
-      // à 91 % si Google Apps Script a un démarrage lent.
-      loginSubmitButton.textContent = "Ouverture de votre espace…";
-      updateLoginProgress(92, "Compte connecté", "Ouverture immédiate, synchronisation Drive en arrière-plan...", "dashboard");
+      loginSubmitButton.textContent = "Chargement des données…";
+      updateLoginProgress(82, "Chargement Drive", "Récupération des données commerciales sécurisées...", "data");
+      await loadSecureAppData(result.token, result.user?.id || "");
     } else {
       updateLoginProgress(82, "Données locales prêtes", "Ouverture rapide avec les dernières données connues...", "data");
     }
     updateLoginProgress(96, "Préparation de l'interface", "Mise en place du tableau de bord...", "dashboard");
     await waitForLoginProgressComplete();
     showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
-    // Évite deux gros traitements Apps Script simultanés juste après la connexion.
-    Promise.resolve(dashboardStatsLoadPromise)
-      .catch(() => {})
-      .finally(() => refreshSecureAppDataInBackground(result.token, result.user?.id || ""));
+    if (cached) refreshSecureAppDataInBackground(result.token, result.user?.id || "");
   } catch (error) {
     resetLoginProgress();
     loginError.textContent = error.message || "Connexion impossible.";
@@ -6894,21 +6772,37 @@ async function confirmPasswordReset(event) {
 }
 
 async function restoreSession() {
+  const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
+  if (!savedUser?.id) {
+    loginView.classList.remove("is-hidden");
+    appView.classList.add("is-hidden");
+    requestAnimationFrame(() => loginId.focus());
+    return;
+  }
+
+  rememberLogin.checked = Boolean(savedUser.remember);
+
+  // Demarrage instantane : si on a deja des donnees locales pour cet utilisateur (dernier
+  // chargement reussi), on ouvre l'app tout de suite avec ces donnees et on ne verifie la
+  // session / ne rafraichit les donnees Drive qu'en arriere-plan, sans bloquer l'interface.
+  const bootedFromCache = savedUser.token && restoreSecureDataCache(savedUser.id);
+  if (bootedFromCache) {
+    showApp(savedUser, savedUser.token);
+    verifySessionInBackground(savedUser);
+    return;
+  }
+
+  // Premiere ouverture sur cet appareil, ou cache expire : on doit attendre le reseau.
   try {
-    const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
-    if (savedUser?.id) {
-      rememberLogin.checked = Boolean(savedUser.remember);
-      loginError.textContent = "Reconnexion sécurisée...";
-      loginError.className = "login-error";
-      const restored = await postService({ action: "session", token: savedUser.token || "" });
-      const verifiedUser = { ...restored.user, remember: Boolean(savedUser.remember) };
-      restoreSecureDataCache(verifiedUser.id);
-      showApp(verifiedUser, restored.token || "");
-      Promise.resolve(dashboardStatsLoadPromise)
-        .catch(() => {})
-        .finally(() => refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id));
-      return;
-    }
+    loginError.textContent = "Reconnexion sécurisée...";
+    loginError.className = "login-error";
+    const restored = await postService({ action: "session", token: savedUser.token || "" });
+    const verifiedUser = { ...restored.user, remember: Boolean(savedUser.remember) };
+    const cached = restoreSecureDataCache(verifiedUser.id);
+    if (!cached) await loadSecureAppData(restored.token || "", verifiedUser.id);
+    showApp(verifiedUser, restored.token || "");
+    if (cached) refreshSecureAppDataInBackground(restored.token || "", verifiedUser.id);
+    return;
   } catch (error) {
     sessionStorage.removeItem(sessionStorageKey);
     localStorage.removeItem(rememberedSessionKey);
@@ -6918,6 +6812,28 @@ async function restoreSession() {
   loginView.classList.remove("is-hidden");
   appView.classList.add("is-hidden");
   requestAnimationFrame(() => loginId.focus());
+}
+
+async function verifySessionInBackground(savedUser) {
+  try {
+    const restored = await postService({ action: "session", token: savedUser.token || "" });
+    const verifiedUser = normalizeSessionUser({ ...restored.user, remember: Boolean(savedUser.remember) }, restored.token || savedUser.token || "");
+    currentSessionToken = verifiedUser.token;
+    currentUser = verifiedUser;
+    const storedUser = { ...verifiedUser, remember: Boolean(savedUser.remember) };
+    sessionStorage.setItem(sessionStorageKey, JSON.stringify(storedUser));
+    if (storedUser.remember) localStorage.setItem(rememberedSessionKey, JSON.stringify(storedUser));
+    refreshSecureAppDataInBackground(currentSessionToken, verifiedUser.id);
+  } catch (error) {
+    // La verification n'a pas abouti. On ne deconnecte l'utilisateur que si le serveur a
+    // explicitement refuse la session (token invalide/expire) : une simple coupure reseau ou
+    // un delai depasse ne doit jamais lui faire perdre son travail en cours.
+    if (error?.servicePayload) {
+      showLogin();
+      loginError.textContent = "Votre session a expiré, reconnectez-vous.";
+      loginError.className = "login-error";
+    }
+  }
 }
 
 function selectClient(client) {
@@ -7167,59 +7083,7 @@ function updateOffrePrixLine(id, field, value) {
   const line = offrePrixLineItems.find((item) => item.id === id);
   if (!line) return;
   line[field] = value;
-  const row = offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(id)}"]`);
-  if (row) {
-    const purchasePrice = getOffrePrixPurchasePrice(line.ref);
-    const sellingPrice = Number(line.price) || 0;
-    const margin = purchasePrice != null && sellingPrice > 0 ? 1 - (purchasePrice / sellingPrice) : null;
-    const amount = sellingPrice * (Number(line.qty) || 0);
-    const marginCell = row.querySelector("[data-offre-margin]");
-    const amountCell = row.querySelector("[data-offre-amount]");
-    if (marginCell) {
-      marginCell.textContent = margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`;
-      marginCell.classList.toggle("is-low", margin != null && margin < 0.3);
-    }
-    if (amountCell) amountCell.textContent = formatter.format(amount);
-  }
   renderOffrePrixTotal();
-}
-
-function getOffrePrixPurchasePrice(ref) {
-  const key = normalizeRefForMatchClient(ref);
-  if (!key) return null;
-  const diffRow = adminPurchaseLastDiff?.rows?.find((row) => normalizeRefForMatchClient(row.ref) === key);
-  const catalogRow = findAdminPurchaseCatalogEntry(ref);
-  const candidates = [diffRow?.newPa, diffRow?.oldPa, catalogRow?.newPa, catalogRow?.purchasePrice, catalogRow?.pa, catalogRow?.latestPa];
-  const value = candidates.find((candidate) => candidate !== null && candidate !== undefined && isFinite(Number(candidate)));
-  return value === undefined ? null : Number(value);
-}
-
-function getOffrePrixClientNetPrices(product) {
-  if (!selectedOffrePrixClient || !product) return [];
-  const prenetClient = findPrenetClientForOrder(selectedOffrePrixClient);
-  const productRef = normalize(product.ref || "");
-  const productGencod = normalize(product.gencod || "");
-  return getPrenetNewEntries(prenetClient)
-    .filter((entry) => {
-      const entryRef = normalize(entry.ref || entry.reference || "");
-      const entryGencod = normalize(entry.gencod || entry.genCode || "");
-      return (productRef && entryRef === productRef) || (productGencod && entryGencod === productGencod);
-    })
-    .map((entry) => ({
-      quantity: getPrenetEntryQuantity(entry),
-      price: parseAmount(entry.price ?? entry.netPrice ?? entry.prixNet ?? entry.prix),
-    }))
-    .filter((entry) => entry.price > 0)
-    .sort((a, b) => a.quantity - b.quantity);
-}
-
-function renderOffrePrixClientNetPrices(product) {
-  const entries = getOffrePrixClientNetPrices(product);
-  if (!entries.length) return '<span class="offre-prix-no-prenet">Aucun</span>';
-  return entries.map((entry) => {
-    const quantity = entry.quantity > 0 ? `dès ${formatNumber(entry.quantity)}` : "sans seuil";
-    return `<span class="offre-prix-prenet-line"><strong>${formatter.format(entry.price)}</strong><small>${quantity}</small></span>`;
-  }).join("");
 }
 
 function getOffrePrixUnitPrice(product, quantity = 0) {
@@ -7235,7 +7099,6 @@ function applyOffrePrixReference(id, value) {
   const product = findProduct(value);
   line.ref = product ? product.ref : value;
   if (product) {
-    line.designation = product.name || "";
     line.qty = defaultQuantityForProduct(product);
     line.price = getOffrePrixUnitPrice(product, line.qty);
   }
@@ -7248,18 +7111,13 @@ function renderOffrePrixLines() {
     offrePrixLines.innerHTML = offrePrixLineItems.map((line, index) => {
       const product = findProduct(line.ref);
       const amount = (Number(line.price) || 0) * (Number(line.qty) || 0);
-      const purchasePrice = getOffrePrixPurchasePrice(line.ref);
-      const margin = purchasePrice != null && Number(line.price) > 0 ? 1 - (purchasePrice / Number(line.price)) : null;
       return `
         <tr data-offre-line="${escapeHtml(line.id)}">
           <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></td>
-          <td class="quote-name-cell ${product || line.designation ? "" : "empty-product"}">${product ? escapeHtml(product.name) : line.designation ? escapeHtml(line.designation) : "Saisir une référence"}</td>
+          <td class="quote-name-cell ${product ? "" : "empty-product"}">${product ? escapeHtml(product.name) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
-          <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
-          <td class="offre-prix-prenet">${renderOffrePrixClientNetPrices(product)}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
-          <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
-          <td data-offre-amount>${formatter.format(amount)}</td>
+          <td>${formatter.format(amount)}</td>
           <td><button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
         </tr>
       `;
@@ -7275,7 +7133,7 @@ function getOffrePrixRows() {
       const product = findProduct(line.ref);
       return {
         ref: line.ref,
-        designation: product ? product.name : (line.designation || ""),
+        designation: product ? product.name : "",
         quantity: Math.max(Number(line.qty) || 0, 0),
         price: Number(line.price) || 0,
       };
@@ -7419,51 +7277,15 @@ function previewBase64File(base64, mimeType, targetWindow) {
   for (let index = 0; index < length; index += 1) bytes[index] = binary.charCodeAt(index);
   const blob = new Blob([bytes], { type: mimeType || "application/pdf" });
   const url = URL.createObjectURL(blob);
-  if (targetWindow && !targetWindow.closed) targetWindow.location.replace(url);
+  if (targetWindow && !targetWindow.closed) targetWindow.location = url;
   else window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-function renderPdfPreviewWindow(targetWindow, state, message = "") {
-  if (!targetWindow || targetWindow.closed) return;
-  const isError = state === "error";
-  targetWindow.document.title = isError ? "Aperçu PDF indisponible" : "Préparation de l’aperçu PDF";
-  targetWindow.document.body.innerHTML = `
-    <main style="min-height:100vh;display:grid;place-items:center;margin:0;background:#f4f5f7;font-family:Arial,sans-serif;color:#1f2329">
-      <section style="width:min(460px,calc(100% - 40px));padding:32px;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(24,29,39,.14);text-align:center">
-        <div style="width:48px;height:48px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:${isError ? "#fff1f2" : "#e30613"};color:${isError ? "#e30613" : "#fff"};font-size:24px;font-weight:900">${isError ? "!" : "…"}</div>
-        <h1 style="margin:0 0 10px;font-size:22px">${isError ? "Aperçu indisponible" : "Création de l’offre de prix"}</h1>
-        <p style="margin:0;color:#626975;line-height:1.55">${escapeHtml(message || (isError ? "Fermez cet onglet puis réessayez." : "Le PDF est en cours de préparation. Il va s’afficher automatiquement."))}</p>
-      </section>
-    </main>`;
 }
 
 function previewPdfBlob(blob) {
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-function getDefaultOffrePrixValidityDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 30);
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
-}
-
-function resetOffrePrixValidityDate() {
-  if (!offrePrixValidUntil) return;
-  offrePrixValidUntil.min = todayInputDate();
-  offrePrixValidUntil.value = getDefaultOffrePrixValidityDate();
-}
-
-function getOffrePrixValidityDate() {
-  const value = String(offrePrixValidUntil?.value || "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < todayInputDate()) {
-    if (offrePrixStatus) offrePrixStatus.textContent = "Choisissez une date de validité égale ou postérieure à aujourd'hui.";
-    offrePrixValidUntil?.focus();
-    return "";
-  }
-  return value;
 }
 
 async function previewOffrePrix() {
@@ -7477,14 +7299,11 @@ async function previewOffrePrix() {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
-  const validUntil = getOffrePrixValidityDate();
-  if (!validUntil) return;
   if (offrePrixPreview) offrePrixPreview.disabled = true;
   if (offrePrixStatus) offrePrixStatus.textContent = "Préparation de l'aperçu...";
   // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
   // navigateur ne bloque le window.open() une fois la réponse serveur arrivée (après un await).
   const previewWindow = window.open("", "_blank");
-  renderPdfPreviewWindow(previewWindow, "loading");
   try {
     const result = await postService({
       action: "buildOffrePrixPdf",
@@ -7495,13 +7314,12 @@ async function previewOffrePrix() {
         address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
-      validUntil,
     });
     if (!result.data) throw new Error("Aperçu indisponible.");
     previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
     if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu généré.";
   } catch (error) {
-    renderPdfPreviewWindow(previewWindow, "error", error.message || "La génération du PDF a échoué.");
+    previewWindow?.close();
     if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Aperçu impossible.";
   } finally {
     if (offrePrixPreview) offrePrixPreview.disabled = false;
@@ -7544,13 +7362,11 @@ function loadPriceOfferIntoForm(id) {
   offrePrixLineItems = (offer.lines || []).map((line) => ({
     id: crypto.randomUUID(),
     ref: line.ref || "",
-    designation: line.designation || "",
     qty: line.quantity ?? line.qty ?? 1,
     price: Number(line.price) || 0,
   }));
   renderOffrePrixLines();
   if (offrePrixEmail) offrePrixEmail.value = offer.recipient || "";
-  if (offrePrixValidUntil) offrePrixValidUntil.value = offer.validUntil || getDefaultOffrePrixValidityDate();
   if (offrePrixSend) offrePrixSend.textContent = "Mettre à jour et renvoyer";
   if (offrePrixCancelEdit) offrePrixCancelEdit.classList.remove("is-hidden");
   if (offrePrixStatus) {
@@ -7572,8 +7388,6 @@ async function sendOffrePrixEmail() {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
-  const validUntil = getOffrePrixValidityDate();
-  if (!validUntil) return;
   if (!recipients.length || recipients.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     if (offrePrixStatus) offrePrixStatus.textContent = "Adresse e-mail invalide.";
     offrePrixEmail?.focus();
@@ -7581,9 +7395,6 @@ async function sendOffrePrixEmail() {
   }
   if (offrePrixSend) offrePrixSend.disabled = true;
   if (offrePrixStatus) offrePrixStatus.textContent = editingOfferId ? "Mise à jour de l'offre en cours..." : "Envoi de l'offre en cours...";
-  const slowSendNotice = window.setTimeout(() => {
-    if (offrePrixStatus) offrePrixStatus.textContent = "Création du PDF et envoi en cours… Ne recliquez pas sur le bouton.";
-  }, 6000);
   try {
     const payload = {
       action: "sendOffrePrix",
@@ -7595,7 +7406,6 @@ async function sendOffrePrixEmail() {
         address: formatAdminPrenetClientAddress(effectiveClient),
       }),
       rows: JSON.stringify(rows),
-      validUntil,
     };
     if (editingOfferId) payload.offerId = editingOfferId;
     const result = await postService(payload);
@@ -7605,14 +7415,12 @@ async function sendOffrePrixEmail() {
       renderOffrePrixLines();
       clearOffrePrixClient();
       if (offrePrixEmail) offrePrixEmail.value = "";
-      resetOffrePrixValidityDate();
       cancelOffrePrixEdit(false);
       loadPriceOffers();
     }
   } catch (error) {
     if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Envoi impossible.";
   } finally {
-    window.clearTimeout(slowSendNotice);
     if (offrePrixSend) offrePrixSend.disabled = false;
   }
 }
@@ -7658,7 +7466,6 @@ function renderPriceOffersHistory() {
         <span class="quote-status-pill is-accepted">${escapeHtml(offer.sector || "Secteur -")}</span>
         <strong>${escapeHtml(offer.clientName || "Client")}</strong>
         <small>${escapeHtml(offer.clientCode || "")} - ${(offer.lines || []).length} ligne(s) - Total net HT ${formatter.format(Number(offer.totalHt) || 0)}</small>
-        <small>Valable jusqu'au ${escapeHtml(offer.validUntil ? new Date(`${offer.validUntil}T12:00:00`).toLocaleDateString("fr-FR") : "non renseigné")}</small>
         <p>Envoyée à ${escapeHtml(offer.recipient || "-")} le ${escapeHtml(new Date(offer.createdAt || Date.now()).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }))} par ${escapeHtml(offer.userName || "-")}</p>
       </div>
       <button class="icon-button" type="button" data-delete-price-offer="${escapeHtml(offer.id)}" aria-label="Supprimer">&times;</button>
@@ -9502,24 +9309,6 @@ function loadOrderDraftIntoForm(order) {
   setSyncStatus("local", "Brouillon repris pour modification");
 }
 
-function renderDraftDetail(order, container) {
-  container.innerHTML = `
-    <div class="history-detail-header">
-      <div>
-        <p class="step">${escapeHtml(order.orderDate)}</p>
-        <h3><span class="draft-badge">Brouillon</span>${escapeHtml(order.orderNumber)}</h3>
-      </div>
-      <strong>${formatter.format(order.total)}</strong>
-    </div>
-    <div class="history-detail-box">
-      <strong>${escapeHtml(order.client?.name || "Aucun client sélectionné")}</strong>
-      ${order.client?.code ? `<span>${escapeHtml(order.client.code)}</span>` : ""}
-    </div>
-    <p class="helper-text">Cliquez sur ce brouillon dans la liste pour le reprendre et continuer la saisie.</p>
-    ${order.note ? `<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
-  `;
-}
-
 function formatStoredDate(dayKey) {
   const [year, month, day] = dayKey.split("-");
   return `${day}/${month}/${year}`;
@@ -9592,6 +9381,24 @@ function renderOrderHistory() {
   } else {
     renderOrderDetail(activeOrder);
   }
+}
+
+function renderDraftDetail(order, container) {
+  container.innerHTML = `
+    <div class="history-detail-header">
+      <div>
+        <p class="step">${escapeHtml(order.orderDate)}</p>
+        <h3><span class="draft-badge">Brouillon</span>${escapeHtml(order.orderNumber)}</h3>
+      </div>
+      <strong>${formatter.format(order.total)}</strong>
+    </div>
+    <div class="history-detail-box">
+      <strong>${escapeHtml(order.client?.name || "Aucun client sélectionné")}</strong>
+      ${order.client?.code ? `<span>${escapeHtml(order.client.code)}</span>` : ""}
+    </div>
+    <p class="helper-text">Cliquez sur ce brouillon dans la liste pour le reprendre et continuer la saisie.</p>
+    ${order.note ? `<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
+  `;
 }
 
 function renderOrderDetail(order) {
@@ -12268,409 +12075,12 @@ async function importProspectionFile(event) {
   event.target.value = "";
 }
 
-const erosionReasonOptions = ["Prix concurrent", "Produit concurrent déjà implanté", "Accord national / référencement concurrent", "Problème de qualité", "Produit plus adapté chez le concurrent", "Client ne consomme plus ce produit", "Changement de fournisseur", "Rupture / problème de disponibilité", "Mauvaise connaissance de notre gamme", "Client perdu", "Baisse d’activité du client", "Inconnue", "Autre"];
-
-function erosionPercent(current, previous) {
-  if (!previous) return current > 0 ? 1 : 0;
-  return (current - previous) / previous;
-}
-
-function erosionPriority(loss) {
-  const amount = Math.abs(Number(loss) || 0);
-  if (amount > 5000) return { key: "critical", label: "Priorité critique" };
-  if (amount >= 2000) return { key: "high", label: "Priorité haute" };
-  if (amount >= 500) return { key: "medium", label: "Priorité moyenne" };
-  return { key: "low", label: "Priorité faible" };
-}
-
-function buildAntiErosionClients() {
-  const grouped = new Map();
-  getCommercialStatsRows().forEach((row) => {
-    const key = normalize(row.clientCode || row.clientName || "");
-    if (!key) return;
-    if (!grouped.has(key)) grouped.set(key, {
-      key, clientName: row.clientName, clientCode: row.clientCode, sector: row.sector,
-      commercialName: row.commercialName || row.sector || "Non attribué", caN: 0, caPrevious: 0, products: [],
-    });
-    const client = grouped.get(key);
-    const caN = Number(row.ca2026) || 0;
-    const caPrevious = Number(row.ca2025) || 0;
-    const quantityN = Number(row.quantity2026) || 0;
-    const quantityPrevious = Number(row.quantity2025) || 0;
-    client.caN += caN;
-    client.caPrevious += caPrevious;
-    client.products.push({
-      reference: row.articleCode || "", designation: row.articleName || "Article sans désignation",
-      family: row.family || "Famille non renseignée", quantityN, quantityPrevious,
-      caN, caPrevious, gapQuantity: quantityN - quantityPrevious, gapCa: caN - caPrevious,
-      evolution: erosionPercent(caN, caPrevious),
-    });
-  });
-  return [...grouped.values()].map((client) => {
-    client.gapCa = client.caN - client.caPrevious;
-    client.loss = Math.max(0, -client.gapCa);
-    client.evolution = erosionPercent(client.caN, client.caPrevious);
-    client.products.sort((a, b) => a.gapCa - b.gapCa);
-    const familyLosses = new Map();
-    client.products.forEach((product) => {
-      if (product.gapCa < 0) familyLosses.set(product.family, (familyLosses.get(product.family) || 0) + Math.abs(product.gapCa));
-    });
-    client.mainFamily = [...familyLosses.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Non identifiée";
-    client.priority = erosionPriority(client.loss);
-    return client;
-  }).filter((client) => client.gapCa < 0).sort((a, b) => b.loss - a.loss);
-}
-
-function antiErosionFilteredClients() {
-  const commercial = document.querySelector("#erosionCommercialFilter")?.value || "all";
-  const sector = document.querySelector("#erosionSectorFilter")?.value || "all";
-  const query = normalize(document.querySelector("#erosionClientFilter")?.value || "");
-  const family = document.querySelector("#erosionFamilyFilter")?.value || "all";
-  const reference = normalize(document.querySelector("#erosionReferenceFilter")?.value || "");
-  const minimumPercent = Number(document.querySelector("#erosionPercentFilter")?.value) || 0;
-  const minimumAmount = Number(document.querySelector("#erosionAmountFilter")?.value) || 0;
-  return buildAntiErosionClients().filter((client) => {
-    if (commercial !== "all" && client.commercialName !== commercial) return false;
-    if (sector !== "all" && client.sector !== sector) return false;
-    if (query && !normalize(`${client.clientName} ${client.clientCode}`).includes(query)) return false;
-    if (Math.abs(client.evolution * 100) < minimumPercent || client.loss < minimumAmount) return false;
-    if (family !== "all" && !client.products.some((product) => product.family === family && product.gapCa < 0)) return false;
-    if (reference && !client.products.some((product) => normalize(`${product.reference} ${product.designation}`).includes(reference) && product.gapCa < 0)) return false;
-    return true;
-  });
-}
-
-function populateAntiErosionFilters(clients) {
-  const fill = (selector, values, allLabel) => {
-    const select = document.querySelector(selector);
-    if (!select) return;
-    const current = select.value || "all";
-    select.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>` + [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr")).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
-    if ([...select.options].some((option) => option.value === current)) select.value = current;
-  };
-  fill("#erosionCommercialFilter", clients.map((client) => client.commercialName), "Tous les commerciaux");
-  fill("#erosionSectorFilter", clients.map((client) => client.sector), "Tous les secteurs");
-  fill("#erosionFamilyFilter", clients.flatMap((client) => client.products.map((product) => product.family)), "Toutes les familles");
-}
-
-function renderAntiErosionKpis(clients) {
-  const container = document.querySelector("#erosionKpis");
-  if (!container) return;
-  const totalLoss = clients.reduce((sum, client) => sum + client.loss, 0);
-  const visibleKeys = new Set(clients.map((client) => client.key));
-  const requests = antiErosionRequests.filter((item) => visibleKeys.has(normalize(item.clientCode || item.clientName || "")) || currentUser?.role === "admin");
-  const accepted = requests.filter((item) => ["Acceptée", "Offre créée", "Offre transmise au client", "Gagnée"].includes(item.status)).length;
-  const recovered = requests.filter((item) => item.status === "Gagnée").reduce((sum, item) => sum + (Number(item.recoveredRevenue) || 0), 0);
-  const successRate = requests.length ? Math.round((requests.filter((item) => item.status === "Gagnée").length / requests.length) * 100) : 0;
-  const values = [["CA total en érosion", formatter.format(totalLoss)], ["Clients en baisse", formatNumber(clients.length)], ["Potentiel récupérable", formatter.format(totalLoss)], ["Demandes envoyées", formatNumber(requests.length)], ["Opérations acceptées", formatNumber(accepted)], ["CA récupéré", formatter.format(recovered)], ["Taux de réussite", `${successRate} %`]];
-  container.innerHTML = values.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
-}
-
-function renderAntiErosionDirector(clients) {
-  const dashboard = document.querySelector("#erosionDirectorDashboard");
-  const rankings = document.querySelector("#erosionRankings");
-  if (!dashboard || !rankings) return;
-  dashboard.classList.remove("is-hidden");
-  const viewLabel = document.querySelector("#erosionDashboardLabel");
-  const viewTitle = document.querySelector("#erosionDashboardTitle");
-  if (viewLabel) viewLabel.textContent = currentUser?.role === "admin" ? "Vue directeur commercial" : "Vue de votre secteur";
-  if (viewTitle) viewTitle.textContent = currentUser?.role === "admin" ? "Pilotage global" : `Pilotage ${currentUser?.sectors?.join(" + ") || "commercial"}`;
-  const aggregate = (entries, keyFn, valueFn) => {
-    const map = new Map();
-    entries.forEach((entry) => map.set(keyFn(entry), (map.get(keyFn(entry)) || 0) + valueFn(entry)));
-    return [...map.entries()].filter(([key]) => key).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  };
-  const products = clients.flatMap((client) => client.products.filter((product) => product.gapCa < 0));
-  const blocks = [
-    ["Top 10 clients en érosion", clients.slice(0, 10).map((item) => [item.clientName, item.loss])],
-    ["Top 10 produits responsables", aggregate(products, (item) => `${item.reference} · ${item.designation}`, (item) => Math.abs(item.gapCa))],
-    ["Top 10 familles en baisse", aggregate(products, (item) => item.family, (item) => Math.abs(item.gapCa))],
-    ["Top secteurs en érosion", aggregate(clients, (item) => item.sector, (item) => item.loss)],
-  ];
-  rankings.innerHTML = blocks.map(([title, rows]) => `<article><h4>${escapeHtml(title)}</h4>${rows.length ? rows.map(([label, value], index) => `<div><span><b>${index + 1}</b>${escapeHtml(label)}</span><strong>-${escapeHtml(formatWholeCurrency(value))}</strong></div>`).join("") : '<p class="dashboard-empty">Aucune donnée.</p>'}</article>`).join("");
-}
-
-function renderAntiErosionDetail(client) {
-  const detail = document.querySelector("#erosionDetail");
-  if (!detail) return;
-  if (!client) {
-    detail.innerHTML = '<div class="erosion-empty"><strong>Sélectionnez un client</strong><span>Vous verrez les produits qui expliquent sa baisse et l’action recommandée.</span></div>';
-    return;
-  }
-  const losses = client.products.filter((product) => product.gapCa < 0);
-  detail.innerHTML = `
-    <div class="erosion-detail-head"><div><p class="step">Analyse produit</p><h3>${escapeHtml(client.clientName)}</h3><span>${escapeHtml(client.clientCode)} · ${escapeHtml(client.sector)}</span></div><span class="erosion-priority is-${client.priority.key}">${escapeHtml(client.priority.label)}</span></div>
-    <div class="erosion-loss-summary"><span>Perte client <strong>-${escapeHtml(formatWholeCurrency(client.loss))}</strong></span><span>Évolution <strong>${escapeHtml(formatEvolutionPercent(client.evolution))}</strong></span></div>
-    <div class="erosion-source"><span>Principale source d’érosion</span><strong>${escapeHtml(client.mainFamily)}</strong></div>
-    <div class="erosion-product-list">${losses.map((product, index) => `
-      <article class="erosion-product">
-        <div class="erosion-product-title"><span class="client360-rank">${index + 1}</span><div><strong>${escapeHtml(product.reference)}</strong><span>${escapeHtml(product.designation)}</span><small>${escapeHtml(product.family)}</small></div><b>-${escapeHtml(formatWholeCurrency(Math.abs(product.gapCa)))}</b></div>
-        <div class="erosion-product-metrics"><span><small>Qté N-1</small><strong>${escapeHtml(formatNumber(product.quantityPrevious))}</strong></span><span><small>Qté N</small><strong>${escapeHtml(formatNumber(product.quantityN))}</strong></span><span><small>Écart Qté</small><strong>${escapeHtml(formatNumberDelta(product.gapQuantity))}</strong></span><span><small>CA N-1</small><strong>${escapeHtml(formatWholeCurrency(product.caPrevious))}</strong></span><span><small>CA N</small><strong>${escapeHtml(formatWholeCurrency(product.caN))}</strong></span><span><small>Évolution</small><strong>${escapeHtml(formatEvolutionPercent(product.evolution))}</strong></span></div>
-        <button type="button" class="erosion-study-button" data-erosion-study="${index}">Demander une étude commerciale</button>
-      </article>`).join("") || '<div class="dashboard-empty">Aucun produit en baisse identifié.</div>'}</div>`;
-  detail.querySelectorAll("[data-erosion-study]").forEach((button) => button.addEventListener("click", () => openAntiErosionRequest(client, losses[Number(button.dataset.erosionStudy)])));
-}
-
-function renderAntiErosionClients() {
-  const allClientsErosion = buildAntiErosionClients();
-  populateAntiErosionFilters(allClientsErosion);
-  const clients = antiErosionFilteredClients();
-  const list = document.querySelector("#erosionClientList");
-  const count = document.querySelector("#erosionResultCount");
-  if (count) count.textContent = `${clients.length} client${clients.length > 1 ? "s" : ""}`;
-  if (list) list.innerHTML = clients.length ? clients.map((client) => `
-    <button type="button" class="erosion-client${antiErosionSelectedClient === client.key ? " is-active" : ""}" data-erosion-client="${escapeHtml(client.key)}">
-      <span class="erosion-priority is-${client.priority.key}">${escapeHtml(client.priority.label.replace("Priorité ", ""))}</span>
-      <strong>${escapeHtml(client.clientName)}</strong><small>${escapeHtml(client.clientCode)} · ${escapeHtml(client.sector)}</small>
-      <span class="erosion-client-loss"><b>-${escapeHtml(formatWholeCurrency(client.loss))}</b><em>${escapeHtml(formatEvolutionPercent(client.evolution))}</em></span>
-      <span class="erosion-client-cause">Source : ${escapeHtml(client.mainFamily)}</span>
-    </button>`).join("") : '<div class="erosion-empty"><strong>Aucun client avec ces critères</strong><span>Réduisez les seuils ou actualisez les données Drive.</span></div>';
-  list?.querySelectorAll("[data-erosion-client]").forEach((button) => button.addEventListener("click", () => {
-    antiErosionSelectedClient = button.dataset.erosionClient;
-    renderAntiErosionClients();
-  }));
-  const selected = clients.find((client) => client.key === antiErosionSelectedClient) || clients[0];
-  antiErosionSelectedClient = selected?.key || "";
-  renderAntiErosionDetail(selected);
-  renderAntiErosionKpis(clients);
-  renderAntiErosionDirector(clients);
-  const badge = document.querySelector("#erosionSourceBadge");
-  if (badge) badge.textContent = clientArticleStats360?.sourceFile ? `Drive · ${clientArticleStats360.sourceFile}` : "Drive";
-}
-
-function openAntiErosionRequest(client, product) {
-  antiErosionSelectedProduct = { client, product };
-  const context = document.querySelector("#erosionRequestContext");
-  if (context) context.innerHTML = `<strong>${escapeHtml(client.clientName)}</strong><span>${escapeHtml(client.clientCode)} · ${escapeHtml(client.commercialName)} · ${escapeHtml(client.sector)}</span><strong>${escapeHtml(product.reference)} · ${escapeHtml(product.designation)}</strong><span>Qté ${escapeHtml(formatNumber(product.quantityPrevious))} → ${escapeHtml(formatNumber(product.quantityN))} · perte estimée : ${escapeHtml(formatWholeCurrency(Math.abs(product.gapCa)))}</span>`;
-  document.querySelector("#erosionComment").value = "";
-  document.querySelector("#erosionReason").value = "Inconnue";
-  const status = document.querySelector("#erosionRequestStatus");
-  if (status) { status.textContent = ""; status.className = "tarif-send-status"; }
-  document.querySelector("#erosionRequestDialog")?.showModal();
-}
-
-async function submitAntiErosionRequest(event) {
-  event.preventDefault();
-  if (!antiErosionSelectedProduct) return;
-  const { client, product } = antiErosionSelectedProduct;
-  const payload = {
-    id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: "À étudier",
-    commercialId: currentUser?.id || "", commercialName: currentUser?.name || client.commercialName,
-    sector: client.sector, clientName: client.clientName, clientCode: client.clientCode,
-    productReference: product.reference, productName: product.designation, family: product.family,
-    quantityPrevious: product.quantityPrevious, quantityN: product.quantityN, caPrevious: product.caPrevious, caN: product.caN,
-    estimatedLoss: Math.abs(product.gapCa), reason: document.querySelector("#erosionReason").value,
-    comment: document.querySelector("#erosionComment").value.trim(), historyAvailable: true,
-  };
-  const status = document.querySelector("#erosionRequestStatus");
-  const button = document.querySelector("#erosionRequestSend");
-  button.disabled = true;
-  status.textContent = "Envoi au directeur commercial…";
-  try {
-    const result = await postService({ action: "createAntiErosionRequest", request: JSON.stringify(payload) });
-    antiErosionRequests = Array.isArray(result.requests) ? result.requests : [payload, ...antiErosionRequests];
-    status.textContent = "Demande envoyée et enregistrée.";
-    status.classList.add("is-success");
-    renderAntiErosionRequests();
-    renderAntiErosionClients();
-    window.setTimeout(() => document.querySelector("#erosionRequestDialog")?.close(), 700);
-  } catch (error) {
-    status.textContent = error.message || "Impossible d’envoyer la demande.";
-    status.classList.add("is-error");
-  } finally { button.disabled = false; }
-}
-
-async function updateAntiErosionRequest(id, changes) {
-  try {
-    const result = await postService({ action: "updateAntiErosionRequest", id, changes: JSON.stringify(changes) });
-    antiErosionRequests = Array.isArray(result.requests) ? result.requests : antiErosionRequests.map((item) => item.id === id ? { ...item, ...changes } : item);
-    renderAntiErosionRequests();
-    renderAntiErosionClients();
-  } catch (error) { window.alert(error.message || "Mise à jour impossible."); }
-}
-
-function renderAntiErosionRequests() {
-  const list = document.querySelector("#erosionRequestList");
-  const count = document.querySelector("#erosionRequestCount");
-  if (!list || !count) return;
-  count.textContent = `${antiErosionRequests.length} demande${antiErosionRequests.length > 1 ? "s" : ""}`;
-  const statuses = ["À étudier", "En attente d’informations", "Acceptée", "Refusée", "Offre créée", "Offre transmise au client", "Gagnée", "Perdue"];
-  list.innerHTML = antiErosionRequests.length ? antiErosionRequests.map((item) => `
-    <article class="erosion-request-card"><div><span class="erosion-request-status">${escapeHtml(item.status || "À étudier")}</span><strong>${escapeHtml(item.clientName)} · ${escapeHtml(item.productReference)}</strong><small>${escapeHtml(item.commercialName || item.sector)} · ${escapeHtml(new Date(item.createdAt).toLocaleDateString("fr-FR"))} · perte ${escapeHtml(formatWholeCurrency(item.estimatedLoss))}</small><p>${escapeHtml(item.reason || "Inconnue")} — ${escapeHtml(item.comment || "")}</p></div>${currentUser?.role === "admin" ? `<label>Décision<select data-erosion-status="${escapeHtml(item.id)}">${statuses.map((status) => `<option${status === item.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>` : ""}</article>`).join("") : '<div class="dashboard-empty">Aucune demande envoyée.</div>';
-  list.querySelectorAll("[data-erosion-status]").forEach((select) => select.addEventListener("change", () => updateAntiErosionRequest(select.dataset.erosionStatus, { status: select.value, decisionDate: new Date().toISOString() })));
-}
-
-async function loadAntiErosion(force = false) {
-  if (!currentSessionToken) return;
-  const period = document.querySelector("#erosionPeriod");
-  if (period) period.textContent = "Actualisation des données client / produit…";
-  try {
-    if (force || !clientArticleStats360?.available) {
-      await loadClientArticleStatsFromDrive({ throwOnError: true, force });
-    }
-    try {
-      const result = await postService({ action: "getAntiErosionRequests" });
-      antiErosionRequests = Array.isArray(result.requests) ? result.requests : [];
-    } catch (error) { antiErosionRequests = []; }
-    antiErosionLoaded = true;
-    if (period) period.textContent = `Même période N / N-1 · données actualisées ${clientArticleStats360?.updatedAt || "depuis Drive"}`;
-    renderAntiErosionClients();
-    renderAntiErosionRequests();
-  } catch (error) {
-    if (period) period.textContent = error.message || "Données anti-érosion indisponibles.";
-  }
-}
-
-function deliveredReferencesByClient() {
-  const result = new Map();
-  deliveryOrderHistory.forEach((order) => {
-    const key = normalize(order.clientCode || order.clientName || "");
-    if (!key) return;
-    if (!result.has(key)) result.set(key, new Set());
-    const lines = order.lines || order.products || order.items || [];
-    lines.forEach((line) => result.get(key).add(normalize(line.reference || line.ref || line.articleCode || "")));
-  });
-  return result;
-}
-
-function buildCommercialOpportunities() {
-  const rows = getCommercialStatsRows();
-  const clients = new Map();
-  const productBenchmarks = new Map();
-  const delivered = deliveredReferencesByClient();
-  rows.forEach((row) => {
-    const clientKey = normalize(row.clientCode || row.clientName || "");
-    const refKey = normalize(row.articleCode || "");
-    if (!clientKey || !refKey) return;
-    if (!clients.has(clientKey)) clients.set(clientKey, {
-      key: clientKey, clientCode: row.clientCode || "", clientName: row.clientName || "Client inconnu",
-      sector: row.sector || "", products: new Set(), rows: [],
-    });
-    const client = clients.get(clientKey);
-    client.products.add(refKey);
-    client.rows.push(row);
-    if ((Number(row.ca2026) || 0) > 0) {
-      if (!productBenchmarks.has(refKey)) productBenchmarks.set(refKey, { reference: row.articleCode, designation: row.articleName, family: row.family, totalCa: 0, buyers: new Set() });
-      const benchmark = productBenchmarks.get(refKey);
-      benchmark.totalCa += Number(row.ca2026) || 0;
-      benchmark.buyers.add(clientKey);
-    }
-  });
-  const opportunities = [];
-  clients.forEach((client) => {
-    client.rows.forEach((row) => {
-      const previous = Number(row.ca2025) || 0;
-      const current = Number(row.ca2026) || 0;
-      const potential = Math.max(0, previous - current);
-      if (potential <= 0) return;
-      opportunities.push({
-        id: `reconquest:${client.key}:${normalize(row.articleCode)}`, type: "reconquest", client,
-        reference: row.articleCode || "", designation: row.articleName || "Article", family: row.family || "Famille non renseignée",
-        potential, previousCa: previous, currentCa: current,
-        reason: current <= 0 ? "Article acheté auparavant, absent de la période actuelle" : "Article en baisse par rapport à la période précédente",
-        sourceRow: row,
-      });
-    });
-    const knownRefs = new Set([...client.products, ...(delivered.get(client.key) || [])]);
-    [...productBenchmarks.values()]
-      .filter((product) => product.buyers.size >= 2 && !knownRefs.has(normalize(product.reference)))
-      .map((product) => ({ product, potential: product.totalCa / product.buyers.size }))
-      .sort((a, b) => b.potential - a.potential)
-      .slice(0, 3)
-      .forEach(({ product, potential }) => opportunities.push({
-        id: `complement:${client.key}:${normalize(product.reference)}`, type: "complement", client,
-        reference: product.reference || "", designation: product.designation || "Article", family: product.family || "Famille non renseignée",
-        potential, previousCa: 0, currentCa: 0,
-        reason: `Acheté par ${product.buyers.size} autres clients comparables de votre périmètre`,
-      }));
-  });
-  return opportunities.sort((a, b) => b.potential - a.potential);
-}
-
-function filteredCommercialOpportunities() {
-  const query = normalize(document.querySelector("#opportunitiesClientFilter")?.value || "");
-  const type = document.querySelector("#opportunitiesTypeFilter")?.value || "all";
-  const family = document.querySelector("#opportunitiesFamilyFilter")?.value || "all";
-  const amount = Number(document.querySelector("#opportunitiesAmountFilter")?.value) || 0;
-  return buildCommercialOpportunities().filter((item) => {
-    if (query && !normalize(`${item.client.clientName} ${item.client.clientCode}`).includes(query)) return false;
-    if (type !== "all" && item.type !== type) return false;
-    if (family !== "all" && item.family !== family) return false;
-    return item.potential >= amount;
-  });
-}
-
-function openOpportunityClient(client) {
-  const match = (currentUser?.role === "admin" ? allClients : visibleClients).find((item) =>
-    normalize(item.code || "") === normalize(client.clientCode || "") || normalize(item.name || "") === normalize(client.clientName || "")
-  );
-  if (!match) return;
-  selectedClient360 = match;
-  setActiveTab("client360");
-  selectClient360(match);
-}
-
-function renderCommercialOpportunities() {
-  const all = buildCommercialOpportunities();
-  const familySelect = document.querySelector("#opportunitiesFamilyFilter");
-  if (familySelect) {
-    const current = familySelect.value || "all";
-    const families = [...new Set(all.map((item) => item.family).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
-    familySelect.innerHTML = '<option value="all">Toutes les familles</option>' + families.map((family) => `<option value="${escapeHtml(family)}">${escapeHtml(family)}</option>`).join("");
-    if ([...familySelect.options].some((option) => option.value === current)) familySelect.value = current;
-  }
-  const items = filteredCommercialOpportunities();
-  const reconquest = items.filter((item) => item.type === "reconquest");
-  const complement = items.filter((item) => item.type === "complement");
-  const potential = items.reduce((sum, item) => sum + item.potential, 0);
-  const kpis = document.querySelector("#opportunitiesKpis");
-  if (kpis) kpis.innerHTML = [["Opportunités", items.length], ["À reconquérir", reconquest.length], ["Ventes complémentaires", complement.length], ["Potentiel indicatif", formatWholeCurrency(potential)]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
-  const status = document.querySelector("#opportunitiesStatus");
-  if (status) status.textContent = `${currentUser?.role === "admin" ? "Tous les secteurs" : currentUser?.sectors?.join(" + ") || "Votre secteur"} · CA uniquement · aucune marge ni prix d’achat`;
-  const list = document.querySelector("#opportunitiesList");
-  if (!list) return;
-  list.innerHTML = items.length ? items.slice(0, 250).map((item) => `
-    <article class="opportunity-card">
-      <div class="opportunity-card-head"><span class="opportunity-type is-${item.type}">${item.type === "reconquest" ? "À reconquérir" : "Vente complémentaire"}</span><strong>${escapeHtml(formatWholeCurrency(item.potential))}</strong></div>
-      <h3>${escapeHtml(item.client.clientName)}</h3><p>${escapeHtml(item.client.clientCode)} · ${escapeHtml(item.client.sector)}</p>
-      <div class="opportunity-product"><strong>${escapeHtml(item.reference)}</strong><span>${escapeHtml(item.designation)}</span><small>${escapeHtml(item.family)}</small></div>
-      <p class="opportunity-reason">${escapeHtml(item.reason)}</p>
-      <div class="opportunity-actions"><button type="button" class="ghost-button" data-opportunity-client="${escapeHtml(item.id)}">Voir la fiche client</button>${item.type === "reconquest" ? `<button type="button" class="primary-button" data-opportunity-study="${escapeHtml(item.id)}">Demander une étude</button>` : ""}</div>
-    </article>`).join("") : '<div class="dashboard-empty">Aucune opportunité ne correspond aux filtres actuels.</div>';
-  const byId = new Map(items.map((item) => [item.id, item]));
-  list.querySelectorAll("[data-opportunity-client]").forEach((button) => button.addEventListener("click", () => openOpportunityClient(byId.get(button.dataset.opportunityClient)?.client || {})));
-  list.querySelectorAll("[data-opportunity-study]").forEach((button) => button.addEventListener("click", () => {
-    const item = byId.get(button.dataset.opportunityStudy);
-    if (!item) return;
-    openAntiErosionRequest(item.client, {
-      reference: item.reference, designation: item.designation, family: item.family,
-      quantityPrevious: Number(item.sourceRow?.quantity2025) || 0, quantityN: Number(item.sourceRow?.quantity2026) || 0,
-      caPrevious: item.previousCa, caN: item.currentCa, gapCa: item.currentCa - item.previousCa,
-    });
-  }));
-}
-
-async function loadCommercialOpportunities(force = false) {
-  const status = document.querySelector("#opportunitiesStatus");
-  if (status) status.textContent = "Actualisation du CA et des commandes livrées…";
-  const tasks = [];
-  if (force || !clientArticleStats360?.available) tasks.push(loadClientArticleStatsFromDrive({ throwOnError: true }));
-  if (force || !deliveryOrderHistoryLoaded) tasks.push(loadDeliveryOrderHistory(force));
-  const results = await Promise.allSettled(tasks);
-  const failure = results.find((result) => result.status === "rejected");
-  renderCommercialOpportunities();
-  if (failure && status) status.textContent = failure.reason?.message || "Certaines données n’ont pas pu être actualisées.";
-}
-
 function setActiveTab(tabName) {
-  if (tabName === "opportunities") tabName = "antiErosion";
   setTabletMenuOpen(false);
   const showTutorial = tabName === "tutorial";
   const showHome = tabName === "home";
   const showClient360 = tabName === "client360";
   const showStats = tabName === "stats";
-  const showAntiErosion = tabName === "antiErosion";
-  const showOpportunities = tabName === "opportunities";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showQuote = tabName === "quote";
@@ -12698,8 +12108,6 @@ function setActiveTab(tabName) {
   homeTab.classList.toggle("is-active", showHome);
   client360Tab.classList.toggle("is-active", showClient360);
   statsTab.classList.toggle("is-active", showStats);
-  antiErosionTab?.classList.toggle("is-active", showAntiErosion);
-  opportunitiesTab?.classList.toggle("is-active", showOpportunities);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab?.classList.toggle("is-active", showHistory);
   quoteTab.classList.toggle("is-active", showQuote);
@@ -12727,8 +12135,6 @@ function setActiveTab(tabName) {
   homeView.classList.toggle("is-hidden", !showHome);
   client360View.classList.toggle("is-hidden", !showClient360);
   statsView.classList.toggle("is-hidden", !showStats);
-  antiErosionView?.classList.toggle("is-hidden", !showAntiErosion);
-  opportunitiesView?.classList.toggle("is-hidden", !showOpportunities);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView?.classList.toggle("is-hidden", !showHistory);
   quoteView.classList.toggle("is-hidden", !showQuote);
@@ -12754,7 +12160,7 @@ function setActiveTab(tabName) {
   adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", opportunities: "Opportunités", order: "Saisie commande", history: "Historique commandes", quote: "Demande devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", order: "Saisie commande", history: "Historique commandes", quote: "Demande de devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -12766,9 +12172,6 @@ function setActiveTab(tabName) {
     renderCommercialStats();
     requestAnimationFrame(() => statsClientFilter?.focus());
   }
-
-  if (showAntiErosion) loadAntiErosion();
-  if (showOpportunities) loadCommercialOpportunities();
 
   if (showClient360) {
     loadClientArticleStatsFromDrive();
@@ -12856,7 +12259,6 @@ function setActiveTab(tabName) {
 
   if (showAdminOffrePrix) {
     renderOffrePrixLines();
-    if (!adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderOffrePrixLines());
     loadPriceOffers();
     requestAnimationFrame(() => offrePrixClientSearch?.focus());
   }
@@ -13047,7 +12449,7 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note, client }) {
     fillRect(margin, pageHeight - 50, 76, 4, "#E30613");
     textAt(margin, pageHeight - 30, 18, "Schuller Eh'klar", { bold: true });
     textAt(margin, pageHeight - 45, 7.5, "BROSSERIE ET OUTILLAGE POUR PEINTRES");
-    textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lehn - 67560 ROSHEIM - Tel. 03 88 04 68 04");
+    textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lhen - 67560 ROSHEIM - Tel. 03 88 04 68 04");
     textAt(margin, pageHeight - 70, 7.5, `www.schuller.eu - ${schullerOperationsEmail}`);
 
     textAt(pageWidth - 198, pageHeight - 30, 14, "BON DE COMMANDE", { bold: true });
@@ -13472,17 +12874,6 @@ saveOrderDraftButton?.addEventListener("click", saveOrderAsDraft);
 homeTab.addEventListener("click", () => setActiveTab("home"));
 client360Tab.addEventListener("click", () => setActiveTab("client360"));
 statsTab.addEventListener("click", () => setActiveTab("stats"));
-antiErosionTab?.addEventListener("click", () => setActiveTab("antiErosion"));
-opportunitiesTab?.addEventListener("click", () => setActiveTab("opportunities"));
-document.querySelector("#erosionRefresh")?.addEventListener("click", () => loadAntiErosion(true));
-document.querySelector("#opportunitiesRefresh")?.addEventListener("click", () => loadCommercialOpportunities(true));
-["#opportunitiesTypeFilter", "#opportunitiesFamilyFilter", "#opportunitiesAmountFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("change", renderCommercialOpportunities));
-document.querySelector("#opportunitiesClientFilter")?.addEventListener("input", renderCommercialOpportunities);
-["#erosionCommercialFilter", "#erosionSectorFilter", "#erosionFamilyFilter", "#erosionPercentFilter", "#erosionAmountFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("change", renderAntiErosionClients));
-["#erosionClientFilter", "#erosionReferenceFilter"].forEach((selector) => document.querySelector(selector)?.addEventListener("input", renderAntiErosionClients));
-document.querySelector("#erosionRequestForm")?.addEventListener("submit", submitAntiErosionRequest);
-document.querySelector("#erosionRequestClose")?.addEventListener("click", () => document.querySelector("#erosionRequestDialog")?.close());
-document.querySelector("#erosionRequestCancel")?.addEventListener("click", () => document.querySelector("#erosionRequestDialog")?.close());
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab?.addEventListener("click", () => setActiveTab("history"));
 historyRefresh?.addEventListener("click", () => loadDeliveryOrderHistory(true));
@@ -13552,10 +12943,7 @@ offrePrixCancelEdit?.addEventListener("click", () => {
   renderOffrePrixLines();
   clearOffrePrixClient();
   if (offrePrixEmail) offrePrixEmail.value = "";
-  resetOffrePrixValidityDate();
 });
-
-resetOffrePrixValidityDate();
 
 offrePrixExportCsv?.addEventListener("click", exportOffrePrixCsv);
 
@@ -14212,16 +13600,7 @@ document.addEventListener("click", (event) => {
 
 setupVoiceNotes();
 updateOfflineStatus();
-window.addEventListener("online", () => {
-  updateOfflineStatus();
-  if (!currentSessionToken) return;
-  const activeId = document.querySelector(".tab-button.is-active")?.id || "";
-  if (activeId === "antiErosionTab") loadAntiErosion(true);
-  else if (activeId === "opportunitiesTab") loadCommercialOpportunities(true);
-  else if (activeId === "historyTab") loadDeliveryOrderHistory(true);
-  else if (activeId === "statsTab") loadClientArticleStatsFromDrive();
-  else loadDashboardStatsFromDrive();
-});
+window.addEventListener("online", updateOfflineStatus);
 window.addEventListener("offline", updateOfflineStatus);
 setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
 setThemeMode(localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light");
