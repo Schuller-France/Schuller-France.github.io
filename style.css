@@ -2369,6 +2369,35 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.price-cell input {
+  width: 100%;
+  border-width: 2px;
+  background: #fffafa;
+  text-align: right;
+  font-weight: 800;
+}
+
+.col-cost,
+.col-margin {
+  width: 110px;
+}
+
+.admin-order-purchase {
+  color: #374151;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.admin-order-margin {
+  color: #15803d;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.admin-order-margin.is-low {
+  color: #dc2626;
+}
+
 .empty-product {
   color: var(--muted);
   font-weight: 400;

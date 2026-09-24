@@ -9872,7 +9872,7 @@ function handleAdminOrderClientSearchInput(value) {
 }
 
 function addAdminOrderLine() {
-  const line = { id: crypto.randomUUID(), ref: "", qty: 1 };
+  const line = { id: crypto.randomUUID(), ref: "", qty: 1, price: null };
   adminOrderLineItems.push(line);
   renderAdminOrderLines();
   return line.id;
@@ -9887,11 +9887,52 @@ function setAdminOrderLineReference(id, ref) {
       ...line,
       ref,
       qty: product && referenceChanged ? defaultQuantityForProduct(product) : line.qty,
+      price: product && referenceChanged ? null : line.price,
     };
   });
   const product = findProduct(ref);
   if (product) recordActivity("Référence consultée (commande admin)", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderAdminOrderLines();
+}
+
+// Prix de vente saisi manuellement sur la ligne (surcharge le prix calcule automatiquement
+// tarif/prenet), pour permettre a l'admin d'ajuster son offre au cas par cas. Une valeur vide
+// ou non numerique revient au prix calcule automatiquement.
+function getAdminOrderLineUnitPrice(line, product, qty) {
+  const override = line?.price;
+  if (override !== null && override !== undefined && String(override).trim() !== "" && isFinite(Number(override))) {
+    return Number(override);
+  }
+  return product ? getOrderUnitPrice(product, qty, adminOrderSelectedClient) : 0;
+}
+
+function updateAdminOrderLinePrice(id, rawValue) {
+  const line = adminOrderLineItems.find((item) => item.id === id);
+  if (!line) return;
+  line.price = rawValue;
+  const row = [...adminOrderLinesBody.querySelectorAll("tr")].find((item) => item.dataset.lineId === id);
+  if (row) {
+    const product = findProduct(line.ref);
+    const quantity = Math.max(Number(line.qty) || 0, 0);
+    const unitPrice = getAdminOrderLineUnitPrice(line, product, quantity);
+    const purchasePrice = getOffrePrixPurchasePrice(line.ref);
+    const margin = purchasePrice != null && unitPrice > 0 ? 1 - (purchasePrice / unitPrice) : null;
+    const amount = product ? unitPrice * quantity : 0;
+    const marginCell = row.querySelector("[data-admin-order-margin]");
+    const totalCell = row.querySelector(".line-total-cell");
+    if (marginCell) {
+      marginCell.textContent = margin == null ? "-" : `${(margin * 100).toFixed(1).replace(".", ",")}%`;
+      marginCell.classList.toggle("is-low", margin != null && margin < 0.3);
+    }
+    if (totalCell) totalCell.textContent = product ? formatter.format(amount) : "-";
+  }
+  updateAdminOrderSummary();
+}
+
+function completeAdminOrderPrice(id) {
+  renderAdminOrderLines();
+  const nextLineId = getNextAdminOrderLineId(id);
+  if (nextLineId) focusAdminOrderLineRef(nextLineId);
 }
 
 function removeAdminOrderLine(id) {
@@ -9952,8 +9993,10 @@ function renderAdminOrderLines() {
   adminOrderLineItems.forEach((line) => {
     const product = findProduct(line.ref);
     const quantity = Math.max(Number(line.qty) || 0, 0);
-    const unitPrice = product ? getOrderUnitPrice(product, quantity, adminOrderSelectedClient) : 0;
+    const unitPrice = getAdminOrderLineUnitPrice(line, product, quantity);
     const lineTotal = product ? unitPrice * quantity : 0;
+    const purchasePrice = getOffrePrixPurchasePrice(line.ref);
+    const margin = purchasePrice != null && unitPrice > 0 ? 1 - (purchasePrice / unitPrice) : null;
     const row = document.createElement("tr");
     row.dataset.lineId = line.id;
 
@@ -9967,7 +10010,11 @@ function renderAdminOrderLines() {
       <td class="qty-cell">
         <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
       </td>
-      <td class="price-cell">${product ? formatter.format(unitPrice) : "-"}</td>
+      <td class="numeric admin-order-purchase">${purchasePrice == null ? "-" : formatter.format(purchasePrice)}</td>
+      <td class="price-cell">
+        <input value="${product ? unitPrice.toFixed(2) : ""}" type="text" inputmode="decimal" aria-label="Prix de vente" ${product ? "" : "disabled"} />
+      </td>
+      <td class="numeric admin-order-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-admin-order-margin>${margin == null ? "-" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
       <td class="line-total-cell">${product ? formatter.format(lineTotal) : "-"}</td>
       <td>
         <button class="remove-line" type="button" aria-label="Supprimer la ligne">x</button>
@@ -9976,8 +10023,18 @@ function renderAdminOrderLines() {
 
     const refInput = row.querySelector("td:first-child input");
     const qtyInput = row.querySelector(".qty-cell input");
+    const priceInput = row.querySelector(".price-cell input");
     const removeButton = row.querySelector(".remove-line");
 
+    refInput.addEventListener("input", (event) => {
+      const value = event.target.value;
+      // Des qu'une reference tapee correspond exactement a un article, on l'applique et on
+      // avance directement le focus sur la quantite : plus besoin d'appuyer sur Tab.
+      if (findProduct(value)) {
+        setAdminOrderLineReference(line.id, value.trim());
+        focusAdminOrderLineQty(line.id);
+      }
+    });
     refInput.addEventListener("change", (event) => setAdminOrderLineReference(line.id, event.target.value.trim()));
     refInput.addEventListener("blur", (event) => setAdminOrderLineReference(line.id, event.target.value.trim()));
     refInput.addEventListener("keydown", (event) => {
@@ -9995,6 +10052,16 @@ function renderAdminOrderLines() {
       }
     });
     qtyInput.addEventListener("blur", (event) => completeAdminOrderQuantity(line.id, Number(event.target.value) || 1));
+    if (priceInput) {
+      priceInput.addEventListener("input", (event) => updateAdminOrderLinePrice(line.id, event.target.value));
+      priceInput.addEventListener("blur", () => renderAdminOrderLines());
+      priceInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          completeAdminOrderPrice(line.id);
+        }
+      });
+    }
     removeButton.addEventListener("click", () => removeAdminOrderLine(line.id));
 
     adminOrderLinesBody.appendChild(row);
@@ -10008,7 +10075,7 @@ function getAdminOrderValidLines() {
     .map((line) => {
       const product = findProduct(line.ref);
       const qty = Math.max(Number(line.qty) || 0, 0);
-      const unitPrice = getOrderUnitPrice(product, qty, adminOrderSelectedClient);
+      const unitPrice = getAdminOrderLineUnitPrice(line, product, qty);
       return { ...line, product, qty, unitPrice, lineTotal: unitPrice * qty };
     })
     .filter((line) => line.product && line.qty > 0);
