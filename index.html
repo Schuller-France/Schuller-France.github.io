@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260924offres3" />
-    <link rel="icon" href="assets/favicon.ico?v=20260924offres3" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260924offres3" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260924offres3" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260924offres3" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260924offres4" />
+    <link rel="icon" href="assets/favicon.ico?v=20260924offres4" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260924offres4" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260924offres4" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260924offres4" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260924offres3" />
+    <link rel="stylesheet" href="style.css?v=20260924offres4" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -602,6 +602,7 @@
               <col class="col-name" />
               <col class="col-udv" />
               <col class="col-qty" />
+              <col class="col-prenet" />
               <col class="col-price" />
               <col class="col-total" />
               <col class="col-action" />
@@ -613,6 +614,7 @@
                 <th>Designation</th>
                 <th>UDV</th>
                 <th>Qte</th>
+                <th>Prix nets</th>
                 <th>Prix U.</th>
                 <th>Total</th>
                 <th></th>
@@ -2134,6 +2136,7 @@
               <col class="col-name" />
               <col class="col-udv" />
               <col class="col-qty" />
+              <col class="col-prenet" />
               <col class="col-cost" />
               <col class="col-price" />
               <col class="col-margin" />
@@ -2147,6 +2150,7 @@
                 <th>Designation</th>
                 <th>UDV</th>
                 <th>Qte</th>
+                <th>Prix nets</th>
                 <th>P.A.</th>
                 <th>Prix de vente</th>
                 <th>Marge</th>
@@ -2235,11 +2239,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260924offres3" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260924offres4" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260924offres3" charset="UTF-8"></script>
+    <script src="script.js?v=20260924offres4" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -7261,9 +7261,13 @@ function getOffrePrixPurchasePrice(ref) {
   return value === undefined ? null : Number(value);
 }
 
-function getOffrePrixClientNetPrices(product) {
-  if (!selectedOffrePrixClient || !product) return [];
-  const prenetClient = findPrenetClientForOrder(selectedOffrePrixClient);
+// Paliers de prix nets client (prenet) pour un produit donne, quel que soit l'ecran
+// (offre de prix, saisie commande commercial ou admin) : liste triee des paliers
+// quantite -> prix net, utilisee a la fois pour l'affichage informatif et pour le
+// calcul du prix applique a la ligne.
+function getClientNetPrices(client, product) {
+  if (!client || !product) return [];
+  const prenetClient = findPrenetClientForOrder(client);
   const productRef = normalize(product.ref || "");
   const productGencod = normalize(product.gencod || "");
   return getPrenetNewEntries(prenetClient)
@@ -7280,13 +7284,26 @@ function getOffrePrixClientNetPrices(product) {
     .sort((a, b) => a.quantity - b.quantity);
 }
 
-function renderOffrePrixClientNetPrices(product) {
-  const entries = getOffrePrixClientNetPrices(product);
+// activeQuantity (optionnel) : quantite actuellement saisie sur la ligne, pour surligner
+// le palier reellement applique (meme logique que findPrenetEntryForProduct).
+function renderClientNetPrices(client, product, activeQuantity = 0) {
+  const entries = getClientNetPrices(client, product);
   if (!entries.length) return '<span class="offre-prix-no-prenet">Aucun</span>';
+  const activeEntry = findPrenetEntryForProduct(client, product, activeQuantity);
+  const activeQty = activeEntry ? getPrenetEntryQuantity(activeEntry) : null;
   return entries.map((entry) => {
     const quantity = entry.quantity > 0 ? `dès ${formatNumber(entry.quantity)}` : "sans seuil";
-    return `<span class="offre-prix-prenet-line"><strong>${formatter.format(entry.price)}</strong><small>${quantity}</small></span>`;
+    const isActive = activeQty != null && entry.quantity === activeQty;
+    return `<span class="offre-prix-prenet-line${isActive ? " is-active-prenet" : ""}"><strong>${formatter.format(entry.price)}</strong><small>${quantity}</small></span>`;
   }).join("");
+}
+
+function getOffrePrixClientNetPrices(product) {
+  return getClientNetPrices(selectedOffrePrixClient, product);
+}
+
+function renderOffrePrixClientNetPrices(product, activeQuantity = 0) {
+  return renderClientNetPrices(selectedOffrePrixClient, product, activeQuantity);
 }
 
 function getOffrePrixUnitPrice(product, quantity = 0) {
@@ -7323,7 +7340,7 @@ function renderOffrePrixLines() {
           <td class="quote-name-cell ${product || line.designation ? "" : "empty-product"}">${product ? escapeHtml(product.name) : line.designation ? escapeHtml(line.designation) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
           <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
-          <td class="offre-prix-prenet">${renderOffrePrixClientNetPrices(product)}</td>
+          <td class="offre-prix-prenet">${renderOffrePrixClientNetPrices(product, line.qty)}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
           <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
           <td data-offre-amount>${formatter.format(amount)}</td>
@@ -9429,6 +9446,7 @@ function renderLines() {
       <td class="qty-cell">
         <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
       </td>
+      <td class="offre-prix-prenet order-prenet-cell" data-prenet-cell>${product ? renderClientNetPrices(selectedClient, product, quantity) : ""}</td>
       <td class="price-cell">${product ? formatter.format(unitPrice) : "-"}</td>
       <td class="line-total-cell">${product ? formatter.format(lineTotal) : "-"}</td>
       <td>
@@ -9448,6 +9466,21 @@ function renderLines() {
         setLineReference(line.id, event.target.value.trim());
         focusLineQty(line.id);
       }
+    });
+    // Mise a jour immediate du prix net / prix applique pendant la saisie de la quantite,
+    // sans attendre la perte de focus : des qu'un palier tarifaire client est atteint, le
+    // prix affiche se met a jour tout de suite.
+    qtyInput.addEventListener("input", (event) => {
+      const qty = Math.max(Number(event.target.value) || 0, 0);
+      const currentProduct = findProduct(line.ref);
+      if (!currentProduct) return;
+      const livePrice = getOrderUnitPrice(currentProduct, qty, selectedClient);
+      const prenetCell = row.querySelector("[data-prenet-cell]");
+      const priceCell = row.querySelector(".price-cell");
+      const totalCell = row.querySelector(".line-total-cell");
+      if (prenetCell) prenetCell.innerHTML = renderClientNetPrices(selectedClient, currentProduct, qty);
+      if (priceCell) priceCell.textContent = formatter.format(livePrice);
+      if (totalCell) totalCell.textContent = formatter.format(livePrice * qty);
     });
     qtyInput.addEventListener("change", (event) => {
       completeQuantity(line.id, Number(event.target.value) || 1);
@@ -10010,6 +10043,7 @@ function renderAdminOrderLines() {
       <td class="qty-cell">
         <input value="${escapeHtml(line.qty)}" type="number" min="1" step="1" aria-label="Quantite" />
       </td>
+      <td class="offre-prix-prenet order-prenet-cell" data-prenet-cell>${product ? renderClientNetPrices(adminOrderSelectedClient, product, quantity) : ""}</td>
       <td class="numeric admin-order-purchase">${purchasePrice == null ? "-" : formatter.format(purchasePrice)}</td>
       <td class="price-cell">
         <input value="${product ? unitPrice.toFixed(2) : ""}" type="text" inputmode="decimal" aria-label="Prix de vente" ${product ? "" : "disabled"} />
@@ -10025,6 +10059,30 @@ function renderAdminOrderLines() {
     const qtyInput = row.querySelector(".qty-cell input");
     const priceInput = row.querySelector(".price-cell input");
     const removeButton = row.querySelector(".remove-line");
+
+    // Mise a jour immediate du palier de prix net et, si l'admin n'a pas surcharge le prix
+    // de vente a la main, du prix applique et de la marge, pendant la saisie de la quantite.
+    qtyInput.addEventListener("input", (event) => {
+      const qty = Math.max(Number(event.target.value) || 0, 0);
+      const currentProduct = findProduct(line.ref);
+      if (!currentProduct) return;
+      const prenetCell = row.querySelector("[data-prenet-cell]");
+      if (prenetCell) prenetCell.innerHTML = renderClientNetPrices(adminOrderSelectedClient, currentProduct, qty);
+      const hasManualPrice = line.price !== null && line.price !== undefined && String(line.price).trim() !== "";
+      if (!hasManualPrice) {
+        const livePrice = getAdminOrderLineUnitPrice(line, currentProduct, qty);
+        const purchasePriceLive = getOffrePrixPurchasePrice(line.ref);
+        const marginLive = purchasePriceLive != null && livePrice > 0 ? 1 - (purchasePriceLive / livePrice) : null;
+        if (priceInput) priceInput.value = livePrice.toFixed(2);
+        const marginCell = row.querySelector("[data-admin-order-margin]");
+        const totalCell = row.querySelector(".line-total-cell");
+        if (marginCell) {
+          marginCell.textContent = marginLive == null ? "-" : `${(marginLive * 100).toFixed(1).replace(".", ",")}%`;
+          marginCell.classList.toggle("is-low", marginLive != null && marginLive < 0.3);
+        }
+        if (totalCell) totalCell.textContent = formatter.format(livePrice * qty);
+      }
+    });
 
     refInput.addEventListener("input", (event) => {
       const value = event.target.value;
