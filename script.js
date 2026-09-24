@@ -13053,6 +13053,7 @@ function setActiveTab(tabName) {
     if (!adminOrderLineItems.length) addAdminOrderLine();
     renderAdminOrderLines();
     renderAdminOrderHistory();
+    if (!adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderAdminOrderLines());
     requestAnimationFrame(() => adminOrderClientSearch?.focus());
   }
 
