@@ -489,6 +489,7 @@ const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
 const offrePrixValidUntil = document.querySelector("#offrePrixValidUntil");
 const offrePrixEmail = document.querySelector("#offrePrixEmail");
 const offrePrixSend = document.querySelector("#offrePrixSend");
+const offrePrixSaveDraft = document.querySelector("#offrePrixSaveDraft");
 const offrePrixCancelEdit = document.querySelector("#offrePrixCancelEdit");
 const offrePrixStatus = document.querySelector("#offrePrixStatus");
 const offrePrixDropzone = document.querySelector("#offrePrixDropzone");
@@ -7617,13 +7618,58 @@ function loadPriceOfferIntoForm(id) {
   renderOffrePrixLines();
   if (offrePrixEmail) offrePrixEmail.value = offer.recipient || "";
   if (offrePrixValidUntil) offrePrixValidUntil.value = offer.validUntil || getDefaultOffrePrixValidityDate();
-  if (offrePrixSend) offrePrixSend.textContent = "Mettre à jour et renvoyer";
+  if (offrePrixSend) offrePrixSend.textContent = offer.status === "draft" ? "Envoyer l'offre" : "Mettre à jour et renvoyer";
   if (offrePrixCancelEdit) offrePrixCancelEdit.classList.remove("is-hidden");
   if (offrePrixStatus) {
-    const sentDate = new Date(offer.createdAt || Date.now()).toLocaleDateString("fr-FR");
-    offrePrixStatus.textContent = `Modification de l'offre envoyée à ${offer.recipient || "-"} le ${sentDate}. L'envoi mettra à jour cette entrée dans l'historique.`;
+    const refDate = new Date(offer.updatedAt || offer.createdAt || Date.now()).toLocaleDateString("fr-FR");
+    offrePrixStatus.textContent = offer.status === "draft"
+      ? `Brouillon enregistré le ${refDate} - non envoyé. Modifiez-le puis envoyez-le, ou enregistrez à nouveau.`
+      : `Modification de l'offre envoyée à ${offer.recipient || "-"} le ${refDate}. L'envoi mettra à jour cette entrée dans l'historique.`;
   }
   document.querySelector("#offrePrixClientSearch")?.closest("section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function saveOffrePrixDraft() {
+  const rows = getOffrePrixRows();
+  const effectiveClient = getOffrePrixEffectiveClient();
+  if (!effectiveClient) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Sélectionnez un client ou saisissez un nom de prospect.";
+    return;
+  }
+  if (!rows.length) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
+    return;
+  }
+  const validUntil = getOffrePrixValidityDate();
+  if (!validUntil) return;
+  if (offrePrixSaveDraft) offrePrixSaveDraft.disabled = true;
+  if (offrePrixStatus) offrePrixStatus.textContent = "Enregistrement...";
+  try {
+    const payload = {
+      action: "saveOffrePrixDraft",
+      client: JSON.stringify({
+        name: effectiveClient.name || "",
+        code: effectiveClient.code || "",
+        sector: effectiveClient.sector || "",
+        address: formatAdminPrenetClientAddress(effectiveClient),
+      }),
+      rows: JSON.stringify(rows),
+      validUntil,
+    };
+    if (offrePrixEmail?.value?.trim()) payload.recipient = offrePrixEmail.value;
+    if (editingOfferId) payload.offerId = editingOfferId;
+    const result = await postService(payload);
+    if (result.ok) {
+      editingOfferId = result.offerId || editingOfferId;
+      if (offrePrixCancelEdit) offrePrixCancelEdit.classList.remove("is-hidden");
+      loadPriceOffers();
+    }
+    if (offrePrixStatus) offrePrixStatus.textContent = result.message || "Offre enregistrée.";
+  } catch (error) {
+    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Enregistrement impossible.";
+  } finally {
+    if (offrePrixSaveDraft) offrePrixSaveDraft.disabled = false;
+  }
 }
 
 async function sendOffrePrixEmail() {
@@ -7718,18 +7764,27 @@ function renderPriceOffersHistory() {
     offrePrixHistoryList.innerHTML = `<p class="admin-prenet-status">Aucune offre de prix trouvée.</p>`;
     return;
   }
-  offrePrixHistoryList.innerHTML = rows.map((offer) => `
+  offrePrixHistoryList.innerHTML = rows.map((offer) => {
+    const isDraft = offer.status === "draft";
+    const statusPill = isDraft
+      ? `<span class="quote-status-pill is-pending">Brouillon</span>`
+      : `<span class="quote-status-pill is-accepted">${escapeHtml(offer.sector || "Secteur -")}</span>`;
+    const footerLine = isDraft
+      ? `Enregistrée par ${escapeHtml(offer.userName || "-")} le ${escapeHtml(new Date(offer.updatedAt || offer.createdAt || Date.now()).toLocaleDateString("fr-FR"))} - non envoyée`
+      : `Envoyée à ${escapeHtml(offer.recipient || "-")} le ${escapeHtml(new Date(offer.createdAt || Date.now()).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }))} par ${escapeHtml(offer.userName || "-")}`;
+    return `
     <article class="quote-history-item" data-load-price-offer="${escapeHtml(offer.id)}" title="Cliquer pour visualiser, modifier et renvoyer cette offre">
       <div class="quote-history-main">
-        <span class="quote-status-pill is-accepted">${escapeHtml(offer.sector || "Secteur -")}</span>
+        ${statusPill}
         <strong>${escapeHtml(offer.clientName || "Client")}</strong>
         <small>${escapeHtml(offer.clientCode || "")} - ${(offer.lines || []).length} ligne(s) - Total net HT ${formatter.format(Number(offer.totalHt) || 0)}</small>
         <small>Valable jusqu'au ${escapeHtml(offer.validUntil ? new Date(`${offer.validUntil}T12:00:00`).toLocaleDateString("fr-FR") : "non renseigné")}</small>
-        <p>Envoyée à ${escapeHtml(offer.recipient || "-")} le ${escapeHtml(new Date(offer.createdAt || Date.now()).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }))} par ${escapeHtml(offer.userName || "-")}</p>
+        <p>${footerLine}</p>
       </div>
       <button class="icon-button" type="button" data-delete-price-offer="${escapeHtml(offer.id)}" aria-label="Supprimer">&times;</button>
     </article>
-  `).join("");
+  `;
+  }).join("");
 }
 
 async function deletePriceOfferRecord(id) {
@@ -13590,7 +13645,20 @@ offrePrixLines?.addEventListener("input", (event) => {
   const row = event.target.closest("[data-offre-line]");
   const field = event.target.dataset.offreField;
   if (!row || !field) return;
-  updateOffrePrixLine(row.dataset.offreLine, field, event.target.value);
+  const lineId = row.dataset.offreLine;
+  updateOffrePrixLine(lineId, field, event.target.value);
+  // Des qu'une reference tapee ou choisie dans la liste correspond exactement
+  // a un article, on applique la reference et on avance directement le focus
+  // sur la quantite : plus besoin d'appuyer sur Tab pour passer a la case suivante.
+  if (field === "ref" && findProduct(event.target.value)) {
+    applyOffrePrixReference(lineId, event.target.value);
+    const updatedRow = offrePrixLines.querySelector(`[data-offre-line="${CSS.escape(lineId)}"]`);
+    const qtyInput = updatedRow?.querySelector('[data-offre-field="qty"]');
+    if (qtyInput) {
+      qtyInput.focus();
+      qtyInput.select();
+    }
+  }
 });
 offrePrixLines?.addEventListener("change", (event) => {
   const row = event.target.closest("[data-offre-line]");
@@ -13602,6 +13670,7 @@ offrePrixLines?.addEventListener("click", (event) => {
   if (removeId) removeOffrePrixLine(removeId);
 });
 offrePrixPreview?.addEventListener("click", previewOffrePrix);
+offrePrixSaveDraft?.addEventListener("click", saveOffrePrixDraft);
 offrePrixSend?.addEventListener("click", sendOffrePrixEmail);
 offrePrixHistorySearch?.addEventListener("input", renderPriceOffersHistory);
 offrePrixHistorySectorFilter?.addEventListener("change", renderPriceOffersHistory);
