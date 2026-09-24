@@ -10527,6 +10527,143 @@ body.dark-theme .delivery-order-table td { color: #f4f5f7; }
     box-shadow: none !important;
     transform: none !important;
   }
+
+  /* Tableaux admin (statistiques, frais, echantillons, historique, achats...) :
+     trop de colonnes pour des cartes lisibles sur telephone, donc on garde le
+     tableau natif et on le rend defilable horizontalement plutot que de le
+     laisser se compresser (en-tetes tronquees/illisibles). */
+  body:not(.tablet-mode) .admin-log-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: 0 -4px !important;
+    padding: 0 4px 4px !important;
+    border-radius: 14px !important;
+  }
+
+  body:not(.tablet-mode) .admin-log-table {
+    min-width: 640px !important;
+  }
+
+  body:not(.tablet-mode) .admin-log-table th,
+  body:not(.tablet-mode) .admin-log-table td {
+    padding: 12px 10px !important;
+    font-size: 13.5px !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.tablet-mode) .admin-log-table td {
+    white-space: normal !important;
+  }
+
+  body:not(.tablet-mode) .admin-log-table td:first-child {
+    white-space: nowrap !important;
+  }
+
+  /* Bug : une regle .summary-panel non conditionnelle plus bas dans la feuille
+     de style (minmax(360px,...) minmax(420px,...) 330px) reprend la main sur
+     la version 1 colonne du panneau "Valider" (client/notes/boutons
+     Enregistrer, Apercu, Envoyer) car elle est definie apres et sans media
+     query. Sur telephone, ca forcait le panneau a s'etaler sur ~1100px de
+     large et les boutons sortaient de l'ecran, inaccessibles. On force ici la
+     colonne unique, uniquement sous 860px et hors mode tablette. */
+  body:not(.tablet-mode) .summary-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  body:not(.tablet-mode) .summary-panel .primary-button.full,
+  body:not(.tablet-mode) .summary-panel .ghost-button.full,
+  body:not(.tablet-mode) .summary-panel .helper-text,
+  body:not(.tablet-mode) .summary-list,
+  body:not(.tablet-mode) .note-field {
+    grid-column: 1 !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Bug : le vrai <input type="file"> masqué dans les boutons "Ajouter un
+     justificatif" (.expense-upload) est en position:absolute sans que son
+     parent soit positionné, donc sur telephone il se place hors du panneau
+     et elargit toute la page (scroll horizontal indésirable). On rend juste
+     le parent positionné pour contenir cet input invisible. */
+  body:not(.tablet-mode) .expense-upload {
+    position: relative !important;
+  }
+
+  /* Les regles ci-dessus forcent "width: 100%" sur TOUS les <input> des
+     tableaux de frais (dates, montants...), ce qui ecrasait aussi la taille
+     du <input type="file"> normalement invisible (1px, opacity 0) des
+     boutons "Ajouter un justificatif" et l'etirait hors de l'ecran. On lui
+     redonne une specificite superieure pour rester invisible et contenu. */
+  body:not(.tablet-mode) #expensesView .expense-upload input[type="file"],
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-upload input[type="file"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* Bug : la barre d'actions collante (Enregistrer/Envoyer + totaux) des
+     notes de frais est en position:sticky + display:grid sans largeur
+     explicite ; sur telephone elle s'etirait alors au-dela de l'ecran
+     (jusqu'a ~600px) au lieu de rester sur 100% du panneau, provoquant un
+     defilement horizontal de toute la page. */
+  /* Cause racine du bug ci-dessus : .expenses-panel / .executive-expenses-panel
+     sont en display:grid SANS grid-template-columns explicite. La colonne
+     implicite se dimensionne alors sur le contenu le plus large (la rangee
+     de boutons d'actions, qui ne passe pas a la ligne), et tout le panneau
+     deborde de l'ecran (jusqu'a ~600px sur un telephone de 390px). On force
+     une colonne unique explicite qui peut se reduire a la largeur de l'ecran. */
+  body:not(.tablet-mode) #expensesView .expenses-panel,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-panel {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Meme cause que ci-dessus, mais pour l'entete de l'historique des notes
+     de frais : deux colonnes avec un minimum de 260px + 280px (~560px),
+     jamais recollapsees sur telephone. Le champ de recherche debordait donc
+     de l'ecran. */
+  body:not(.tablet-mode) #expensesView .expense-history-heading,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-history-heading {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body:not(.tablet-mode) #expensesView .expense-history-heading input,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-history-heading input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.tablet-mode) #expensesView .expenses-actions,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.tablet-mode) #expensesView .expenses-actions > *,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.tablet-mode) #expensesView .expenses-summary,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary {
+    min-width: 0 !important;
+  }
+
+  body:not(.tablet-mode) #expensesView .expenses-summary div,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-summary div {
+    min-width: 0 !important;
+  }
 }
 
 /* Menu compact : les controles restent en bas du tiroir, sans masquer les onglets. */
