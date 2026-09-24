@@ -5243,12 +5243,25 @@ function formatPercentDelta(value) {
   return `${number}%`;
 }
 
-function summarizeClientStatsReport(rows) {
-  const totalCa = rows.reduce((sum, row) => sum + (Number(row.ca2026) || 0), 0);
-  const totalPreviousCa = rows.reduce((sum, row) => sum + (Number(row.ca2025) || 0), 0);
-  const totalQty = rows.reduce((sum, row) => sum + (Number(row.quantity2026) || 0), 0);
-  const totalPreviousQty = rows.reduce((sum, row) => sum + (Number(row.quantity2025) || 0), 0);
-  const activeRefs = rows.filter((row) => Number(row.quantity2026) > 0 || Number(row.ca2026) > 0).length;
+function summarizeClientStatsReport(rows, fullSummary) {
+  // `rows` ne contient que le top articles par client renvoyé par le
+  // backend (limite historique, cf. getCommercialStatsRows). Sommer ces
+  // lignes sous-estime le CA reel des clients ayant plus de references que
+  // ce plafond. Quand le "summary" complet (non plafonne) du client est
+  // disponible, on l'utilise pour les totaux affiches en tete de rapport ;
+  // les listes detaillees (top articles, progressions/baisses, familles)
+  // restent calculees a partir de "rows" (c'est deja le rôle du top N).
+  const rowsTotalCa = rows.reduce((sum, row) => sum + (Number(row.ca2026) || 0), 0);
+  const rowsTotalPreviousCa = rows.reduce((sum, row) => sum + (Number(row.ca2025) || 0), 0);
+  const rowsTotalQty = rows.reduce((sum, row) => sum + (Number(row.quantity2026) || 0), 0);
+  const rowsTotalPreviousQty = rows.reduce((sum, row) => sum + (Number(row.quantity2025) || 0), 0);
+  const rowsActiveRefs = rows.filter((row) => Number(row.quantity2026) > 0 || Number(row.ca2026) > 0).length;
+  const hasFullSummary = Boolean(fullSummary);
+  const totalCa = hasFullSummary ? (Number(fullSummary.ca2026) || 0) : rowsTotalCa;
+  const totalPreviousCa = hasFullSummary ? (Number(fullSummary.ca2025) || 0) : rowsTotalPreviousCa;
+  const totalQty = hasFullSummary ? (Number(fullSummary.quantity2026) || 0) : rowsTotalQty;
+  const totalPreviousQty = hasFullSummary ? (Number(fullSummary.quantity2025) || 0) : rowsTotalPreviousQty;
+  const activeRefs = hasFullSummary ? (Number(fullSummary.articleCount) || rowsActiveRefs) : rowsActiveRefs;
   const previousRefs = rows.filter((row) => Number(row.quantity2025) > 0 || Number(row.ca2025) > 0).length;
   const newRefs = rows.filter((row) => (Number(row.quantity2026) > 0 || Number(row.ca2026) > 0) && !(Number(row.quantity2025) > 0 || Number(row.ca2025) > 0));
   const lostRefs = rows.filter((row) => !(Number(row.quantity2026) > 0 || Number(row.ca2026) > 0) && (Number(row.quantity2025) > 0 || Number(row.ca2025) > 0));
@@ -5292,7 +5305,8 @@ function shortPdfText(value, max = 64) {
 }
 
 function createClientStatsReportPdf(client, rows) {
-  const summary = summarizeClientStatsReport(rows);
+  const fullSummary = client ? getClientArticleStats360(client)?.summary : null;
+  const summary = summarizeClientStatsReport(rows, fullSummary);
   const pageWidth = 595;
   const pageHeight = 842;
   const margin = 26;
