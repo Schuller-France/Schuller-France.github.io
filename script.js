@@ -5195,6 +5195,7 @@ function renderCommercialStats() {
   if (!statsArticleBody) return;
   const showMargin = currentUser?.role === "admin";
   document.querySelectorAll(".stats-margin-col").forEach((el) => el.classList.toggle("is-hidden", !showMargin));
+  document.querySelector("#statsTable")?.classList.toggle("has-margin-cols", showMargin);
   const emptyColspan = showMargin ? 11 : 9;
   if (showMargin && !adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderCommercialStats());
   const clientText = statsClientFilter?.value?.trim() || "";
