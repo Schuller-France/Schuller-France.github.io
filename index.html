@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260928direction8" />
-    <link rel="icon" href="assets/favicon.ico?v=20260928direction8" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260928direction8" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260928direction8" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260928direction8" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260928direction9" />
+    <link rel="icon" href="assets/favicon.ico?v=20260928direction9" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260928direction9" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260928direction9" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260928direction9" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260928direction8" />
+    <link rel="stylesheet" href="style.css?v=20260928direction9" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -108,6 +108,13 @@
     </section>
 
     <div class="app-view is-hidden" id="appView">
+      <div class="prospection-reminder-overlay is-hidden" id="prospectionReminderModal" role="alertdialog" aria-modal="true" aria-labelledby="prospectionReminderTitle">
+        <div class="prospection-reminder-card">
+          <h2 id="prospectionReminderTitle">Pensez à la prospection</h2>
+          <p>N'oubliez pas de consacrer du temps à la prospection de nouveaux clients cette semaine.</p>
+          <button class="primary-button" type="button" id="prospectionReminderOk">OK</button>
+        </div>
+      </div>
       <header class="app-header">
         <button class="tablet-menu-toggle" type="button" id="tabletMenuToggle" aria-label="Ouvrir le menu" aria-expanded="false">
           <span></span>
@@ -1799,6 +1806,18 @@
           </article>
         </section>
 
+        <section class="panel direction-alerts-panel" aria-labelledby="directionAlertsTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">À traiter</p>
+              <h2 id="directionAlertsTitle">Alertes &amp; relances</h2>
+              <p class="helper-text">Ruptures de seuil de stock sur les références que vous surveillez. Réglez vos seuils depuis l'onglet Stock.</p>
+            </div>
+            <span class="status-pill" id="directionAlertsCount">0 alerte</span>
+          </div>
+          <div class="home-reminders-list" id="directionAlertsList"></div>
+        </section>
+
         <section class="dashboard-grid direction-two-col" aria-label="Clients à surveiller">
           <article class="panel">
             <div class="panel-heading">
@@ -1996,6 +2015,30 @@
             <p>Glissez chaque semaine le fichier "Artikel" reçu du fournisseur pour visualiser vos stocks, filtrer par quantité, et repérer les références disparues (rupture potentielle) par rapport au dernier import.</p>
           </div>
           <span class="status-pill" id="adminStockCount">0 référence</span>
+        </section>
+
+        <section class="panel stock-alerts-panel" aria-labelledby="stockAlertsTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Seuils d'alerte</p>
+              <h2 id="stockAlertsTitle">Alertes de stock</h2>
+              <p class="helper-text">Choisissez des références à surveiller et une quantité minimum. En dessous de ce seuil, une alerte apparaît sur le tableau de bord Direction. Enregistré sur cet ordinateur.</p>
+            </div>
+          </div>
+          <div class="stock-alerts-form">
+            <div class="search-block stock-alert-search-block">
+              <label for="stockAlertSearch">Référence à surveiller</label>
+              <input id="stockAlertSearch" type="search" autocomplete="off" placeholder="Référence ou désignation…" />
+              <div class="suggestions" id="stockAlertSuggestions" role="listbox"></div>
+            </div>
+            <label class="admin-prenet-search-label">
+              Quantité minimum
+              <input id="stockAlertMinQty" type="number" inputmode="numeric" min="0" placeholder="Ex : 20" />
+            </label>
+            <button class="ghost-button" type="button" id="stockAlertAdd">Ajouter la surveillance</button>
+          </div>
+          <p class="admin-prenet-status" id="stockAlertStatus"></p>
+          <div class="stock-alerts-list" id="stockAlertsList"></div>
         </section>
 
         <section class="panel admin-purchase-panel">
@@ -2362,11 +2405,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260928direction8" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260928direction9" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260928direction8" charset="UTF-8"></script>
+    <script src="script.js?v=20260928direction9" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

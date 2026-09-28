@@ -49,6 +49,7 @@ let adminRuptureSortDirection = "asc";
 let adminRuptureStatusFilter = ""; // "" | "nouveau" | "repousse" | "ameliore" | "toujours" | "sansDate"
 let adminRuptureOpenHistoryRef = null;
 let adminRuptureHistoryCache = {}; // ref -> entries[]
+let adminRuptureRetourOpenRef = null;
 let adminStockLastDiff = null; // { date, previousDate, rows: [...], disparus: [...], summary: {...} }
 let adminStockLoaded = false;
 let adminStockImporting = false;
@@ -57,6 +58,8 @@ let adminStockSortDirection = "asc";
 let adminStockStatusFilter = ""; // "" | "nouveau" | "hausse" | "baisse" | "stable"
 let adminStockOpenHistoryRef = null;
 let adminStockHistoryCache = {}; // ref -> entries[]
+let stockAlertThresholds = []; // [{ ref, designation, minQty }] - seuils de surveillance stock, stockes localement
+let stockAlertSelectedProduct = null;
 let adminOrderSelectedClient = null;
 let adminOrderLineItems = [];
 let activeAdminHistoryOrderId = null;
@@ -130,6 +133,8 @@ const executiveExpenseDraftStorageKey = "schullerExecutiveExpenseDraft";
 const prospectionLocalStorageKey = "schullerProspectionFollowup";
 const prospectionDismissedStorageKey = "schullerProspectionDismissed";
 const orderDraftStorageKey = "schullerOrderDraft";
+const stockAlertThresholdsStorageKey = "schullerStockAlertThresholds";
+const prospectionReminderStorageKey = "schullerProspectionReminderSeen";
 const promotionHistoryStorageKey = "schullerPromotionHistory";
 let deliveryOrderHistory = [];
 let deliveryOrderHistoryLoaded = false;
@@ -670,6 +675,16 @@ const adminStockSummary = document.querySelector("#adminStockSummary");
 const adminStockStatus = document.querySelector("#adminStockStatus");
 const adminStockBody = document.querySelector("#adminStockBody");
 const adminStockDisparusBox = document.querySelector("#adminStockDisparusBox");
+const stockAlertSearch = document.querySelector("#stockAlertSearch");
+const stockAlertSuggestions = document.querySelector("#stockAlertSuggestions");
+const stockAlertMinQty = document.querySelector("#stockAlertMinQty");
+const stockAlertAdd = document.querySelector("#stockAlertAdd");
+const stockAlertStatus = document.querySelector("#stockAlertStatus");
+const stockAlertsList = document.querySelector("#stockAlertsList");
+const directionAlertsCount = document.querySelector("#directionAlertsCount");
+const directionAlertsList = document.querySelector("#directionAlertsList");
+const prospectionReminderModal = document.querySelector("#prospectionReminderModal");
+const prospectionReminderOk = document.querySelector("#prospectionReminderOk");
 const tutorialSteps = document.querySelector("#tutorialSteps");
 const tutorialProgressBar = document.querySelector("#tutorialProgressBar");
 const tutorialProgressText = document.querySelector("#tutorialProgressText");
@@ -3625,9 +3640,50 @@ function renderAdminRuptureSummary() {
       adminRuptureRetourBox.innerHTML = "";
     } else {
       adminRuptureRetourBox.classList.remove("is-hidden");
-      const list = retours.map((r) => escapeHtml(`${r.ref || ""} - ${r.designation || ""}`)).join(" • ");
-      adminRuptureRetourBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>${retours.length} référence(s) de retour en stock cette semaine :</strong> ${list}</p></div>`;
+      // Chaque reference de retour est cliquable : ca affiche son historique de rupture
+      // (dates, retours precedents) via le meme endpoint getRuptureHistory que la table principale,
+      // meme si la reference n'y figure plus (elle est sortie du suivi puisqu'elle est de nouveau en stock).
+      const items = retours.map((r) => {
+        const ref = r.ref || "";
+        const isOpen = adminRuptureRetourOpenRef === ref;
+        let historyHtml = "";
+        if (isOpen) {
+          const historyEntries = adminRuptureHistoryCache[ref];
+          if (Array.isArray(historyEntries)) {
+            historyHtml = historyEntries.length
+              ? `<ul class="admin-rupture-history-list">${historyEntries.map((h) => `<li>${escapeHtml(h.date || "-")} : ${h.backInStock ? "retour en stock" : `retour prévu ${escapeHtml(h.returnDate || "date inconnue")}${h.week ? ` (sem. ${escapeHtml(String(h.week))})` : ""}`}</li>`).join("")}</ul>`
+              : `<p class="admin-empty">Aucun historique disponible.</p>`;
+          } else {
+            historyHtml = `<p class="admin-empty">Chargement de l'historique...</p>`;
+          }
+        }
+        return `
+          <span class="admin-rupture-retour-item">
+            <button type="button" class="admin-rupture-retour-btn" data-admin-rupture-retour-ref="${escapeHtml(ref)}" aria-expanded="${isOpen ? "true" : "false"}">${escapeHtml(ref)} - ${escapeHtml(r.designation || "")}</button>
+            ${isOpen ? `<span class="admin-rupture-retour-history">${historyHtml}</span>` : ""}
+          </span>`;
+      }).join("");
+      adminRuptureRetourBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>${retours.length} référence(s) de retour en stock cette semaine</strong> (cliquez sur une référence pour voir son historique) :</p><div class="admin-rupture-retour-list">${items}</div></div>`;
     }
+  }
+}
+
+async function toggleAdminRuptureRetourHistory(ref) {
+  if (adminRuptureRetourOpenRef === ref) {
+    adminRuptureRetourOpenRef = null;
+    renderAdminRuptureSummary();
+    return;
+  }
+  adminRuptureRetourOpenRef = ref;
+  renderAdminRuptureSummary();
+  if (!adminRuptureHistoryCache[ref]) {
+    try {
+      const result = await postService({ action: "getRuptureHistory", ref });
+      adminRuptureHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
+    } catch (error) {
+      adminRuptureHistoryCache[ref] = [];
+    }
+    if (adminRuptureRetourOpenRef === ref) renderAdminRuptureSummary();
   }
 }
 
@@ -3945,6 +4001,8 @@ function renderAdminStock() {
     icon.classList.remove("is-asc", "is-desc");
     if (adminStockSortField === field) icon.classList.add(adminStockSortDirection === "desc" ? "is-desc" : "is-asc");
   });
+  renderStockAlertsList();
+  renderDirectionAlerts();
 }
 
 async function toggleAdminStockHistory(ref) {
@@ -3963,6 +4021,198 @@ async function toggleAdminStockHistory(ref) {
       adminStockHistoryCache[ref] = [];
     }
     if (adminStockOpenHistoryRef === ref) renderAdminStock();
+  }
+}
+
+// ---- Alertes de stock (seuils par reference, surveilles sur le tableau de bord Direction) ----
+// Stockees en localStorage (pas de endpoint backend dedie) : valables sur cet ordinateur/navigateur.
+
+function loadStockAlertThresholds() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(stockAlertThresholdsStorageKey) || "[]");
+    stockAlertThresholds = Array.isArray(stored) ? stored : [];
+  } catch {
+    stockAlertThresholds = [];
+  }
+}
+
+function saveStockAlertThresholdsToStorage() {
+  localStorage.setItem(stockAlertThresholdsStorageKey, JSON.stringify(stockAlertThresholds));
+}
+
+function renderStockAlertSuggestions(query) {
+  if (!stockAlertSuggestions) return;
+  const cleanQuery = normalize(query.trim());
+  stockAlertSuggestions.innerHTML = "";
+  if (!cleanQuery) {
+    stockAlertSuggestions.classList.remove("is-open");
+    return;
+  }
+  const matches = products
+    .filter((product) => normalize([product.ref, product.name, product.gencod].join(" ")).includes(cleanQuery))
+    .slice(0, 10);
+  if (!matches.length) {
+    stockAlertSuggestions.classList.remove("is-open");
+    return;
+  }
+  matches.forEach((product) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `<strong>${escapeHtml(product.ref)}</strong><span>${escapeHtml(product.name || "")}</span>`;
+    button.addEventListener("click", () => {
+      stockAlertSelectedProduct = product;
+      if (stockAlertSearch) stockAlertSearch.value = `${product.ref} - ${product.name || ""}`;
+      stockAlertSuggestions.classList.remove("is-open");
+      stockAlertMinQty?.focus();
+    });
+    stockAlertSuggestions.appendChild(button);
+  });
+  stockAlertSuggestions.classList.add("is-open");
+}
+
+function addStockAlertThreshold() {
+  const minQty = parseAmount(stockAlertMinQty?.value);
+  let ref = stockAlertSelectedProduct?.ref || "";
+  let designation = stockAlertSelectedProduct?.name || "";
+  if (!ref) {
+    // Pas de suggestion cliquee : on tente de retrouver le produit a partir du texte tape.
+    const typed = String(stockAlertSearch?.value || "").trim();
+    const match = typed ? findProduct(typed) : null;
+    if (match) {
+      ref = match.ref;
+      designation = match.name || "";
+    }
+  }
+  if (!ref) {
+    if (stockAlertStatus) stockAlertStatus.textContent = "Choisissez une référence dans la liste de suggestions.";
+    return;
+  }
+  if (!minQty || minQty <= 0) {
+    if (stockAlertStatus) stockAlertStatus.textContent = "Indiquez une quantité minimum supérieure à 0.";
+    return;
+  }
+  const existingIndex = stockAlertThresholds.findIndex((item) => normalize(item.ref) === normalize(ref));
+  if (existingIndex !== -1) {
+    stockAlertThresholds[existingIndex] = { ref, designation, minQty };
+  } else {
+    stockAlertThresholds.push({ ref, designation, minQty });
+  }
+  saveStockAlertThresholdsToStorage();
+  stockAlertSelectedProduct = null;
+  if (stockAlertSearch) stockAlertSearch.value = "";
+  if (stockAlertMinQty) stockAlertMinQty.value = "";
+  if (stockAlertStatus) stockAlertStatus.textContent = `Surveillance enregistrée pour ${ref}.`;
+  renderStockAlertsList();
+  renderDirectionAlerts();
+}
+
+function removeStockAlertThreshold(ref) {
+  stockAlertThresholds = stockAlertThresholds.filter((item) => normalize(item.ref) !== normalize(ref));
+  saveStockAlertThresholdsToStorage();
+  renderStockAlertsList();
+  renderDirectionAlerts();
+}
+
+// Quantite actuelle connue pour une reference, a partir du dernier import Stock (onglet Stock) ;
+// null si le stock n'a pas encore ete charge ou si la reference n'y figure pas.
+function getKnownStockQty(ref) {
+  const rows = adminStockLastDiff?.rows;
+  if (!Array.isArray(rows)) return null;
+  const row = rows.find((item) => normalize(item.ref) === normalize(ref));
+  return row ? Number(row.qty) || 0 : null;
+}
+
+function renderStockAlertsList() {
+  if (!stockAlertsList) return;
+  if (!stockAlertThresholds.length) {
+    stockAlertsList.innerHTML = `<p class="admin-empty">Aucune référence surveillée pour le moment.</p>`;
+    return;
+  }
+  stockAlertsList.innerHTML = stockAlertThresholds
+    .map((item) => {
+      const qty = getKnownStockQty(item.ref);
+      let statusLabel = "Quantité inconnue";
+      let statusClass = "is-stable";
+      if (qty != null) {
+        statusLabel = qty < item.minQty ? `En dessous du seuil (${formatNumber(qty)})` : `OK (${formatNumber(qty)})`;
+        statusClass = qty < item.minQty ? "is-rupture" : "is-hausse";
+      }
+      return `
+        <article class="stock-alert-row">
+          <div>
+            <strong>${escapeHtml(item.ref)}</strong>
+            <span>${escapeHtml(item.designation || "")}</span>
+            <small>Seuil : ${formatNumber(item.minQty)}</small>
+          </div>
+          <span class="admin-purchase-badge ${statusClass}">${escapeHtml(statusLabel)}</span>
+          <button type="button" class="ghost-button compact" data-remove-stock-alert="${escapeHtml(item.ref)}">Retirer</button>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+// Panneau "Alertes & relances" du tableau de bord Direction : ne montre que les references
+// dont le stock connu est passe sous le seuil choisi. Charge le stock en tache de fond si besoin.
+function renderDirectionAlerts() {
+  if (!directionAlertsList || !directionAlertsCount) return;
+  if (!stockAlertThresholds.length) {
+    directionAlertsCount.textContent = "0 alerte";
+    directionAlertsList.innerHTML = `<p class="admin-empty">Aucune alerte configurée. Ajoutez des seuils depuis l'onglet Stock.</p>`;
+    return;
+  }
+  if (!adminStockLastDiff) {
+    directionAlertsCount.textContent = "…";
+    directionAlertsList.innerHTML = `<p class="admin-empty">Chargement du stock…</p>`;
+    if (!adminStockLoaded && !adminStockImporting) loadStockComparatif().then(() => renderDirectionAlerts());
+    return;
+  }
+  const breaches = stockAlertThresholds
+    .map((item) => ({ ...item, qty: getKnownStockQty(item.ref) }))
+    .filter((item) => item.qty != null && item.qty < item.minQty);
+  directionAlertsCount.textContent = `${breaches.length} alerte${breaches.length > 1 ? "s" : ""}`;
+  if (!breaches.length) {
+    directionAlertsList.innerHTML = `<p class="admin-empty">Aucune référence surveillée sous son seuil pour le moment.</p>`;
+    return;
+  }
+  directionAlertsList.innerHTML = breaches
+    .map((item) => `
+      <article class="home-reminder-card late">
+        <div>
+          <span class="reminder-pill">Stock</span>
+          <strong>${escapeHtml(item.ref)}</strong>
+          <small>${escapeHtml(item.designation || "")} - quantité ${formatNumber(item.qty)} (seuil ${formatNumber(item.minQty)})</small>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+// ---- Rappel prospection : affiche une seule fois par commercial (jamais aux admins), a la connexion. ----
+function getProspectionReminderSeenIds() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(prospectionReminderStorageKey) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
+function maybeShowProspectionReminder() {
+  if (!currentUser || currentUser.role === "admin" || !prospectionReminderModal) return;
+  const seenIds = getProspectionReminderSeenIds();
+  if (seenIds.includes(currentUser.id)) return;
+  prospectionReminderModal.classList.remove("is-hidden");
+}
+
+function dismissProspectionReminder() {
+  if (!currentUser || !prospectionReminderModal) return;
+  prospectionReminderModal.classList.add("is-hidden");
+  const seenIds = getProspectionReminderSeenIds();
+  if (!seenIds.includes(currentUser.id)) {
+    seenIds.push(currentUser.id);
+    localStorage.setItem(prospectionReminderStorageKey, JSON.stringify(seenIds));
   }
 }
 
@@ -7028,6 +7278,8 @@ function showApp(user, token = user.token || "") {
     restoreDashboardStatsCache();
     loadDashboardStatsFromDrive();
     startDriveAutoRefresh();
+    renderStockAlertsList();
+    renderDirectionAlerts();
     return;
   }
 
@@ -7066,6 +7318,7 @@ function showApp(user, token = user.token || "") {
   setActiveTab(getLaunchTabForUser(currentUser) || "home");
   renderOrderHistory();
   restoreOrderDraft();
+  maybeShowProspectionReminder();
 }
 
 function setLoginProgressStep(activeStep) {
@@ -13244,6 +13497,7 @@ function setActiveTab(tabName) {
       loadClientArticleStatsFromDrive().then(() => renderAdminDirection());
     }
     renderAdminDirection();
+    renderDirectionAlerts();
   }
 
   if (showAntiErosion) loadAntiErosion();
@@ -14003,9 +14257,11 @@ directionRefreshBtn?.addEventListener("click", async () => {
     await Promise.all([
       loadClientArticleStatsFromDrive({ force: true }).catch(() => {}),
       loadPurchaseComparatif(),
+      loadStockComparatif().catch(() => {}),
     ]);
   } finally {
     renderAdminDirection();
+    renderDirectionAlerts();
     directionRefreshBtn.disabled = false;
     directionRefreshBtn.textContent = previousLabel;
   }
@@ -14194,6 +14450,11 @@ adminRuptureBody?.addEventListener("click", (event) => {
   if (!btn) return;
   toggleAdminRuptureHistory(btn.dataset.adminRuptureHistoryBtn);
 });
+adminRuptureRetourBox?.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-admin-rupture-retour-ref]");
+  if (!btn) return;
+  toggleAdminRuptureRetourHistory(btn.dataset.adminRuptureRetourRef);
+});
 adminRuptureTab?.addEventListener("click", () => setActiveTab("adminRupture"));
 adminStockFileInput?.addEventListener("change", () => {
   const file = adminStockFileInput.files?.[0];
@@ -14240,6 +14501,17 @@ adminStockBody?.addEventListener("click", (event) => {
   toggleAdminStockHistory(btn.dataset.adminStockHistoryBtn);
 });
 adminStockTab?.addEventListener("click", () => setActiveTab("adminStock"));
+stockAlertSearch?.addEventListener("input", () => {
+  stockAlertSelectedProduct = null;
+  renderStockAlertSuggestions(stockAlertSearch.value);
+});
+stockAlertAdd?.addEventListener("click", addStockAlertThreshold);
+stockAlertsList?.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-remove-stock-alert]");
+  if (!btn) return;
+  removeStockAlertThreshold(btn.dataset.removeStockAlert);
+});
+prospectionReminderOk?.addEventListener("click", dismissProspectionReminder);
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
@@ -14737,10 +15009,15 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".admin-order-search-block")) {
     adminOrderClientSuggestions?.classList.remove("is-open");
   }
+  if (!event.target.closest(".stock-alert-search-block")) {
+    stockAlertSuggestions?.classList.remove("is-open");
+  }
 });
 
 setupVoiceNotes();
 updateOfflineStatus();
+loadStockAlertThresholds();
+renderStockAlertsList();
 window.addEventListener("online", () => {
   updateOfflineStatus();
   if (!currentSessionToken) return;
