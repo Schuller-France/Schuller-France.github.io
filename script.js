@@ -1132,10 +1132,20 @@ async function refreshSecureAppDataInBackground(token, userId) {
       if (selectedClient360) selectClient360(selectedClient360);
       // Si l'utilisateur a ouvert Statistiques ou Direction avant la fin de ce
       // chargement de fond (ex: juste après connexion, sans cache local), ces
-      // vues se sont affichées avec des données vides. On les rafraîchit ici
-      // si elles sont actuellement visibles, pour éviter un écran figé à 0.
-      if (statsView && !statsView.classList.contains("is-hidden")) renderCommercialStats();
-      if (adminDirectionView && !adminDirectionView.classList.contains("is-hidden")) renderAdminDirection();
+      // vues se sont affichées avec des données vides, et le premier appel à
+      // loadClientArticleStatsFromDrive() a pu échouer silencieusement (pas
+      // encore de session token à ce moment-là). On les rafraîchit ici si
+      // elles sont actuellement visibles : on retente le chargement des
+      // statistiques clients si besoin (loadClientArticleStatsFromDrive gère
+      // elle-même les appels redondants), puis on re-rend la vue.
+      if (statsView && !statsView.classList.contains("is-hidden")) {
+        if (!clientArticleStats360?.available) loadClientArticleStatsFromDrive().then(() => renderCommercialStats());
+        renderCommercialStats();
+      }
+      if (adminDirectionView && !adminDirectionView.classList.contains("is-hidden")) {
+        if (!clientArticleStats360?.available) loadClientArticleStatsFromDrive().then(() => renderAdminDirection());
+        renderAdminDirection();
+      }
     }
   } catch (error) {
     // La copie locale permet de continuer à travailler même si Google répond lentement.
