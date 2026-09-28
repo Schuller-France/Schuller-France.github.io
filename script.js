@@ -439,6 +439,7 @@ const adminCheckingTab = document.querySelector("#adminCheckingTab");
 const adminExecutiveExpensesTab = document.querySelector("#adminExecutiveExpensesTab");
 const adminPrenetTab = document.querySelector("#adminPrenetTab");
 const adminPurchaseTab = document.querySelector("#adminPurchaseTab");
+const adminDirectionTab = document.querySelector("#adminDirectionTab");
 const adminCentralesTab = document.querySelector("#adminCentralesTab");
 const centralesReminderBadge = document.querySelector("#centralesReminderBadge");
 const adminOffrePrixTab = document.querySelector("#adminOffrePrixTab");
@@ -473,6 +474,7 @@ const adminCheckingView = document.querySelector("#adminCheckingView");
 const adminExecutiveExpensesView = document.querySelector("#adminExecutiveExpensesView");
 const adminPrenetView = document.querySelector("#adminPrenetView");
 const adminPurchaseView = document.querySelector("#adminPurchaseView");
+const adminDirectionView = document.querySelector("#adminDirectionView");
 const adminCentralesView = document.querySelector("#adminCentralesView");
 const adminOffrePrixView = document.querySelector("#adminOffrePrixView");
 const offrePrixClientSearch = document.querySelector("#offrePrixClientSearch");
@@ -612,6 +614,22 @@ const adminPurchaseStatusSelect = document.querySelector("#adminPurchaseStatusSe
 const adminPurchaseSummary = document.querySelector("#adminPurchaseSummary");
 const adminPurchaseStatus = document.querySelector("#adminPurchaseStatus");
 const adminPurchaseBody = document.querySelector("#adminPurchaseBody");
+const directionStatus = document.querySelector("#directionStatus");
+const directionTotalCa = document.querySelector("#directionTotalCa");
+const directionTotalRows = document.querySelector("#directionTotalRows");
+const directionTotalCaPrev = document.querySelector("#directionTotalCaPrev");
+const directionGapCa = document.querySelector("#directionGapCa");
+const directionGapCaPct = document.querySelector("#directionGapCaPct");
+const directionMarginTotal = document.querySelector("#directionMarginTotal");
+const directionMarginCoverage = document.querySelector("#directionMarginCoverage");
+const directionMarginPct = document.querySelector("#directionMarginPct");
+const directionClassACount = document.querySelector("#directionClassACount");
+const directionClassADetail = document.querySelector("#directionClassADetail");
+const directionAbcBody = document.querySelector("#directionAbcBody");
+const directionClientsUpBody = document.querySelector("#directionClientsUpBody");
+const directionClientsDownBody = document.querySelector("#directionClientsDownBody");
+const directionFamiliesUpBody = document.querySelector("#directionFamiliesUpBody");
+const directionFamiliesDownBody = document.querySelector("#directionFamiliesDownBody");
 const adminRuptureTab = document.querySelector("#adminRuptureTab");
 const adminRuptureView = document.querySelector("#adminRuptureView");
 const adminRuptureCount = document.querySelector("#adminRuptureCount");
@@ -5311,6 +5329,131 @@ function exportCommercialStatsToCsv() {
   downloadCsv(`Statistiques_Schuller_${stamp}.csv`, [header, ...body]);
 }
 
+function buildDirectionOverview() {
+  // Vue consolidée admin : reprend les mêmes données que Statistiques (CA
+  // N/N-1 par client/article) et la marge (PA du dernier import Comparatif
+  // achat), agrégées par client et par famille. Aucune nouvelle source de
+  // données ni appel serveur supplémentaire hors celui déjà utilisé pour la
+  // marge dans Statistiques.
+  const rows = getCommercialStatsRows();
+  const paMap = buildAdminPurchasePaMap();
+  const clients = new Map();
+  const families = new Map();
+  let totalCa = 0;
+  let totalCaPrev = 0;
+  let totalMargin = 0;
+  let marginKnownCa = 0;
+  rows.forEach((row) => {
+    const ca = Number(row.ca2026) || 0;
+    const caPrev = Number(row.ca2025) || 0;
+    totalCa += ca;
+    totalCaPrev += caPrev;
+    const { marginTotal } = computeRowMargin(row, paMap);
+    if (marginTotal != null) {
+      totalMargin += marginTotal;
+      marginKnownCa += ca;
+    }
+    const clientKey = normalize(row.clientCode || row.clientName || "");
+    if (clientKey) {
+      if (!clients.has(clientKey)) {
+        clients.set(clientKey, { key: clientKey, clientName: row.clientName, clientCode: row.clientCode, sector: row.sector, ca2026: 0, ca2025: 0 });
+      }
+      const client = clients.get(clientKey);
+      client.ca2026 += ca;
+      client.ca2025 += caPrev;
+    }
+    const familyKey = row.family || "Famille non renseignée";
+    if (!families.has(familyKey)) families.set(familyKey, { family: familyKey, ca2026: 0, ca2025: 0 });
+    const family = families.get(familyKey);
+    family.ca2026 += ca;
+    family.ca2025 += caPrev;
+  });
+  const clientList = [...clients.values()].filter((client) => client.ca2026 > 0).sort((a, b) => b.ca2026 - a.ca2026);
+  let cumulative = 0;
+  clientList.forEach((client) => {
+    cumulative += client.ca2026;
+    client.cumulativeShare = totalCa > 0 ? cumulative / totalCa : 0;
+    client.share = totalCa > 0 ? client.ca2026 / totalCa : 0;
+    client.abcClass = client.cumulativeShare <= 0.8 ? "A" : client.cumulativeShare <= 0.95 ? "B" : "C";
+    client.gapCa = client.ca2026 - client.ca2025;
+  });
+  const familyList = [...families.values()]
+    .map((family) => ({ ...family, gapCa: family.ca2026 - family.ca2025 }))
+    .filter((family) => family.ca2026 > 0 || family.ca2025 > 0);
+  return { totalCa, totalCaPrev, totalMargin, marginKnownCa, clientList, familyList };
+}
+
+function renderDirectionKpiRow(overview) {
+  const { totalCa, totalCaPrev, totalMargin, marginKnownCa, clientList } = overview;
+  const gapCa = totalCa - totalCaPrev;
+  if (directionStatus) directionStatus.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
+  if (directionTotalCa) directionTotalCa.textContent = formatWholeCurrency(totalCa);
+  if (directionTotalRows) directionTotalRows.textContent = `${formatNumber(clientList.length)} client${clientList.length > 1 ? "s" : ""} actif${clientList.length > 1 ? "s" : ""}`;
+  if (directionTotalCaPrev) directionTotalCaPrev.textContent = formatWholeCurrency(totalCaPrev);
+  if (directionGapCa) directionGapCa.textContent = formatWholeCurrencyDelta(gapCa);
+  if (directionGapCaPct) directionGapCaPct.textContent = formatPercentDelta(percentDelta(totalCa, totalCaPrev));
+  const coveragePct = totalCa > 0 ? Math.round((marginKnownCa / totalCa) * 100) : 0;
+  if (directionMarginCoverage) directionMarginCoverage.textContent = `PA connu sur ${coveragePct}% du CA`;
+  if (directionMarginTotal) directionMarginTotal.textContent = marginKnownCa > 0 ? formatWholeCurrency(totalMargin) : "—";
+  if (directionMarginPct) directionMarginPct.textContent = marginKnownCa > 0 ? formatMarginPct(totalMargin / marginKnownCa) : "—";
+  const classA = clientList.filter((client) => client.abcClass === "A");
+  if (directionClassACount) directionClassACount.textContent = formatNumber(classA.length);
+  if (directionClassADetail) directionClassADetail.textContent = clientList.length ? `sur ${formatNumber(clientList.length)} clients, génèrent 80% du CA` : "génèrent 80% du CA";
+}
+
+function renderDirectionAbcTable(overview) {
+  if (!directionAbcBody) return;
+  const { clientList } = overview;
+  if (!clientList.length) {
+    directionAbcBody.innerHTML = '<tr><td colspan="6" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
+    return;
+  }
+  directionAbcBody.innerHTML = clientList.slice(0, 100).map((client, index) => `
+    <tr>
+      <td class="numeric">${index + 1}</td>
+      <td><strong>${escapeHtml(client.clientName)}</strong><small>${escapeHtml(client.clientCode)} ${escapeHtml(client.sector)}</small></td>
+      <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(client.ca2026))}</strong></td>
+      <td class="numeric">${escapeHtml(formatMarginPct(client.share))}</td>
+      <td class="numeric">${escapeHtml(formatMarginPct(client.cumulativeShare))}</td>
+      <td class="numeric"><span class="status-pill is-class-${client.abcClass.toLowerCase()}">${client.abcClass}</span></td>
+    </tr>
+  `).join("");
+}
+
+function renderDirectionMoversTable(target, items, nameKey, nameLabel = "clientName", codeKey = "") {
+  if (!target) return;
+  if (!items.length) {
+    target.innerHTML = '<tr><td colspan="3" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
+    return;
+  }
+  target.innerHTML = items.map((item) => `
+    <tr>
+      <td><strong>${escapeHtml(item[nameLabel])}</strong>${codeKey && item[codeKey] ? `<small>${escapeHtml(item[codeKey])}</small>` : ""}</td>
+      <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(item.ca2026))}</strong></td>
+      <td class="numeric ${client360StatTrendClass(item.gapCa)}">${escapeHtml(formatWholeCurrencyDelta(item.gapCa))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAdminDirection() {
+  if (!directionAbcBody) return;
+  if (currentUser?.role !== "admin") return;
+  if (!adminPurchaseLoaded) {
+    loadPurchaseComparatif().then(() => renderAdminDirection());
+  }
+  const overview = buildDirectionOverview();
+  renderDirectionKpiRow(overview);
+  renderDirectionAbcTable(overview);
+  const clientsByGapDesc = [...overview.clientList].sort((a, b) => b.gapCa - a.gapCa);
+  const clientsByGapAsc = [...overview.clientList].sort((a, b) => a.gapCa - b.gapCa);
+  renderDirectionMoversTable(directionClientsUpBody, clientsByGapDesc.filter((c) => c.gapCa > 0).slice(0, 8), "clientName", "clientName", "clientCode");
+  renderDirectionMoversTable(directionClientsDownBody, clientsByGapAsc.filter((c) => c.gapCa < 0).slice(0, 8), "clientName", "clientName", "clientCode");
+  const familiesByGapDesc = [...overview.familyList].sort((a, b) => b.gapCa - a.gapCa);
+  const familiesByGapAsc = [...overview.familyList].sort((a, b) => a.gapCa - b.gapCa);
+  renderDirectionMoversTable(directionFamiliesUpBody, familiesByGapDesc.filter((f) => f.gapCa > 0).slice(0, 8), "family", "family");
+  renderDirectionMoversTable(directionFamiliesDownBody, familiesByGapAsc.filter((f) => f.gapCa < 0).slice(0, 8), "family", "family");
+}
+
 function getSelectedStatsClientFull() {
   if (!selectedStatsClient) return null;
   const code = normalize(selectedStatsClient.code || "");
@@ -6309,7 +6452,8 @@ function arrangeTabsForUser(user) {
     appTabs.insertBefore(antiErosionTab, statsTab.nextSibling);
     appTabs.insertBefore(adminPrenetTab, antiErosionTab.nextSibling);
     appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
-    let lastTab = adminPurchaseTab;
+    if (adminDirectionTab) appTabs.insertBefore(adminDirectionTab, adminPurchaseTab.nextSibling);
+    let lastTab = adminDirectionTab || adminPurchaseTab;
     if (adminOffrePrixTab) {
       appTabs.insertBefore(adminOffrePrixTab, lastTab.nextSibling);
       lastTab = adminOffrePrixTab;
@@ -6355,6 +6499,7 @@ function arrangeTabsForUser(user) {
   appTabs.appendChild(adminExecutiveExpensesTab);
   appTabs.appendChild(adminPrenetTab);
   appTabs.appendChild(adminPurchaseTab);
+  if (adminDirectionTab) appTabs.appendChild(adminDirectionTab);
   appTabs.appendChild(adminRuptureTab);
   appTabs.appendChild(adminStockTab);
   if (adminOrderTab) appTabs.appendChild(adminOrderTab);
@@ -6783,6 +6928,7 @@ function showApp(user, token = user.token || "") {
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
   adminPrenetTab.classList.toggle("is-hidden", !isAdmin);
   adminPurchaseTab.classList.toggle("is-hidden", !isAdmin);
+  adminDirectionTab?.classList.toggle("is-hidden", !isAdmin);
   adminRuptureTab?.classList.toggle("is-hidden", !isAdmin);
   adminStockTab?.classList.toggle("is-hidden", !isAdmin);
   adminCentralesTab.classList.toggle("is-hidden", !isAdmin);
@@ -12912,6 +13058,7 @@ function setActiveTab(tabName) {
   const showAdminExecutiveExpenses = tabName === "adminExecutiveExpenses";
   const showAdminPrenet = tabName === "adminPrenet";
   const showAdminPurchase = tabName === "adminPurchase";
+  const showAdminDirection = tabName === "adminDirection";
   const showAdminRupture = tabName === "adminRupture";
   const showAdminStock = tabName === "adminStock";
   const showAdminCentrales = tabName === "adminCentrales";
@@ -12940,6 +13087,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesTab?.classList.toggle("is-active", showAdminExecutiveExpenses);
   adminPrenetTab.classList.toggle("is-active", showAdminPrenet);
   adminPurchaseTab.classList.toggle("is-active", showAdminPurchase);
+  adminDirectionTab?.classList.toggle("is-active", showAdminDirection);
   adminRuptureTab?.classList.toggle("is-active", showAdminRupture);
   adminStockTab?.classList.toggle("is-active", showAdminStock);
   adminCentralesTab.classList.toggle("is-active", showAdminCentrales);
@@ -12968,6 +13116,7 @@ function setActiveTab(tabName) {
   adminExecutiveExpensesView?.classList.toggle("is-hidden", !showAdminExecutiveExpenses);
   adminPrenetView.classList.toggle("is-hidden", !showAdminPrenet);
   adminPurchaseView.classList.toggle("is-hidden", !showAdminPurchase);
+  adminDirectionView?.classList.toggle("is-hidden", !showAdminDirection);
   adminRuptureView?.classList.toggle("is-hidden", !showAdminRupture);
   adminStockView?.classList.toggle("is-hidden", !showAdminStock);
   adminCentralesView.classList.toggle("is-hidden", !showAdminCentrales);
@@ -12986,6 +13135,13 @@ function setActiveTab(tabName) {
     loadClientArticleStatsFromDrive();
     renderCommercialStats();
     requestAnimationFrame(() => statsClientFilter?.focus());
+  }
+
+  if (showAdminDirection) {
+    if (!clientArticleStats360?.available) {
+      loadClientArticleStatsFromDrive().then(() => renderAdminDirection());
+    }
+    renderAdminDirection();
   }
 
   if (showAntiErosion) loadAntiErosion();
@@ -13722,6 +13878,7 @@ adminCheckingTab.addEventListener("click", () => setActiveTab("adminChecking"));
 adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminExecutiveExpenses"));
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
+adminDirectionTab?.addEventListener("click", () => setActiveTab("adminDirection"));
 adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales"));
 adminOffrePrixTab?.addEventListener("click", () => setActiveTab("adminOffrePrix"));
 adminOrderTab?.addEventListener("click", () => setActiveTab("adminOrder"));

@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260928margefix2" />
-    <link rel="icon" href="assets/favicon.ico?v=20260928margefix2" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260928margefix2" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260928margefix2" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260928margefix2" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260928direction1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260928direction1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260928direction1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260928direction1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260928direction1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260928margefix2" />
+    <link rel="stylesheet" href="style.css?v=20260928direction1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -161,6 +161,7 @@
         <button class="tab-button is-hidden" type="button" id="adminExecutiveExpensesTab" data-icon="💼">Frais dirigeants</button>
         <button class="tab-button is-hidden" type="button" id="adminPrenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button is-hidden" type="button" id="adminPurchaseTab" data-icon="📈">Comparatif achat</button>
+        <button class="tab-button is-hidden" type="button" id="adminDirectionTab" data-icon="🏛️">Direction</button>
         <button class="tab-button is-hidden" type="button" id="adminRuptureTab" data-icon="⛔">Rupture</button>
         <button class="tab-button is-hidden" type="button" id="adminStockTab" data-icon="📦">Stock</button>
         <button class="tab-button is-hidden" type="button" id="adminCentralesTab" data-icon="🤝">Référencement <span class="tab-badge is-hidden" id="centralesReminderBadge">0</span></button>
@@ -1752,6 +1753,139 @@
         </section>
       </main>
 
+      <main class="app-shell admin-shell is-hidden" id="adminDirectionView">
+        <section class="panel admin-hero">
+          <div>
+            <p class="step">Vue consolidée</p>
+            <h2>Direction</h2>
+            <p>Classement des clients (méthode ABC), marge globale et références/familles à surveiller, calculés à partir des données Statistiques et du dernier prix d'achat importé dans Comparatif achat.</p>
+          </div>
+          <span class="status-pill" id="directionStatus">—</span>
+        </section>
+
+        <section class="dashboard-grid direction-kpi-grid" aria-label="Résumé Direction">
+          <article class="panel metric-card">
+            <span>CA 2026</span>
+            <strong id="directionTotalCa">--</strong>
+            <small id="directionTotalRows">0 client</small>
+          </article>
+          <article class="panel metric-card">
+            <span>CA N-1</span>
+            <strong id="directionTotalCaPrev">--</strong>
+            <small>Comparaison année précédente</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Écart CA</span>
+            <strong id="directionGapCa">--</strong>
+            <small id="directionGapCaPct">--</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Marge totale</span>
+            <strong id="directionMarginTotal">--</strong>
+            <small id="directionMarginCoverage">PA connu sur --</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Marge % globale</span>
+            <strong id="directionMarginPct">--</strong>
+            <small>Sur le CA dont le PA est connu</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Clients classe A</span>
+            <strong id="directionClassACount">--</strong>
+            <small id="directionClassADetail">génèrent 80% du CA</small>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Pareto clients</p>
+              <h2>Classement ABC</h2>
+              <p class="helper-text">Classe A : clients qui cumulent 80% du CA. Classe B : jusqu'à 95%. Classe C : le reste.</p>
+            </div>
+          </div>
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table" id="directionAbcTable">
+              <thead>
+                <tr>
+                  <th>Rang</th>
+                  <th>Client</th>
+                  <th>CA 2026</th>
+                  <th>% du CA</th>
+                  <th>% cumulé</th>
+                  <th>Classe</th>
+                </tr>
+              </thead>
+              <tbody id="directionAbcBody">
+                <tr><td colspan="6" class="dashboard-empty">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="dashboard-grid direction-two-col" aria-label="Clients à surveiller">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">Clients</p>
+                <h2>Meilleures progressions</h2>
+              </div>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead><tr><th>Client</th><th>CA 2026</th><th>Écart CA</th></tr></thead>
+                <tbody id="directionClientsUpBody"><tr><td colspan="3" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">Clients</p>
+                <h2>Plus fortes baisses</h2>
+              </div>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead><tr><th>Client</th><th>CA 2026</th><th>Écart CA</th></tr></thead>
+                <tbody id="directionClientsDownBody"><tr><td colspan="3" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid direction-two-col" aria-label="Familles à surveiller">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">Familles</p>
+                <h2>Meilleures progressions</h2>
+              </div>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead><tr><th>Famille</th><th>CA 2026</th><th>Écart CA</th></tr></thead>
+                <tbody id="directionFamiliesUpBody"><tr><td colspan="3" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">Familles</p>
+                <h2>Plus fortes baisses</h2>
+              </div>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead><tr><th>Famille</th><th>CA 2026</th><th>Écart CA</th></tr></thead>
+                <tbody id="directionFamiliesDownBody"><tr><td colspan="3" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+
       <main class="app-shell admin-shell is-hidden" id="adminRuptureView">
         <section class="panel admin-hero">
           <div>
@@ -2219,11 +2353,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260928margefix2" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260928direction1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260928margefix2" charset="UTF-8"></script>
+    <script src="script.js?v=20260928direction1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
