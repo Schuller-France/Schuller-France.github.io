@@ -7387,6 +7387,7 @@ body.tablet-mode #adminExecutiveExpensesTab::before { content: "\25C8" !importan
 #adminExecutiveExpensesTab[data-icon]::before,
 #adminPrenetTab[data-icon]::before,
 #adminPurchaseTab[data-icon]::before,
+#adminDirectionTab[data-icon]::before,
 #adminRuptureTab[data-icon]::before,
 #adminStockTab[data-icon]::before,
 #adminCentralesTab[data-icon]::before,
