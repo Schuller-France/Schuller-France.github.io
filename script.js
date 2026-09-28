@@ -3186,6 +3186,12 @@ async function loadPurchaseComparatif() {
     if (adminPurchaseStatus) adminPurchaseStatus.textContent = error.message || "Comparatif indisponible pour le moment.";
   }
   renderAdminPurchase();
+  // Statistiques/Direction peuvent avoir déjà tenté leur propre rendu avant que
+  // ce chargement (utilisé pour la marge) ne soit terminé. On les rafraîchit
+  // ici si elles sont visibles, pour ne pas rester bloqué sur une marge à "—"
+  // si ce chargement se termine après celui des données clients/CA.
+  if (statsView && !statsView.classList.contains("is-hidden")) renderCommercialStats();
+  if (adminDirectionView && !adminDirectionView.classList.contains("is-hidden")) renderAdminDirection();
 }
 
 function getAdminPurchaseSourceRows() {
