@@ -5435,10 +5435,17 @@ function renderDirectionMoversTable(target, items, nameKey, nameLabel = "clientN
   `).join("");
 }
 
+let adminDirectionPurchaseLoadTriggered = false;
+
 function renderAdminDirection() {
   if (!directionAbcBody) return;
   if (currentUser?.role !== "admin") return;
-  if (!adminPurchaseLoaded) {
+  if (!adminPurchaseLoaded && !adminDirectionPurchaseLoadTriggered) {
+    // Ne tenter le chargement du comparatif achat (pour la marge) qu'une
+    // seule fois par session : si l'appel échoue, adminPurchaseLoaded reste
+    // false pour toujours, et rappeler renderAdminDirection() dans le .then
+    // sans ce garde-fou provoquait une boucle infinie de rechargement.
+    adminDirectionPurchaseLoadTriggered = true;
     loadPurchaseComparatif().then(() => renderAdminDirection());
   }
   const overview = buildDirectionOverview();
