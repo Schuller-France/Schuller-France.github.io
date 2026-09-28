@@ -614,6 +614,7 @@ const adminPurchaseStatusSelect = document.querySelector("#adminPurchaseStatusSe
 const adminPurchaseSummary = document.querySelector("#adminPurchaseSummary");
 const adminPurchaseStatus = document.querySelector("#adminPurchaseStatus");
 const adminPurchaseBody = document.querySelector("#adminPurchaseBody");
+const directionRefreshBtn = document.querySelector("#directionRefreshBtn");
 const directionStatus = document.querySelector("#directionStatus");
 const directionTotalCa = document.querySelector("#directionTotalCa");
 const directionTotalRows = document.querySelector("#directionTotalRows");
@@ -625,6 +626,7 @@ const directionMarginCoverage = document.querySelector("#directionMarginCoverage
 const directionMarginPct = document.querySelector("#directionMarginPct");
 const directionClassACount = document.querySelector("#directionClassACount");
 const directionClassADetail = document.querySelector("#directionClassADetail");
+const directionAbcTable = document.querySelector("#directionAbcTable");
 const directionAbcBody = document.querySelector("#directionAbcBody");
 const directionClientsUpBody = document.querySelector("#directionClientsUpBody");
 const directionClientsDownBody = document.querySelector("#directionClientsDownBody");
@@ -5378,11 +5380,15 @@ function buildDirectionOverview() {
     const clientKey = normalize(row.clientCode || row.clientName || "");
     if (clientKey) {
       if (!clients.has(clientKey)) {
-        clients.set(clientKey, { key: clientKey, clientName: row.clientName, clientCode: row.clientCode, sector: row.sector, ca2026: 0, ca2025: 0 });
+        clients.set(clientKey, { key: clientKey, clientName: row.clientName, clientCode: row.clientCode, sector: row.sector, ca2026: 0, ca2025: 0, marginTotal: 0, marginKnownCa: 0 });
       }
       const client = clients.get(clientKey);
       client.ca2026 += ca;
       client.ca2025 += caPrev;
+      if (marginTotal != null) {
+        client.marginTotal += marginTotal;
+        client.marginKnownCa += ca;
+      }
     }
     const familyKey = row.family || "Famille non renseignée";
     if (!families.has(familyKey)) families.set(familyKey, { family: familyKey, ca2026: 0, ca2025: 0 });
@@ -5392,12 +5398,15 @@ function buildDirectionOverview() {
   });
   const clientList = [...clients.values()].filter((client) => client.ca2026 > 0).sort((a, b) => b.ca2026 - a.ca2026);
   let cumulative = 0;
-  clientList.forEach((client) => {
+  clientList.forEach((client, index) => {
     cumulative += client.ca2026;
+    client.rank = index + 1;
     client.cumulativeShare = totalCa > 0 ? cumulative / totalCa : 0;
     client.share = totalCa > 0 ? client.ca2026 / totalCa : 0;
     client.abcClass = client.cumulativeShare <= 0.8 ? "A" : client.cumulativeShare <= 0.95 ? "B" : "C";
     client.gapCa = client.ca2026 - client.ca2025;
+    client.marginPct = client.marginKnownCa > 0 ? client.marginTotal / client.marginKnownCa : null;
+    client.marginCoveragePct = client.ca2026 > 0 ? client.marginKnownCa / client.ca2026 : 0;
   });
   const familyList = [...families.values()]
     .map((family) => ({ ...family, gapCa: family.ca2026 - family.ca2025 }))
@@ -5423,20 +5432,52 @@ function renderDirectionKpiRow(overview) {
   if (directionClassADetail) directionClassADetail.textContent = clientList.length ? `sur ${formatNumber(clientList.length)} clients, génèrent 80% du CA` : "génèrent 80% du CA";
 }
 
+let directionAbcSort = { key: "ca", dir: "desc" };
+
+function sortDirectionAbcClients(clientList) {
+  const { key, dir } = directionAbcSort;
+  const factor = dir === "asc" ? 1 : -1;
+  const list = [...clientList];
+  list.sort((a, b) => {
+    if (key === "client") return factor * a.clientName.localeCompare(b.clientName, "fr");
+    if (key === "marge") {
+      const av = a.marginPct == null ? -Infinity : a.marginPct;
+      const bv = b.marginPct == null ? -Infinity : b.marginPct;
+      return factor * (av - bv);
+    }
+    if (key === "ecart") return factor * (a.gapCa - b.gapCa);
+    return factor * (a.ca2026 - b.ca2026);
+  });
+  return list;
+}
+
+function renderDirectionAbcSortIndicators() {
+  directionAbcTable?.querySelectorAll("th[data-sort-key]").forEach((th) => {
+    const active = th.dataset.sortKey === directionAbcSort.key;
+    th.classList.toggle("is-sort-active", active);
+    th.classList.toggle("is-sort-asc", active && directionAbcSort.dir === "asc");
+    th.classList.toggle("is-sort-desc", active && directionAbcSort.dir === "desc");
+  });
+}
+
 function renderDirectionAbcTable(overview) {
   if (!directionAbcBody) return;
   const { clientList } = overview;
   if (!clientList.length) {
-    directionAbcBody.innerHTML = '<tr><td colspan="6" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
+    directionAbcBody.innerHTML = '<tr><td colspan="8" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
     return;
   }
-  directionAbcBody.innerHTML = clientList.slice(0, 100).map((client, index) => `
+  renderDirectionAbcSortIndicators();
+  const sorted = sortDirectionAbcClients(clientList).slice(0, 100);
+  directionAbcBody.innerHTML = sorted.map((client) => `
     <tr>
-      <td class="numeric">${index + 1}</td>
+      <td class="numeric">${client.rank}</td>
       <td><strong>${escapeHtml(client.clientName)}</strong><small>${escapeHtml(client.clientCode)} ${escapeHtml(client.sector)}</small></td>
       <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(client.ca2026))}</strong></td>
       <td class="numeric">${escapeHtml(formatMarginPct(client.share))}</td>
       <td class="numeric">${escapeHtml(formatMarginPct(client.cumulativeShare))}</td>
+      <td class="numeric">${client.marginPct == null ? "—" : escapeHtml(formatMarginPct(client.marginPct))}</td>
+      <td class="numeric ${client360StatTrendClass(client.gapCa)}">${escapeHtml(formatWholeCurrencyDelta(client.gapCa))}</td>
       <td class="numeric"><span class="status-pill is-class-${client.abcClass.toLowerCase()}">${client.abcClass}</span></td>
     </tr>
   `).join("");
@@ -5445,13 +5486,14 @@ function renderDirectionAbcTable(overview) {
 function renderDirectionMoversTable(target, items, nameKey, nameLabel = "clientName", codeKey = "") {
   if (!target) return;
   if (!items.length) {
-    target.innerHTML = '<tr><td colspan="3" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
+    target.innerHTML = '<tr><td colspan="4" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
     return;
   }
   target.innerHTML = items.map((item) => `
     <tr>
       <td><strong>${escapeHtml(item[nameLabel])}</strong>${codeKey && item[codeKey] ? `<small>${escapeHtml(item[codeKey])}</small>` : ""}</td>
       <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(item.ca2026))}</strong></td>
+      <td class="numeric">${escapeHtml(formatWholeCurrency(item.ca2025))}</td>
       <td class="numeric ${client360StatTrendClass(item.gapCa)}">${escapeHtml(formatWholeCurrencyDelta(item.gapCa))}</td>
     </tr>
   `).join("");
@@ -6475,14 +6517,20 @@ function showTrainingStatus(element, message) {
 function arrangeTabsForUser(user) {
   if (!appTabs) return;
   if (user?.role === "admin") {
+    // Ordre demandé : Journal de bord, Statistiques, Direction (position 3),
+    // puis le reste ; Anti-érosion juste après Consulting ; Prospection en dernier.
     const firstTab = appTabs.querySelector(".tab-button");
     appTabs.insertBefore(adminCheckingTab, firstTab);
     appTabs.insertBefore(statsTab, adminCheckingTab.nextSibling);
-    appTabs.insertBefore(antiErosionTab, statsTab.nextSibling);
-    appTabs.insertBefore(adminPrenetTab, antiErosionTab.nextSibling);
-    appTabs.insertBefore(adminPurchaseTab, adminPrenetTab.nextSibling);
-    if (adminDirectionTab) appTabs.insertBefore(adminDirectionTab, adminPurchaseTab.nextSibling);
-    let lastTab = adminDirectionTab || adminPurchaseTab;
+    let lastTab = statsTab;
+    if (adminDirectionTab) {
+      appTabs.insertBefore(adminDirectionTab, lastTab.nextSibling);
+      lastTab = adminDirectionTab;
+    }
+    appTabs.insertBefore(adminPrenetTab, lastTab.nextSibling);
+    lastTab = adminPrenetTab;
+    appTabs.insertBefore(adminPurchaseTab, lastTab.nextSibling);
+    lastTab = adminPurchaseTab;
     if (adminOffrePrixTab) {
       appTabs.insertBefore(adminOffrePrixTab, lastTab.nextSibling);
       lastTab = adminOffrePrixTab;
@@ -6496,12 +6544,20 @@ function arrangeTabsForUser(user) {
       lastTab = historyTab;
     }
     appTabs.insertBefore(adminExecutiveExpensesTab, lastTab.nextSibling);
-    appTabs.insertBefore(adminTab, adminExecutiveExpensesTab.nextSibling);
-    appTabs.insertBefore(adminCentralesTab, adminTab.nextSibling);
-    appTabs.insertBefore(tourTab, adminCentralesTab.nextSibling);
-    appTabs.insertBefore(prospectionTab, tourTab.nextSibling);
-    appTabs.insertBefore(adminRuptureTab, prospectionTab.nextSibling);
-    appTabs.insertBefore(adminStockTab, adminRuptureTab.nextSibling);
+    lastTab = adminExecutiveExpensesTab;
+    appTabs.insertBefore(adminTab, lastTab.nextSibling);
+    lastTab = adminTab;
+    appTabs.insertBefore(antiErosionTab, lastTab.nextSibling);
+    lastTab = antiErosionTab;
+    appTabs.insertBefore(adminCentralesTab, lastTab.nextSibling);
+    lastTab = adminCentralesTab;
+    appTabs.insertBefore(tourTab, lastTab.nextSibling);
+    lastTab = tourTab;
+    appTabs.insertBefore(adminRuptureTab, lastTab.nextSibling);
+    lastTab = adminRuptureTab;
+    appTabs.insertBefore(adminStockTab, lastTab.nextSibling);
+    lastTab = adminStockTab;
+    appTabs.insertBefore(prospectionTab, lastTab.nextSibling);
     return;
   }
   [
@@ -13908,6 +13964,35 @@ adminExecutiveExpensesTab?.addEventListener("click", () => setActiveTab("adminEx
 adminPrenetTab.addEventListener("click", () => setActiveTab("adminPrenet"));
 adminPurchaseTab.addEventListener("click", () => setActiveTab("adminPurchase"));
 adminDirectionTab?.addEventListener("click", () => setActiveTab("adminDirection"));
+
+directionAbcTable?.querySelectorAll("th[data-sort-key]").forEach((th) => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sortKey;
+    if (directionAbcSort.key === key) {
+      directionAbcSort.dir = directionAbcSort.dir === "desc" ? "asc" : "desc";
+    } else {
+      directionAbcSort = { key, dir: key === "client" ? "asc" : "desc" };
+    }
+    renderDirectionAbcTable(buildDirectionOverview());
+  });
+});
+
+directionRefreshBtn?.addEventListener("click", async () => {
+  if (directionRefreshBtn.disabled) return;
+  const previousLabel = directionRefreshBtn.textContent;
+  directionRefreshBtn.disabled = true;
+  directionRefreshBtn.textContent = "Actualisation…";
+  try {
+    await Promise.all([
+      loadClientArticleStatsFromDrive({ force: true }).catch(() => {}),
+      loadPurchaseComparatif(),
+    ]);
+  } finally {
+    renderAdminDirection();
+    directionRefreshBtn.disabled = false;
+    directionRefreshBtn.textContent = previousLabel;
+  }
+});
 adminCentralesTab.addEventListener("click", () => setActiveTab("adminCentrales"));
 adminOffrePrixTab?.addEventListener("click", () => setActiveTab("adminOffrePrix"));
 adminOrderTab?.addEventListener("click", () => setActiveTab("adminOrder"));
