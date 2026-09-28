@@ -7523,6 +7523,23 @@ function clearOffrePrixClient() {
   if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment. Saisissez un nom de prospect ci-dessus pour une offre hors base clients.</span>";
 }
 
+// Met a jour la carte "client selectionne" (case de droite) en direct pendant la saisie,
+// quand aucun client de la base n'a ete choisi dans la liste de suggestions : le nom tape
+// devient un prospect hors base, utilise tel quel pour generer l'offre (voir getOffrePrixEffectiveClient).
+function renderOffrePrixProspectPreview() {
+  if (selectedOffrePrixClient || !offrePrixSelectedClient) return;
+  const typed = String(offrePrixClientSearch?.value || "").trim();
+  if (!typed) {
+    offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment. Saisissez un nom de prospect ci-dessus pour une offre hors base clients.</span>";
+    return;
+  }
+  offrePrixSelectedClient.innerHTML = `
+    <button class="selected-client-clear" type="button" data-role="offre-prix-clear-client" aria-label="Effacer le nom saisi">&times; Effacer</button>
+    <strong>${escapeHtml(typed)}</strong>
+    <span>Prospect hors base clients - ce nom sera utilis&eacute; tel quel sur l'offre.</span>
+  `;
+}
+
 // Client "effectif" pour une offre de prix : le client selectionne dans la base,
 // ou a defaut un pseudo-client construit a partir du texte tape (prospect hors base).
 function getOffrePrixEffectiveClient() {
@@ -14002,7 +14019,16 @@ adminOrderSend?.addEventListener("click", generateAdminOrderFiles);
 previewAdminOrderFilesButton?.addEventListener("click", previewAdminOrderFiles);
 saveAdminOrderDraftButton?.addEventListener("click", saveAdminOrderAsDraft);
 adminOrderClearHistory?.addEventListener("click", clearCurrentUserAdminOrders);
-offrePrixClientSearch?.addEventListener("input", () => renderOffrePrixClientSuggestions(offrePrixClientSearch.value));
+offrePrixClientSearch?.addEventListener("input", () => {
+  const value = offrePrixClientSearch.value;
+  // Toute frappe qui s'ecarte du client precedemment selectionne invalide cette selection :
+  // le champ redevient une saisie libre (prospect hors base) tant qu'un nouveau choix n'est pas fait dans la liste.
+  if (selectedOffrePrixClient && value.trim() !== selectedOffrePrixClient.name) {
+    selectedOffrePrixClient = null;
+  }
+  renderOffrePrixClientSuggestions(value);
+  renderOffrePrixProspectPreview();
+});
 offrePrixSelectedClient?.addEventListener("click", (event) => {
   if (event.target.closest("[data-role='offre-prix-clear-client']")) clearOffrePrixClient();
 });
