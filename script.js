@@ -5161,8 +5161,42 @@ function filterCommercialStatsRows() {
   return rows.sort(sorters[sortMode] || sorters.caDesc);
 }
 
+function buildAdminPurchasePaMap() {
+  // PA = dernier prix d'achat importé dans l'onglet admin "Comparatif achat"
+  // (adminPurchaseLastDiff.newPa), jamais le fichier Drive brut du skill
+  // comparatif-prix. Uniquement pertinent/chargé côté admin.
+  const map = new Map();
+  getAdminPurchaseSourceRows().forEach((row) => {
+    const key = normalizeRefForMatchClient(row.ref || "");
+    const pa = row.newPa != null ? Number(row.newPa) : null;
+    if (key && pa != null && !Number.isNaN(pa)) map.set(key, pa);
+  });
+  return map;
+}
+
+function computeRowMargin(row, paMap) {
+  const pa = paMap.get(normalizeRefForMatchClient(row.articleCode || ""));
+  const quantity = Number(row.quantity2026) || 0;
+  const ca = Number(row.ca2026) || 0;
+  if (pa == null || quantity <= 0 || ca <= 0) return { marginTotal: null, marginPct: null };
+  const unitPrice = ca / quantity;
+  const marginUnit = unitPrice - pa;
+  const marginTotal = marginUnit * quantity;
+  const marginPct = unitPrice > 0 ? marginUnit / unitPrice : null;
+  return { marginTotal, marginPct };
+}
+
+function formatMarginPct(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${Math.round(value * 100)}%`;
+}
+
 function renderCommercialStats() {
   if (!statsArticleBody) return;
+  const showMargin = currentUser?.role === "admin";
+  document.querySelectorAll(".stats-margin-col").forEach((el) => el.classList.toggle("is-hidden", !showMargin));
+  const emptyColspan = showMargin ? 11 : 9;
+  if (showMargin && !adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderCommercialStats());
   const clientText = statsClientFilter?.value?.trim() || "";
   if (clientText && !selectedStatsClients.length) {
     if (statsSourceBadge) statsSourceBadge.textContent = clientArticleStats360?.sourceFile ? `Drive - ${clientArticleStats360.sourceFile}` : "Drive";
@@ -5174,7 +5208,7 @@ function renderCommercialStats() {
     }
     if (statsTotalRows) statsTotalRows.textContent = "Client a valider";
     if (statsTotalGapQty) statsTotalGapQty.textContent = "Cliquez sur un client dans la liste.";
-    statsArticleBody.innerHTML = '<tr><td colspan="9" class="dashboard-empty">Saisis un client, puis clique sur le bon resultat pour afficher ses statistiques.</td></tr>';
+    statsArticleBody.innerHTML = `<tr><td colspan="${emptyColspan}" class="dashboard-empty">Saisis un client, puis clique sur le bon resultat pour afficher ses statistiques.</td></tr>`;
     return;
   }
   const rows = filterCommercialStatsRows();
@@ -5216,16 +5250,26 @@ function renderCommercialStats() {
   if (statsTotalRows) statsTotalRows.textContent = lineCountLabel;
   if (statsTotalGapQty) statsTotalGapQty.textContent = `Écart quantités : ${formatNumberDelta(totalGapQty)}`;
   if (!rows.length) {
-    statsArticleBody.innerHTML = `<tr><td colspan="9" class="dashboard-empty">${
+    statsArticleBody.innerHTML = `<tr><td colspan="${emptyColspan}" class="dashboard-empty">${
       clientArticleStats360?.available === false
         ? "Aucune statistique Drive chargée pour le moment."
         : "Aucune ligne ne correspond aux filtres."
     }</td></tr>`;
     return;
   }
+  const paMap = showMargin ? buildAdminPurchasePaMap() : null;
   statsArticleBody.innerHTML = rows.slice(0, 250).map((row) => {
     const gapCaClass = client360StatTrendClass(row.gapCa);
     const gapQtyClass = client360StatTrendClass(row.gapQuantity);
+    let marginCells = "";
+    if (showMargin) {
+      const { marginTotal, marginPct } = computeRowMargin(row, paMap);
+      const marginClass = marginTotal == null ? "muted" : client360StatTrendClass(marginTotal);
+      marginCells = `
+        <td class="numeric stats-margin-col ${marginClass}">${escapeHtml(formatMarginPct(marginPct))}</td>
+        <td class="numeric stats-margin-col ${marginClass}">${escapeHtml(marginTotal == null ? "—" : formatWholeCurrency(marginTotal))}</td>
+      `;
+    }
     return `
       <tr>
         <td><strong>${escapeHtml(row.clientName)}</strong><small>${escapeHtml(row.clientCode)} ${escapeHtml(row.sector)}</small></td>
@@ -5237,6 +5281,7 @@ function renderCommercialStats() {
         <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(row.ca2026))}</strong></td>
         <td class="numeric muted">${escapeHtml(formatWholeCurrency(row.ca2025))}</td>
         <td class="numeric ${gapCaClass}">${escapeHtml(formatWholeCurrencyDelta(row.gapCa))}</td>
+        ${marginCells}
       </tr>
     `;
   }).join("");
@@ -5245,12 +5290,22 @@ function renderCommercialStats() {
 function exportCommercialStatsToCsv() {
   const rows = filterCommercialStatsRows();
   if (!rows.length) return;
+  const showMargin = currentUser?.role === "admin";
   const header = ["Client", "Code client", "Secteur", "Référence", "Désignation", "Qté 2026", "Qté N-1", "Écart Qté", "CA 2026", "CA N-1", "Écart CA"];
-  const body = rows.map((row) => [
-    row.clientName || "", row.clientCode || "", row.sector || "", row.articleCode || "", row.articleName || "",
-    row.quantity2026 || 0, row.quantity2025 || 0, row.gapQuantity || 0,
-    row.ca2026 || 0, row.ca2025 || 0, row.gapCa || 0,
-  ]);
+  if (showMargin) header.push("Marge %", "Marge totale");
+  const paMap = showMargin ? buildAdminPurchasePaMap() : null;
+  const body = rows.map((row) => {
+    const line = [
+      row.clientName || "", row.clientCode || "", row.sector || "", row.articleCode || "", row.articleName || "",
+      row.quantity2026 || 0, row.quantity2025 || 0, row.gapQuantity || 0,
+      row.ca2026 || 0, row.ca2025 || 0, row.gapCa || 0,
+    ];
+    if (showMargin) {
+      const { marginTotal, marginPct } = computeRowMargin(row, paMap);
+      line.push(marginPct == null ? "" : Math.round(marginPct * 100), marginTotal == null ? "" : Math.round(marginTotal * 100) / 100);
+    }
+    return line;
+  });
   const stamp = new Date().toISOString().slice(0, 10);
   downloadCsv(`Statistiques_Schuller_${stamp}.csv`, [header, ...body]);
 }
