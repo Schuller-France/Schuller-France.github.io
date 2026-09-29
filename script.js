@@ -939,6 +939,20 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
   "login", "session",
 ]);
 
+// Migration Firebase (voir MIGRATION_FIREBASE.md) : ces actions sont deja
+// migrees et verifiees, elles passent desormais par le nouveau backend
+// Firebase au lieu d'Apps Script. Tout le reste continue de passer par
+// tariffConfig.endpoint (Apps Script) tant que la migration n'est pas
+// terminee. Le jeton de session est le meme des deux cotes (Firebase delegue
+// l'authentification a Apps Script), donc aucune action n'est cassee par ce
+// changement.
+const FIREBASE_API_ENDPOINT = "https://europe-west1-schuller-crm.cloudfunctions.net/api";
+const FIREBASE_ACTIONS = new Set(["login", "logout", "session", "logActivity", "getAdminLogs"]);
+
+function endpointForAction(action) {
+  return FIREBASE_ACTIONS.has(action) ? FIREBASE_API_ENDPOINT : tariffConfig.endpoint;
+}
+
 const postServiceInFlightReads = new Map();
 let latestVisibleSyncRequest = 0;
 
@@ -975,7 +989,9 @@ async function executePostService(parameters) {
     if (visibleSyncRequest && visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus(state, message);
   };
   updateVisibleSync("syncing", "Synchro...");
-  if (!tariffConfig.endpoint) {
+  const action = String(payload.action || "");
+  const targetEndpoint = endpointForAction(action);
+  if (!targetEndpoint) {
     updateVisibleSync("local", "Local");
     throw new Error("Service indisponible.");
   }
@@ -984,7 +1000,6 @@ async function executePostService(parameters) {
     throw new Error("Vous êtes hors ligne. Votre saisie reste sur la tablette et la synchronisation reprendra au retour du réseau.");
   }
   if (currentSessionToken && !payload.token && !skipSessionToken) payload.token = currentSessionToken;
-  const action = String(payload.action || "");
   const isReadOnlyAction = action === "login" || action === "session" || action.startsWith("get");
   const maxAttempts = isReadOnlyAction || POST_SERVICE_RETRYABLE_ACTIONS.has(action) ? 2 : 1;
   const effectiveTimeoutMs = timeoutMs || POST_SERVICE_TIMEOUT_BY_ACTION[action] || POST_SERVICE_TIMEOUT_MS;
@@ -1000,7 +1015,7 @@ async function executePostService(parameters) {
     let response;
     let rawText;
     try {
-      response = await fetch(tariffConfig.endpoint, {
+      response = await fetch(targetEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
         body: new URLSearchParams(payload).toString(),

@@ -9,7 +9,7 @@
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://europe-west1-schuller-crm.cloudfunctions.net; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260928direction13" />
-    <link rel="icon" href="assets/favicon.ico?v=20260928direction13" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260928direction13" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260928direction13" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260928direction13" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260929firebase1" />
+    <link rel="icon" href="assets/favicon.ico?v=20260929firebase1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260929firebase1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260929firebase1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260929firebase1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260928direction13" />
+    <link rel="stylesheet" href="style.css?v=20260929firebase1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -2405,11 +2405,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260928direction13" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260929firebase1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260928direction13" charset="UTF-8"></script>
+    <script src="script.js?v=20260929firebase1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
