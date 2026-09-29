@@ -4025,19 +4025,23 @@ async function toggleAdminStockHistory(ref) {
 }
 
 // ---- Alertes de stock (seuils par reference, surveilles sur le tableau de bord Direction) ----
-// Stockees en localStorage (pas de endpoint backend dedie) : valables sur cet ordinateur/navigateur.
+// Stockees cote serveur (Apps Script) : partagees entre tous les postes.
 
-function loadStockAlertThresholds() {
+async function loadStockAlertThresholds() {
   try {
-    const stored = JSON.parse(localStorage.getItem(stockAlertThresholdsStorageKey) || "[]");
-    stockAlertThresholds = Array.isArray(stored) ? stored : [];
-  } catch {
+    const result = await postService({ action: "getStockAlertThresholds" });
+    stockAlertThresholds = Array.isArray(result.thresholds) ? result.thresholds : [];
+  } catch (error) {
     stockAlertThresholds = [];
   }
 }
 
-function saveStockAlertThresholdsToStorage() {
-  localStorage.setItem(stockAlertThresholdsStorageKey, JSON.stringify(stockAlertThresholds));
+async function saveStockAlertThresholdsToStorage() {
+  try {
+    await postService({ action: "saveStockAlertThresholds", thresholds: JSON.stringify(stockAlertThresholds) });
+  } catch (error) {
+    if (stockAlertStatus) stockAlertStatus.textContent = "Erreur : la sauvegarde n'a pas pu être synchronisée avec le serveur.";
+  }
 }
 
 function renderStockAlertSuggestions(query) {
@@ -4071,7 +4075,7 @@ function renderStockAlertSuggestions(query) {
   stockAlertSuggestions.classList.add("is-open");
 }
 
-function addStockAlertThreshold() {
+async function addStockAlertThreshold() {
   const minQty = parseAmount(stockAlertMinQty?.value);
   let ref = stockAlertSelectedProduct?.ref || "";
   let designation = stockAlertSelectedProduct?.name || "";
@@ -4098,20 +4102,23 @@ function addStockAlertThreshold() {
   } else {
     stockAlertThresholds.push({ ref, designation, minQty });
   }
-  saveStockAlertThresholdsToStorage();
   stockAlertSelectedProduct = null;
   if (stockAlertSearch) stockAlertSearch.value = "";
   if (stockAlertMinQty) stockAlertMinQty.value = "";
-  if (stockAlertStatus) stockAlertStatus.textContent = `Surveillance enregistrée pour ${ref}.`;
+  if (stockAlertStatus) stockAlertStatus.textContent = `Enregistrement en cours pour ${ref}…`;
   renderStockAlertsList();
   renderDirectionAlerts();
+  await saveStockAlertThresholdsToStorage();
+  if (stockAlertStatus && stockAlertStatus.textContent === `Enregistrement en cours pour ${ref}…`) {
+    stockAlertStatus.textContent = `Surveillance enregistrée pour ${ref}.`;
+  }
 }
 
-function removeStockAlertThreshold(ref) {
+async function removeStockAlertThreshold(ref) {
   stockAlertThresholds = stockAlertThresholds.filter((item) => normalize(item.ref) !== normalize(ref));
-  saveStockAlertThresholdsToStorage();
   renderStockAlertsList();
   renderDirectionAlerts();
+  await saveStockAlertThresholdsToStorage();
 }
 
 // Quantite actuelle connue pour une reference, a partir du dernier import Stock (onglet Stock) ;
@@ -4190,29 +4197,39 @@ function renderDirectionAlerts() {
 }
 
 // ---- Rappel prospection : affiche une seule fois par commercial (jamais aux admins), a la connexion. ----
-function getProspectionReminderSeenIds() {
+// Stocke cote serveur (Apps Script) : partage entre tous les postes.
+let prospectionReminderSeenIdsCache = null;
+
+async function getProspectionReminderSeenIds() {
+  if (prospectionReminderSeenIdsCache) return prospectionReminderSeenIdsCache;
   try {
-    const stored = JSON.parse(localStorage.getItem(prospectionReminderStorageKey) || "[]");
-    return Array.isArray(stored) ? stored : [];
-  } catch {
-    return [];
+    const result = await postService({ action: "getProspectionReminderSeen" });
+    prospectionReminderSeenIdsCache = Array.isArray(result.seen) ? result.seen : [];
+  } catch (error) {
+    prospectionReminderSeenIdsCache = [];
   }
+  return prospectionReminderSeenIdsCache;
 }
 
-function maybeShowProspectionReminder() {
+async function maybeShowProspectionReminder() {
   if (!currentUser || currentUser.role === "admin" || !prospectionReminderModal) return;
-  const seenIds = getProspectionReminderSeenIds();
+  const seenIds = await getProspectionReminderSeenIds();
   if (seenIds.includes(currentUser.id)) return;
   prospectionReminderModal.classList.remove("is-hidden");
 }
 
-function dismissProspectionReminder() {
+async function dismissProspectionReminder() {
   if (!currentUser || !prospectionReminderModal) return;
   prospectionReminderModal.classList.add("is-hidden");
-  const seenIds = getProspectionReminderSeenIds();
+  const seenIds = await getProspectionReminderSeenIds();
   if (!seenIds.includes(currentUser.id)) {
     seenIds.push(currentUser.id);
-    localStorage.setItem(prospectionReminderStorageKey, JSON.stringify(seenIds));
+    prospectionReminderSeenIdsCache = seenIds;
+    try {
+      await postService({ action: "markProspectionReminderSeen" });
+    } catch (error) {
+      // Best effort : si l'appel echoue, le rappel pourra reapparaitre a la prochaine connexion.
+    }
   }
 }
 
@@ -15016,8 +15033,10 @@ document.addEventListener("click", (event) => {
 
 setupVoiceNotes();
 updateOfflineStatus();
-loadStockAlertThresholds();
-renderStockAlertsList();
+loadStockAlertThresholds().then(() => {
+  renderStockAlertsList();
+  renderDirectionAlerts();
+});
 window.addEventListener("online", () => {
   updateOfflineStatus();
   if (!currentSessionToken) return;
