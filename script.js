@@ -1251,9 +1251,19 @@ async function logoutCurrentSession() {
   if (token) postService({ action: "logout", token, timeoutMs: 2500, skipSessionToken: true, background: true }).catch(() => {});
 }
 
+// Chaque clic (selection client, produit ajoute...) declenchait auparavant un appel reseau
+// immediat et independant vers Apps Script. Avec plusieurs commerciaux actifs en meme temps,
+// ces appels s'empilaient en parallele et grignotaient le quota d'executions simultanees du
+// script, provoquant des 503 et des lenteurs sur les autres actions (stats, commandes, session).
+// On les met desormais en file et on les envoie un par un : rien n'est perdu, mais on ne
+// sature plus le serveur de requetes concurrentes pour de simples logs d'activite.
+let activityLogQueue = Promise.resolve();
 function recordActivity(type, detail = "") {
   if (!currentSessionToken || currentUser?.role === "admin") return;
-  postService({ action: "logActivity", token: currentSessionToken, type, detail, background: true }).catch(() => {});
+  const token = currentSessionToken;
+  activityLogQueue = activityLogQueue
+    .then(() => postService({ action: "logActivity", token, type, detail, background: true }))
+    .catch(() => {});
 }
 
 function setDisplayMode(mode) {
@@ -4621,7 +4631,22 @@ async function loadDashboardStatsFromDrive(options = {}) {
   dashboardStatsLoadPromise = (async () => {
   try {
     const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
-    dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
+    // Garde-fou : sous forte charge, une lecture Drive concurrente peut renvoyer une liste de
+    // lignes vide ou anormalement courte (fichier en cours d'ecriture, lecture partielle...).
+    // Si on avait deja de bonnes donnees affichees, on ne les remplace jamais par ce resultat
+    // suspect (ce qui affichait des "0" partout malgre un statut "Synchronise") : on garde
+    // l'ancien override et on retentera au prochain rafraichissement.
+    const incomingRows = Array.isArray(result.rows) ? result.rows : [];
+    if (incomingRows.length === 0 && dashboardStatsOverride && Object.keys(dashboardStatsOverride.bySector || {}).length) {
+      if (currentUser?.role === "admin") {
+        renderAdminChecking();
+      } else {
+        renderDashboardSectorSwitch(currentUser);
+        renderDashboard(currentUser);
+      }
+      return;
+    }
+    dashboardStatsOverride = buildDashboardStatsFromRows(incomingRows, {
       updatedAt: result.updatedAt,
       sourceFile: result.sourceFile,
       sectorRevenue: result.sectorRevenue || {},
