@@ -7299,6 +7299,7 @@ function showApp(user, token = user.token || "") {
       renderStockAlertsList();
       renderDirectionAlerts();
     });
+    loadOrdersFromServer();
     return;
   }
 
@@ -7332,10 +7333,12 @@ function showApp(user, token = user.token || "") {
     renderTutorial();
     setActiveTab("tutorial");
     renderOrderHistory();
+    loadOrdersFromServer().then(renderOrderHistory);
     return;
   }
   setActiveTab(getLaunchTabForUser(currentUser) || "home");
   renderOrderHistory();
+  loadOrdersFromServer().then(renderOrderHistory);
   restoreOrderDraft();
   maybeShowProspectionReminder();
 }
@@ -10160,16 +10163,47 @@ function updateSummary() {
   summaryTotal.textContent = formatter.format(getTotal());
 }
 
+// ---- Commandes et brouillons : stockage cote serveur (Apps Script) pour etre visibles sur tous les
+// appareils utilisant le meme compte, au lieu du localStorage d'origine (invisible d'un appareil a l'autre).
+let ordersCache = [];
+let ordersCacheLoaded = false;
+
 function getStoredOrders() {
-  try {
-    return JSON.parse(localStorage.getItem("schullerOrders") || "[]");
-  } catch {
-    return [];
-  }
+  return ordersCache;
 }
 
+async function loadOrdersFromServer() {
+  try {
+    const result = await postService({ action: "getOrders" });
+    ordersCache = Array.isArray(result.orders) ? result.orders : [];
+  } catch (error) {
+    // Echec reseau : on garde le cache tel quel (vide au tout premier chargement). L'historique se
+    // remettra a jour au prochain essai (changement d'onglet, nouvelle sauvegarde, etc.).
+  }
+  ordersCacheLoaded = true;
+}
+
+// Signature inchangee (recoit le tableau complet apres filtrage/ajout, comme pour le localStorage
+// d'origine) pour ne pas avoir a toucher tous les appels existants : on calcule ici la difference avec
+// le cache precedent et on ne synchronise vers le serveur que ce qui a reellement change, commande par
+// commande, plutot que d'ecraser tout l'historique partage a chaque sauvegarde.
 function saveStoredOrders(orders) {
-  localStorage.setItem("schullerOrders", JSON.stringify(orders));
+  const previousById = new Map(ordersCache.map((order) => [order.id, order]));
+  const nextIds = new Set(orders.map((order) => order.id));
+  const removedIds = [...previousById.keys()].filter((id) => !nextIds.has(id));
+  const addedOrChanged = orders.filter((order) => {
+    const previous = previousById.get(order.id);
+    return !previous || JSON.stringify(previous) !== JSON.stringify(order);
+  });
+  ordersCache = orders;
+  addedOrChanged.forEach((order) => {
+    postService({ action: "saveOrder", order: JSON.stringify(order) }).catch(() => {
+      setSyncStatus("error", "Commande non synchronisee");
+    });
+  });
+  removedIds.forEach((id) => {
+    postService({ action: "deleteOrder", id }).catch(() => {});
+  });
 }
 
 function deleteStoredOrder(orderId) {
@@ -13530,6 +13564,7 @@ function setActiveTab(tabName) {
 
   if (showOrder) {
     renderOrderHistory();
+    loadOrdersFromServer().then(renderOrderHistory);
     requestAnimationFrame(() => clientSearch.focus());
   }
 
@@ -13616,6 +13651,7 @@ function setActiveTab(tabName) {
     if (!adminOrderLineItems.length) addAdminOrderLine();
     renderAdminOrderLines();
     renderAdminOrderHistory();
+    loadOrdersFromServer().then(renderAdminOrderHistory);
     if (!adminPurchaseLoaded) loadPurchaseComparatif().then(() => renderAdminOrderLines());
     requestAnimationFrame(() => adminOrderClientSearch?.focus());
   }
