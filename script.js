@@ -7295,8 +7295,10 @@ function showApp(user, token = user.token || "") {
     restoreDashboardStatsCache();
     loadDashboardStatsFromDrive();
     startDriveAutoRefresh();
-    renderStockAlertsList();
-    renderDirectionAlerts();
+    loadStockAlertThresholds().then(() => {
+      renderStockAlertsList();
+      renderDirectionAlerts();
+    });
     return;
   }
 
@@ -15033,10 +15035,9 @@ document.addEventListener("click", (event) => {
 
 setupVoiceNotes();
 updateOfflineStatus();
-loadStockAlertThresholds().then(() => {
-  renderStockAlertsList();
-  renderDirectionAlerts();
-});
+// Les seuils d'alerte stock sont charges apres connexion (voir showApp), jamais avant :
+// un appel non authentifie echouerait de toute facon (action reservee a l'admin) et ne
+// ferait qu'ajouter une charge/erreur de synchro inutile sur l'ecran de connexion.
 window.addEventListener("online", () => {
   updateOfflineStatus();
   if (!currentSessionToken) return;
