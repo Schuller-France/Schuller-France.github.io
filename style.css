@@ -11056,3 +11056,16 @@ body.dark-theme .admin-notification.is-relance { background: rgba(217, 119, 6, .
 }
 .admin-notifications-list { display: flex !important; flex-direction: column; }
 .admin-notification { flex: 0 0 auto; height: auto !important; min-height: 0 !important; max-height: none !important; }
+
+/* Debordements horizontaux reperes au test automatique (30/09/2026) */
+.quote-panel, .quote-layout, .quote-layout > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.quote-table-wrap, #adminOrderView .table-wrap { max-width: 100%; overflow-x: auto; }
+.stock-alert-row { flex-wrap: wrap; }
+.stock-alert-row > div { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  body:not(.tablet-mode) .sample-table,
+  body:not(.tablet-mode) .sample-table th,
+  body:not(.tablet-mode) .sample-table td { min-width: 0 !important; }
+  .sample-panel .panel-heading { min-width: 0; flex-wrap: wrap; }
+  .sample-panel .panel-heading > div { min-width: 0; }
+}

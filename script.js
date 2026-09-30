@@ -994,6 +994,7 @@ const FIREBASE_ACTIONS = new Set([
   "createAntiErosionRequest", "updateAntiErosionRequest", "saveOffrePrixDraft", "deletePriceOffer", "sendOffrePrix", "saveExpenseDraftSummary",
   "deleteExpenseReport", "sendExpenseReport", "sendExecutiveExpenseReport",
   "getExecutiveExpenses", "saveExecutiveExpense", "deleteExecutiveExpense",
+  "getClientNotes", "saveClientNotes",
 ]);
 
 function endpointForAction(action) {
@@ -7576,6 +7577,7 @@ function showApp(user, token = user.token || "") {
   loadOrdersFromServer().then(renderOrderHistory);
   restoreOrderDraft();
   maybeShowProspectionReminder();
+  syncClientNotesFromServer();
 }
 
 function setLoginProgressStep(activeStep) {
@@ -11517,8 +11519,76 @@ function getStoredNotes() {
   }
 }
 
-function saveStoredNotes(notes) {
+function saveStoredNotes(notes, options = {}) {
+  const previous = getStoredNotes();
   localStorage.setItem("schullerClientNotes", JSON.stringify(notes));
+  if (options.skipSync || !currentUser || isTrainingAccount()) return;
+  // Suppressions a transmettre au serveur (notes de ce commercial disparues).
+  const keptIds = new Set(notes.map((note) => note.id));
+  previous
+    .filter((note) => note.userId === currentUser.id && note.id && !keptIds.has(note.id))
+    .forEach((note) => clientNotesPendingDeleted.add(note.id));
+  scheduleClientNotesSync();
+}
+
+// Notes clients partagees entre la tablette, le telephone et le PC du
+// commercial (Firebase). Le navigateur garde une copie pour le hors-ligne.
+const clientNotesPendingDeleted = new Set();
+let clientNotesSyncTimer = null;
+let clientNotesSyncInFlight = false;
+
+function scheduleClientNotesSync() {
+  clearTimeout(clientNotesSyncTimer);
+  clientNotesSyncTimer = setTimeout(pushClientNotesToServer, 1200);
+}
+
+function applyServerClientNotes(serverNotes, serverDeleted) {
+  if (!currentUser) return;
+  const deleted = new Set(serverDeleted || []);
+  const local = getStoredNotes();
+  const others = local.filter((note) => note.userId !== currentUser.id);
+  const mine = new Map();
+  [...local.filter((note) => note.userId === currentUser.id), ...(serverNotes || [])].forEach((note) => {
+    if (!note?.id || deleted.has(note.id)) return;
+    const current = mine.get(note.id);
+    const stamp = String(note.updatedAt || note.createdAt || "");
+    if (!current || stamp >= String(current.updatedAt || current.createdAt || "")) mine.set(note.id, note);
+  });
+  saveStoredNotes([...others, ...mine.values()], { skipSync: true });
+}
+
+async function pushClientNotesToServer() {
+  if (!currentUser || isTrainingAccount() || clientNotesSyncInFlight) return;
+  clientNotesSyncInFlight = true;
+  const deleted = [...clientNotesPendingDeleted];
+  try {
+    const result = await postService({
+      action: "saveClientNotes",
+      notes: JSON.stringify(getStoredNotes().filter((note) => note.userId === currentUser.id)),
+      deleted: JSON.stringify(deleted),
+      background: true,
+    });
+    deleted.forEach((id) => clientNotesPendingDeleted.delete(id));
+    applyServerClientNotes(result.notes, result.deleted);
+  } catch (error) {
+    console.warn("Notes clients : synchronisation reportee.", error);
+  } finally {
+    clientNotesSyncInFlight = false;
+  }
+}
+
+async function syncClientNotesFromServer() {
+  if (!currentUser || currentUser.role === "admin" || isTrainingAccount()) return;
+  try {
+    const result = await postService({ action: "getClientNotes", background: true });
+    applyServerClientNotes(result.notes, result.deleted);
+    // Envoie les notes qui n'existaient que sur cet appareil.
+    await pushClientNotesToServer();
+    updateReminderBadge();
+    if (!notesView?.classList.contains("is-hidden")) refreshNotesHistoryFromCurrentMode();
+  } catch (error) {
+    console.warn("Notes clients : serveur indisponible, copie locale utilisee.", error);
+  }
 }
 
 function getVisibleVisitNotes() {
@@ -11756,7 +11826,8 @@ function markReminderDone(noteId) {
   const notes = getStoredNotes();
   const index = notes.findIndex((note) => note.id === noteId && note.userId === currentUser?.id);
   if (index === -1) return;
-  notes[index] = { ...notes[index], reminderDone: true, reminderDoneAt: new Date().toISOString() };
+  const doneAt = new Date().toISOString();
+  notes[index] = { ...notes[index], reminderDone: true, reminderDoneAt: doneAt, updatedAt: doneAt };
   saveStoredNotes(notes);
   recordActivity("Relance client faite", `${notes[index].clientName} (${notes[index].clientCode}) - ${notes[index].reminderText || "Relance client"}`);
   renderHomeReminders();
