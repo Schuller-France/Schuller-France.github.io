@@ -913,18 +913,29 @@ const SEND_HISTORY_CATEGORY_LABELS = {
 // lourdes ont leur propre plafond et l'interface garde la dernière donnée valide.
 const POST_SERVICE_TIMEOUT_MS = 12000;
 const POST_SERVICE_TIMEOUT_BY_ACTION = {
-  // Un demarrage a froid d'Apps Script depasse regulierement 12 secondes.
-  // Laisser au premier appel le temps de terminer evite les echecs aleatoires.
   login: 25000,
   session: 20000,
   logout: 2500,
   getAppData: 60000,
+  // Lectures relayees par Firebase (reponse immediate si deja en memoire,
+  // sinon Firebase attend Apps Script jusqu'a 50 s).
   getClientArticleStats: 60000,
-  getDashboardStats: 45000,
-  getDeliveryOrderHistory: 20000,
+  getDashboardStats: 60000,
+  getDeliveryOrderHistory: 60000,
+  getPurchaseComparatif: 60000, getRuptureComparatif: 60000, getRuptureHistory: 60000,
+  getStockComparatif: 60000, getStockHistory: 60000, getStockAlertThresholds: 60000,
+  getAntiErosionRequests: 60000, getPriceOffers: 60000, getMyExpenseDrafts: 60000,
+  getExpenseReports: 60000, getPromotions: 60000, getReliquatsReprises: 60000,
   buildOffrePrixPdf: 90000,
   buildAdminPrenetPricesPdf: 90000,
-  sendOffrePrix: 60000,
+  // Envois d'e-mails avec PDF : Apps Script met souvent 15 a 40 s. L'ancien
+  // plafond de 12 s affichait "Delai depasse" alors que l'envoi continuait.
+  sendTariff: 120000, sendDocuments: 120000, sendAdminPrenetPrices: 120000,
+  sendClientStatsReport: 120000, sendQuoteRequest: 120000, sendSampleRequest: 120000,
+  sendVisitReport: 120000, sendProblemReport: 120000, exportPriceOffers: 120000,
+  // Imports et envois relayes par Firebase (jusqu'a 170 s cote serveur).
+  sendOffrePrix: 180000, sendExpenseReport: 180000, sendExecutiveExpenseReport: 180000,
+  importPurchasePriceExport: 180000, importRuptureExport: 180000, importStockExport: 180000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
 // une fois en cas de coupure reseau ou de reponse invalide, sans risque de doublon.
@@ -947,9 +958,16 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
 // l'authentification a Apps Script), donc aucune action n'est cassee par ce
 // changement.
 const FIREBASE_API_ENDPOINT = "https://europe-west1-schuller-crm.cloudfunctions.net/api";
-const FIREBASE_ACTIONS = new Set(["login", "logout", "session", "logActivity", "getAdminLogs", "getAppData", "confirmReset",
-  "getProspectionData", "saveProspection", "deleteProspection", "getProspectionReminderSeen", "markProspectionReminderSeen",
-  "getCentralesData", "saveCentraleRecord", "addCentraleEntry", "deleteCentraleEntry", "deleteCentraleRecord", "addCentraleContact", "deleteCentraleContact",
+const FIREBASE_ACTIONS = new Set([
+  "login", "logout", "session", "logActivity", "getAdminLogs", "getAppData",
+  "confirmReset", "getProspectionData", "saveProspection", "deleteProspection", "getProspectionReminderSeen", "markProspectionReminderSeen",
+  "getCentralesData", "saveCentraleRecord", "addCentraleEntry", "deleteCentraleEntry", "deleteCentraleRecord", "addCentraleContact",
+  "deleteCentraleContact", "getOrders", "saveOrder", "deleteOrder", "getPurchaseComparatif", "getRuptureComparatif",
+  "getRuptureHistory", "getStockComparatif", "getStockHistory", "getStockAlertThresholds", "getAntiErosionRequests", "getPriceOffers",
+  "getMyExpenseDrafts", "getExpenseReports", "getDashboardStats", "getClientArticleStats", "getPromotions", "getReliquatsReprises",
+  "getDeliveryOrderHistory", "savePurchaseCatalogPrice", "importPurchasePriceExport", "importRuptureExport", "importStockExport", "saveStockAlertThresholds",
+  "createAntiErosionRequest", "updateAntiErosionRequest", "saveOffrePrixDraft", "deletePriceOffer", "sendOffrePrix", "saveExpenseDraftSummary",
+  "deleteExpenseReport", "sendExpenseReport", "sendExecutiveExpenseReport",
 ]);
 
 function endpointForAction(action) {
