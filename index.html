@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260930admin15" />
-    <link rel="icon" href="assets/favicon.ico?v=20260930admin15" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260930admin15" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260930admin15" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930admin15" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260930admin16" />
+    <link rel="icon" href="assets/favicon.ico?v=20260930admin16" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260930admin16" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260930admin16" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930admin16" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260930admin15" />
+    <link rel="stylesheet" href="style.css?v=20260930admin16" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -343,6 +343,10 @@
             <article class="panel client360-card">
               <div class="panel-heading"><div><p class="step">Achats</p><h3>Top articles client</h3></div><span class="status-pill" id="client360OrdersCount">Drive</span></div>
               <div class="client360-list" id="client360Orders"></div>
+            </article>
+            <article class="panel client360-card client360-deliveries-card">
+              <div class="panel-heading"><div><p class="step">Livraisons</p><h3>Historique des commandes livrées</h3></div><span class="status-pill" id="client360DeliveriesCount">0</span></div>
+              <div class="client360-list" id="client360Deliveries"></div>
             </article>
           </section>
         </section>
@@ -1785,7 +1789,7 @@
           <div>
             <p class="step">Vue consolidée</p>
             <h2>Direction</h2>
-            <p>Classement des clients (méthode ABC), marge globale et références/familles à surveiller, calculés à partir des données Statistiques et du dernier prix d'achat importé dans Comparatif achat.</p>
+            <p>Votre point du jour : clients à relancer, clients sans livraison récente, résultats par secteur et marges à surveiller. Cliquez sur un client pour ouvrir sa fiche.</p>
           </div>
           <div class="admin-hero-actions">
             <span class="status-pill" id="directionStatus">—</span>
@@ -1820,10 +1824,61 @@
             <small>Sur le CA dont le PA est connu</small>
           </article>
           <article class="panel metric-card">
-            <span>Clients classe A</span>
+            <span>Clients perdus</span>
             <strong id="directionClassACount">--</strong>
-            <small id="directionClassADetail">génèrent 80% du CA</small>
+            <small id="directionClassADetail">Achetaient en N-1, rien cette année</small>
           </article>
+        </section>
+
+        <section class="dashboard-grid direction-two-col" aria-label="Actions du jour">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">À faire</p>
+                <h2>Clients à relancer</h2>
+                <p class="helper-text">Clients qui achetaient l'an dernier et plus du tout cette année, ou en baisse d'au moins 30 %. Triés par chiffre d'affaires perdu.</p>
+              </div>
+              <span class="status-pill" id="directionReviveCount">0</span>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table direction-action-table">
+                <thead><tr><th>Client</th><th>CA N-1</th><th>CA 2026</th><th>Perte</th></tr></thead>
+                <tbody id="directionReviveBody"><tr><td colspan="4" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="step">À surveiller</p>
+                <h2>Sans livraison récente</h2>
+                <p class="helper-text">Bons clients de l'année sans bon de livraison depuis plus de 30 jours (d'après les BL reçus).</p>
+              </div>
+              <span class="status-pill" id="directionDormantCount">0</span>
+            </div>
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table direction-action-table">
+                <thead><tr><th>Client</th><th>CA 2026</th><th>Dernière livraison</th></tr></thead>
+                <tbody id="directionDormantBody"><tr><td colspan="3" class="dashboard-empty">Chargement…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel" aria-label="Résultats par secteur">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Équipe</p>
+              <h2>Résultats par secteur</h2>
+              <p class="helper-text">CA de l'année comparé à la même période l'an dernier, clients actifs et clients perdus par secteur.</p>
+            </div>
+          </div>
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead><tr><th>Secteur</th><th>CA 2026</th><th>CA N-1</th><th>Écart</th><th>Clients actifs</th><th>Clients perdus</th></tr></thead>
+              <tbody id="directionSectorBody"><tr><td colspan="6" class="dashboard-empty">Chargement…</td></tr></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="dashboard-grid direction-two-col" aria-label="Clients à surveiller">
@@ -1892,31 +1947,19 @@
           </article>
         </section>
 
-        <section class="panel">
+        <section class="panel" aria-label="Marges à surveiller">
           <div class="panel-heading">
             <div>
-              <p class="step">Pareto clients</p>
-              <h2>Classement ABC</h2>
-              <p class="helper-text">Classe A : clients qui cumulent 80% du CA. Classe B : jusqu'à 95%. Classe C : le reste. Cliquez sur un en-tête pour trier (le rang Pareto reste affiché tel quel).</p>
+              <p class="step">Rentabilité</p>
+              <h2>Marges à surveiller</h2>
+              <p class="helper-text">Clients importants dont la marge est sous 25 % (calculée avec le dernier prix d'achat importé dans Comparatif achat).</p>
             </div>
+            <span class="status-pill" id="directionLowMarginCount">0</span>
           </div>
           <div class="dashboard-table-wrap">
-            <table class="dashboard-table" id="directionAbcTable">
-              <thead>
-                <tr>
-                  <th>Rang</th>
-                  <th class="is-sortable" data-sort-key="client">Client</th>
-                  <th class="is-sortable" data-sort-key="ca">CA 2026</th>
-                  <th>% du CA</th>
-                  <th>% cumulé</th>
-                  <th class="is-sortable" data-sort-key="marge">Marge</th>
-                  <th class="is-sortable" data-sort-key="ecart">Évolution vs N-1</th>
-                  <th>Classe</th>
-                </tr>
-              </thead>
-              <tbody id="directionAbcBody">
-                <tr><td colspan="8" class="dashboard-empty">Chargement…</td></tr>
-              </tbody>
+            <table class="dashboard-table direction-action-table">
+              <thead><tr><th>Client</th><th>CA 2026</th><th>Marge</th><th>Marge %</th></tr></thead>
+              <tbody id="directionLowMarginBody"><tr><td colspan="4" class="dashboard-empty">Chargement…</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -2414,11 +2457,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260930admin15" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260930admin16" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260930admin15" charset="UTF-8"></script>
+    <script src="script.js?v=20260930admin16" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -170,14 +170,13 @@ const adminCommercials = [
   { id: "rlambert", name: "Rémi Lambert", sectors: ["Secteur 6"] },
   { id: "gsylvestre", name: "Guy Sylvestre", sectors: ["Secteur 7"] },
   { id: "secteur 8", name: "Secteur 8", sectors: ["Secteur 8"] },
-  { id: "flo", name: "Flo", sectors: ["Secteur 9"] },
+  { id: "flo", name: "Secteur 9", sectors: ["Secteur 9"] },
   { id: "purecrea", name: "Purecrea", sectors: ["Purecrea"], revenueSectors: purecreaAdminSectors, objectiveSectors: ["Purecrea"] },
   { id: "belgique", name: "Belgique", sectors: ["Belgique"], revenueSectors: ["Belgique"], objectiveSectors: ["Belgique"] },
 ];
 
 const knownUserProfiles = [
   ...adminCommercials,
-  { id: "formation", name: "Formation tablette", sectors: ["Secteur 9"], role: "commercial", training: true },
   { id: "admin", name: "Administrateur", sectors: [], role: "admin" },
 ];
 
@@ -243,7 +242,7 @@ const initialProspectionRows = [
   ["REIMS MATERIAUX", "51100", "REIMS", "0310168341", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["MULTIMAT ETAIN", "55400", "ETAIN", "0376080123", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["CASTRES BOIS ET MATERIAUX", "81100", "CASTRES", "", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
-  ["DUTREIX", "87000", "LIMOGES", "0555306758", "Secteur 9", "flo", "Flo", ""],
+  ["DUTREIX", "87000", "LIMOGES", "0555306758", "Secteur 9", "flo", "Secteur 9", ""],
   ["COTTIN", "74910", "SEYSSEL", "0450592048", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
   ["ART COLOR", "67590", "SCHWEIGHOUSE SUR MODER", "0388059867", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["BINA MATERIAUX", "57170", "CHÂTEAU SALINS", "0387866910", "Secteur 8", "secteur 8", "Secteur 8", ""],
@@ -5169,7 +5168,9 @@ async function loadDeliveryOrderHistory(force = false) {
 }
 
 function escapeHtml(value) {
-  return value
+  // Un champ absent (ex. client sans code postal) faisait planter tout
+  // l'affichage (liste de suggestions de la fiche client vide).
+  return (value ?? "")
     .toString()
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -5179,7 +5180,7 @@ function escapeHtml(value) {
 }
 
 function normalize(value) {
-  return value
+  return (value ?? "")
     .toString()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -5893,9 +5894,7 @@ function renderDirectionKpiRow(overview) {
   if (directionMarginCoverage) directionMarginCoverage.textContent = `PA connu sur ${coveragePct}% du CA`;
   if (directionMarginTotal) directionMarginTotal.textContent = marginKnownCa > 0 ? formatWholeCurrency(totalMargin) : "—";
   if (directionMarginPct) directionMarginPct.textContent = marginKnownCa > 0 ? formatMarginPct(totalMargin / marginKnownCa) : "—";
-  const classA = clientList.filter((client) => client.abcClass === "A");
-  if (directionClassACount) directionClassACount.textContent = formatNumber(classA.length);
-  if (directionClassADetail) directionClassADetail.textContent = clientList.length ? `sur ${formatNumber(clientList.length)} clients, génèrent 80% du CA` : "génèrent 80% du CA";
+
 }
 
 let directionAbcSort = { key: "ca", dir: "desc" };
@@ -5967,8 +5966,185 @@ function renderDirectionMoversTable(target, items, nameKey, nameLabel = "clientN
 
 let adminDirectionPurchaseLoadTriggered = false;
 
+// ---- Direction : point du jour (remplace le classement ABC, 30/09/2026) ----
+function directionCommercialLabel(sector) {
+  const user = resolveUserForSector(sector);
+  return [sector, user && normalize(user.name) !== normalize(sector) ? user.name : ""].filter(Boolean).join(" · ");
+}
+
+function buildDirectionClientTotals() {
+  // Totaux complets par client (resume du fichier "articles par client"),
+  // plus justes que la somme des seuls top articles.
+  const byClient = clientArticleStats360?.byClient || {};
+  const summaries = Object.values(byClient).map((block) => block?.summary).filter((summary) => summary && (summary.ca2026 != null || summary.ca2025 != null));
+  if (summaries.length) {
+    const allByCode = new Map(allClients.map((client) => [normalize(client.code || ""), client]));
+    return summaries.map((summary) => {
+      const client = allByCode.get(normalize(summary.clientCode || ""));
+      const ca2026 = Number(summary.ca2026) || 0;
+      const ca2025 = Number(summary.ca2025) || 0;
+      return {
+        clientName: client?.name || summary.clientName || "Client",
+        clientCode: client?.code || summary.clientCode || "",
+        sector: client?.sector || summary.sector || "",
+        ca2026,
+        ca2025,
+        gapCa: ca2026 - ca2025,
+      };
+    });
+  }
+  const map = new Map();
+  getCommercialStatsRows().forEach((row) => {
+    const key = normalize(row.clientCode || row.clientName || "");
+    if (!key) return;
+    if (!map.has(key)) map.set(key, { clientName: row.clientName, clientCode: row.clientCode, sector: row.sector || "", ca2026: 0, ca2025: 0 });
+    const item = map.get(key);
+    item.ca2026 += Number(row.ca2026) || 0;
+    item.ca2025 += Number(row.ca2025) || 0;
+    if (!item.sector && row.sector) item.sector = row.sector;
+  });
+  return [...map.values()].map((item) => ({ ...item, gapCa: item.ca2026 - item.ca2025 }));
+}
+
+function directionClientCell(item) {
+  return `<td><button type="button" class="direction-client-link" data-direction-client="${escapeHtml(item.clientCode || item.clientName || "")}"><strong>${escapeHtml(item.clientName || "-")}</strong><small>${escapeHtml([item.clientCode, directionCommercialLabel(item.sector)].filter(Boolean).join(" · "))}</small></button></td>`;
+}
+
+function renderDirectionDailyActions(overview) {
+  const totals = buildDirectionClientTotals();
+  const lost = totals.filter((item) => item.ca2025 > 0 && item.ca2026 <= 0);
+  if (directionClassACount) directionClassACount.textContent = formatNumber(lost.length);
+  if (directionClassADetail) directionClassADetail.textContent = lost.length
+    ? `${formatWholeCurrency(lost.reduce((sum, item) => sum + item.ca2025, 0))} de CA N-1 à reconquérir`
+    : "Achetaient en N-1, rien cette année";
+
+  // Clients a relancer : perdus + fortes baisses
+  const revive = totals
+    .filter((item) => item.ca2025 > 0 && (item.ca2026 <= 0 || (item.gapCa <= -300 && item.ca2026 / item.ca2025 <= 0.7)))
+    .sort((a, b) => a.gapCa - b.gapCa)
+    .slice(0, 15);
+  const reviveBody = document.querySelector("#directionReviveBody");
+  const reviveCount = document.querySelector("#directionReviveCount");
+  if (reviveCount) reviveCount.textContent = String(revive.length);
+  if (reviveBody) {
+    reviveBody.innerHTML = revive.length ? revive.map((item) => `
+      <tr>
+        ${directionClientCell(item)}
+        <td class="numeric">${escapeHtml(formatWholeCurrency(item.ca2025))}</td>
+        <td class="numeric">${item.ca2026 > 0 ? escapeHtml(formatWholeCurrency(item.ca2026)) : '<span class="direction-tag is-lost">Aucune commande</span>'}</td>
+        <td class="numeric is-down"><strong>${escapeHtml(formatWholeCurrencyDelta(item.gapCa))}</strong><small>${item.ca2026 > 0 ? escapeHtml(formatPercentDelta(percentDelta(item.ca2026, item.ca2025))) : "client perdu"}</small></td>
+      </tr>`).join("") : '<tr><td colspan="4" class="dashboard-empty">Aucun client à relancer : bravo !</td></tr>';
+  }
+
+  // Sans livraison recente (d'apres les BL recus)
+  const dormantBody = document.querySelector("#directionDormantBody");
+  const dormantCount = document.querySelector("#directionDormantCount");
+  if (dormantBody) {
+    if (!deliveryOrderHistoryLoaded) {
+      dormantBody.innerHTML = '<tr><td colspan="3" class="dashboard-empty">Chargement des bons de livraison…</td></tr>';
+      if (!adminDirectionDeliveriesTriggered) {
+        adminDirectionDeliveriesTriggered = true;
+        loadDeliveryOrderHistory().then(() => renderAdminDirection());
+      }
+    } else {
+      const lastByClient = new Map();
+      let firstDate = Infinity;
+      deliveryOrderHistory.forEach((order) => {
+        const time = deliveryHistoryDateValue(order.date);
+        if (!time) return;
+        firstDate = Math.min(firstDate, time);
+        const key = deliveryClientKey(order.clientCode);
+        if (key && (!lastByClient.has(key) || lastByClient.get(key) < time)) lastByClient.set(key, time);
+      });
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+      const coverageDays = Number.isFinite(firstDate) ? Math.floor((now - firstDate) / dayMs) : 0;
+      if (coverageDays < 30) {
+        dormantBody.innerHTML = `<tr><td colspan="3" class="dashboard-empty">Pas encore assez d'historique de BL (${coverageDays} jour${coverageDays > 1 ? "s" : ""}) pour repérer les clients sans livraison depuis 30 jours.</td></tr>`;
+        if (dormantCount) dormantCount.textContent = "—";
+      } else {
+        const dormant = totals
+          .filter((item) => item.ca2026 > 0)
+          .map((item) => ({ ...item, last: lastByClient.get(deliveryClientKey(item.clientCode)) || 0 }))
+          .filter((item) => !item.last || (now - item.last) / dayMs > 30)
+          .sort((a, b) => b.ca2026 - a.ca2026)
+          .slice(0, 15);
+        if (dormantCount) dormantCount.textContent = String(dormant.length);
+        dormantBody.innerHTML = dormant.length ? dormant.map((item) => {
+          const days = item.last ? Math.floor((now - item.last) / dayMs) : null;
+          return `
+          <tr>
+            ${directionClientCell(item)}
+            <td class="numeric">${escapeHtml(formatWholeCurrency(item.ca2026))}</td>
+            <td>${days != null ? `<strong>il y a ${days} j</strong><small>${escapeHtml(new Date(item.last).toLocaleDateString("fr-FR"))}</small>` : `<span class="direction-tag is-lost">Aucune depuis ${coverageDays} j</span>`}</td>
+          </tr>`;
+        }).join("") : '<tr><td colspan="3" class="dashboard-empty">Tous les bons clients ont été livrés ces 30 derniers jours.</td></tr>';
+      }
+    }
+  }
+
+  // Resultats par secteur
+  const sectorBody = document.querySelector("#directionSectorBody");
+  if (sectorBody) {
+    const sectors = new Map();
+    totals.forEach((item) => {
+      const key = item.sector || "Secteur non renseigné";
+      if (!sectors.has(key)) sectors.set(key, { sector: key, ca2026: 0, ca2025: 0, active: 0, lost: 0 });
+      const sector = sectors.get(key);
+      sector.ca2026 += item.ca2026;
+      sector.ca2025 += item.ca2025;
+      if (item.ca2026 > 0) sector.active += 1;
+      if (item.ca2025 > 0 && item.ca2026 <= 0) sector.lost += 1;
+    });
+    const list = [...sectors.values()].sort((a, b) => b.ca2026 - a.ca2026);
+    sectorBody.innerHTML = list.length ? list.map((item) => {
+      const gap = item.ca2026 - item.ca2025;
+      return `
+      <tr>
+        <td><strong>${escapeHtml(item.sector)}</strong><small>${escapeHtml(normalize(resolveUserForSector(item.sector)?.name || "") === normalize(item.sector) ? "" : (resolveUserForSector(item.sector)?.name || ""))}</small></td>
+        <td class="numeric"><strong>${escapeHtml(formatWholeCurrency(item.ca2026))}</strong></td>
+        <td class="numeric">${escapeHtml(formatWholeCurrency(item.ca2025))}</td>
+        <td class="numeric ${client360StatTrendClass(gap)}"><strong>${escapeHtml(formatWholeCurrencyDelta(gap))}</strong><small>${escapeHtml(formatPercentDelta(percentDelta(item.ca2026, item.ca2025)))}</small></td>
+        <td class="numeric">${formatNumber(item.active)}</td>
+        <td class="numeric">${item.lost ? `<span class="direction-tag is-lost">${formatNumber(item.lost)}</span>` : "0"}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="6" class="dashboard-empty">Aucune donnée disponible.</td></tr>';
+  }
+
+  // Marges a surveiller
+  const marginBody = document.querySelector("#directionLowMarginBody");
+  const marginCount = document.querySelector("#directionLowMarginCount");
+  if (marginBody) {
+    const low = overview.clientList
+      .filter((client) => client.marginPct != null && client.marginCoveragePct >= 0.5 && client.marginPct < 0.25)
+      .sort((a, b) => b.ca2026 - a.ca2026)
+      .slice(0, 12);
+    if (marginCount) marginCount.textContent = String(low.length);
+    marginBody.innerHTML = !adminPurchaseLoaded && !low.length
+      ? '<tr><td colspan="4" class="dashboard-empty">Importez un fichier dans Comparatif achat pour calculer les marges.</td></tr>'
+      : low.length ? low.map((client) => `
+        <tr>
+          ${directionClientCell(client)}
+          <td class="numeric">${escapeHtml(formatWholeCurrency(client.ca2026))}</td>
+          <td class="numeric">${escapeHtml(formatWholeCurrency(client.marginTotal))}</td>
+          <td class="numeric is-down"><strong>${escapeHtml(formatMarginPct(client.marginPct))}</strong></td>
+        </tr>`).join("") : '<tr><td colspan="4" class="dashboard-empty">Aucun client important sous 25 % de marge.</td></tr>';
+  }
+}
+
+let adminDirectionDeliveriesTriggered = false;
+
+function openDirectionClient(codeOrName) {
+  const key = normalize(codeOrName || "");
+  const client = allClients.find((item) => normalize(item.code || "") === key)
+    || allClients.find((item) => normalize(item.name || "") === key);
+  if (!client) return;
+  setActiveTab("client360");
+  selectClient360(client);
+}
+
 function renderAdminDirection() {
-  if (!directionAbcBody) return;
+  if (!document.querySelector("#directionReviveBody")) return;
   if (currentUser?.role !== "admin") return;
   if (!adminPurchaseLoaded && !adminDirectionPurchaseLoadTriggered) {
     // Ne tenter le chargement du comparatif achat (pour la marge) qu'une
@@ -5980,7 +6156,7 @@ function renderAdminDirection() {
   }
   const overview = buildDirectionOverview();
   renderDirectionKpiRow(overview);
-  renderDirectionAbcTable(overview);
+  renderDirectionDailyActions(overview);
   const clientsByGapDesc = [...overview.clientList].sort((a, b) => b.gapCa - a.gapCa);
   const clientsByGapAsc = [...overview.clientList].sort((a, b) => a.gapCa - b.gapCa);
   renderDirectionMoversTable(directionClientsUpBody, clientsByGapDesc.filter((c) => c.gapCa > 0).slice(0, 8), "clientName", "clientName", "clientCode");
@@ -6563,6 +6739,57 @@ function resetCommercialStatsFilters() {
   renderCommercialStats();
 }
 
+// Historique des bons de livraison du client (meme source que l'onglet
+// "Historique commandes"), directement dans la fiche client.
+function deliveryClientKey(value) {
+  return normalize(value || "").replace(/\s+/g, "").replace(/^fr/, "");
+}
+
+function getClientDeliveryOrders(client) {
+  const code = deliveryClientKey(client?.code);
+  const name = normalize(client?.name || "");
+  return deliveryOrderHistory
+    .filter((order) => (code && deliveryClientKey(order.clientCode) === code) || (!code && name && normalize(order.clientName || "") === name))
+    .sort((a, b) => deliveryHistoryDateValue(b.date) - deliveryHistoryDateValue(a.date));
+}
+
+function renderClient360Deliveries(client) {
+  const container = document.querySelector("#client360Deliveries");
+  const badge = document.querySelector("#client360DeliveriesCount");
+  if (!container || !client) return;
+  if (!deliveryOrderHistoryLoaded) {
+    container.innerHTML = '<div class="dashboard-empty">Chargement de l’historique des livraisons…</div>';
+    if (badge) badge.textContent = "…";
+    loadDeliveryOrderHistory().then(() => {
+      if (selectedClient360 === client && deliveryOrderHistoryLoaded) renderClient360Deliveries(client);
+      else if (selectedClient360 === client) container.innerHTML = '<div class="dashboard-empty">Historique des livraisons indisponible pour le moment.</div>';
+    });
+    return;
+  }
+  const orders = getClientDeliveryOrders(client);
+  if (badge) badge.textContent = String(orders.length);
+  if (!orders.length) {
+    container.innerHTML = '<div class="dashboard-empty">Aucune commande livrée trouvée pour ce client dans les bons de livraison reçus.</div>';
+    return;
+  }
+  const total = orders.reduce((sum, order) => sum + (Number(order.totalHt) || 0), 0);
+  container.innerHTML = `
+    <p class="client360-deliveries-summary">${orders.length} livraison${orders.length > 1 ? "s" : ""} · ${escapeHtml(formatter.format(total))} HT · dernière le ${escapeHtml(orders[0].date || "-")}</p>
+    ${orders.slice(0, 10).map((order) => {
+      const lines = Array.isArray(order.lines) ? order.lines : [];
+      return `
+      <details class="client360-delivery">
+        <summary>
+          <strong>${escapeHtml(order.date || "-")}</strong>
+          <span>BL ${escapeHtml(order.number || "-")} · ${lines.length} produit${lines.length > 1 ? "s" : ""}</span>
+          <em>${escapeHtml(formatter.format(Number(order.totalHt) || 0))}</em>
+        </summary>
+        <ul>${lines.map((line) => `<li><b>${escapeHtml(line.reference || "-")}</b> ${escapeHtml(line.designation || "")} <span>× ${escapeHtml(String(line.quantity ?? "-"))}</span></li>`).join("") || "<li>Aucune ligne disponible.</li>"}</ul>
+      </details>`;
+    }).join("")}
+    <button class="ghost-button compact" type="button" data-client360-open-history>Voir tout dans Historique commandes</button>`;
+}
+
 function selectClient360(client) {
   selectedClient360 = client;
   markTutorialTabDone("client360");
@@ -6599,6 +6826,7 @@ function selectClient360(client) {
   if (client360OrdersCount) client360OrdersCount.textContent = String(topArticles.length);
   if (client360Prenets) client360Prenets.innerHTML = renderClient360PrenetStats(data.prenetEntries.slice(0, 14));
   if (client360Orders) client360Orders.innerHTML = renderClient360ArticleStats(topArticles);
+  renderClient360Deliveries(client);
   recordActivity("Fiche client consultee", `${client.name} (${client.code})`);
 }
 
@@ -7341,6 +7569,7 @@ function showLogin() {
   stopDriveAutoRefresh();
   executiveExpenseServerDrafts = null;
   adminCentralesLoadedForNotifications = false;
+  adminDirectionDeliveriesTriggered = false;
   currentUser = null;
   currentSessionToken = "";
   visibleClients = [];
@@ -15029,6 +15258,17 @@ adminStockBody?.addEventListener("click", (event) => {
   toggleAdminStockHistory(btn.dataset.adminStockHistoryBtn);
 });
 adminStockTab?.addEventListener("click", () => setActiveTab("adminStock"));
+adminDirectionView?.addEventListener("click", (event) => {
+  const key = event.target.closest("[data-direction-client]")?.dataset.directionClient;
+  if (key) openDirectionClient(key);
+});
+document.querySelector("#client360Deliveries")?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-client360-open-history]") || !selectedClient360) return;
+  const client = selectedClient360;
+  setActiveTab("history");
+  if (historySearch) historySearch.value = client.name || client.code || "";
+  renderDeliveryOrderHistory();
+});
 adminNotificationsList?.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-admin-notification-tab]")?.dataset.adminNotificationTab;
   if (tab) setActiveTab(tab);

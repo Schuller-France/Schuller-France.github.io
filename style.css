@@ -11069,3 +11069,35 @@ body.dark-theme .admin-notification.is-relance { background: rgba(217, 119, 6, .
   .sample-panel .panel-heading { min-width: 0; flex-wrap: wrap; }
   .sample-panel .panel-heading > div { min-width: 0; }
 }
+
+/* Fiche client : historique des commandes livrees (BL) */
+.client360-deliveries-card { grid-column: 1 / -1; }
+.client360-deliveries-summary { margin: 0 0 10px; color: var(--muted); font-size: 13px; font-weight: 800; }
+.client360-delivery { border: 1px solid var(--line); border-radius: 12px; background: #fff; margin-bottom: 8px; }
+.client360-delivery summary { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 14px; cursor: pointer; list-style: none; }
+.client360-delivery summary::-webkit-details-marker { display: none; }
+.client360-delivery summary span { color: var(--muted); font-size: 13px; font-weight: 800; }
+.client360-delivery summary em { font-style: normal; font-weight: 950; color: var(--dark); }
+.client360-delivery[open] summary { border-bottom: 1px solid var(--line); }
+.client360-delivery ul { margin: 0; padding: 10px 14px 12px 30px; display: grid; gap: 4px; font-size: 13px; }
+.client360-delivery ul span { color: var(--muted); font-weight: 800; }
+body.dark-theme .client360-delivery { background: #101827; border-color: rgba(148, 163, 184, .22); }
+@media (max-width: 640px) {
+  .client360-delivery summary { grid-template-columns: 1fr auto; }
+  .client360-delivery summary span { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Direction : point du jour */
+.direction-client-link { display: grid; gap: 2px; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.direction-client-link strong { color: var(--dark); }
+.direction-client-link:hover strong { color: #e30613; text-decoration: underline; }
+.direction-client-link small, .direction-action-table td small { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
+.direction-tag { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.direction-tag.is-lost { color: #a1121c; background: #fdecec; }
+.direction-action-table td.is-down strong { color: #b3271f; }
+body.dark-theme .direction-client-link strong { color: #eaf2ff; }
+#adminDirectionView .direction-two-col { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+#adminDirectionView .direction-two-col .dashboard-table-wrap { overflow-x: auto; }
+@media (max-width: 1100px) { #adminDirectionView .direction-two-col { grid-template-columns: minmax(0, 1fr) !important; } }
+.client360-deliveries-card #client360Deliveries { padding: 14px 18px 18px; }
+.client360-deliveries-card [data-client360-open-history] { margin-top: 6px; }
