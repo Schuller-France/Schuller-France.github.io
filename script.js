@@ -947,7 +947,7 @@ const POST_SERVICE_RETRYABLE_ACTIONS = new Set([
 // l'authentification a Apps Script), donc aucune action n'est cassee par ce
 // changement.
 const FIREBASE_API_ENDPOINT = "https://europe-west1-schuller-crm.cloudfunctions.net/api";
-const FIREBASE_ACTIONS = new Set(["login", "logout", "session", "logActivity", "getAdminLogs"]);
+const FIREBASE_ACTIONS = new Set(["login", "logout", "session", "logActivity", "getAdminLogs", "getAppData"]);
 
 function endpointForAction(action) {
   return FIREBASE_ACTIONS.has(action) ? FIREBASE_API_ENDPOINT : tariffConfig.endpoint;
