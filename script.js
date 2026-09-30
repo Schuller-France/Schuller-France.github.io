@@ -4393,7 +4393,7 @@ async function sendAdminPrenetPrices() {
     });
     if (adminPrenetSendStatus) setAdminPrenetStatus("✓ " + (result.message || "PDF envoyé."), "success");
   } catch (error) {
-    if (adminPrenetSendStatus) setAdminPrenetStatus((error.message || "Envoi impossible.") + " Vérifiez la boîte de réception avant de renvoyer : l'e-mail a peut-être quand même été envoyé.", "error");
+    if (adminPrenetSendStatus) setAdminPrenetStatus((error.message || "Envoi impossible.") + (/temps|invalide|Connexion/i.test(error.message || "") ? " Vérifiez la boîte de réception avant de renvoyer : l'e-mail a peut-être quand même été envoyé." : ""), "error");
   } finally {
     if (adminPrenetSend) { adminPrenetSend.disabled = false; adminPrenetSend.textContent = "Envoyer"; }
     if (adminPrenetSendStatus) delete adminPrenetSendStatus.dataset.keepMessage;
