@@ -1085,6 +1085,13 @@ async function executePostService(parameters) {
       updateVisibleSync("error", "Synchro à vérifier");
       throw new Error("Le service Google a renvoye une reponse invalide. Reconnectez-vous ou reessayez dans quelques instants.");
     }
+    // Reponse de doGet ("Service Google actif") a une demande POST : Google a
+    // perdu le resultat en route. L action a pu etre faite (ex: e-mail parti) :
+    // on ne retente pas et on previent l utilisateur au lieu d afficher un faux succes.
+    if (result && result.service && result.message === "Service Google actif.") {
+      updateVisibleSync("error", "Synchro à vérifier");
+      throw new Error("Réponse inattendue de Google : l’opération a peut-être été faite. Vérifiez avant de recommencer.");
+    }
     if (!result.ok) {
       updateVisibleSync("error", "Synchro à vérifier");
       const serviceError = new Error(result.message || "Operation impossible.");
