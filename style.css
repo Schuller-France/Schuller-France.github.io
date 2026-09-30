@@ -4863,12 +4863,17 @@ body.dark-theme .send-history-badge.tag-statistiques { background: rgba(124, 58,
 }
 
 .admin-prenet-status {
-  min-height: 18px;
-  margin: -4px 4px 0;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 800;
+  border-radius: 12px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 850;
 }
+.admin-prenet-status:empty { display: none; }
+.admin-prenet-status[data-state] { padding: 12px 16px; border: 1px solid transparent; }
+.admin-prenet-status[data-state="pending"] { background: #fff7e6; border-color: #f5c46b; color: #8a5a00; }
+.admin-prenet-status[data-state="success"] { background: #e8f7ee; border-color: #7fcf9d; color: #17693a; }
+.admin-prenet-status[data-state="error"] { background: #fdecec; border-color: #f2a5a5; color: #a1121c; }
 
 .admin-prenet-table th:nth-child(3),
 .admin-prenet-table td:nth-child(3),

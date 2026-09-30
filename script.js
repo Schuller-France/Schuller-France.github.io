@@ -1004,7 +1004,7 @@ function postService(parameters) {
 }
 
 async function executePostService(parameters) {
-  const { skipSessionToken = false, timeoutMs, background = false, ...payload } = parameters;
+  const { skipSessionToken = false, timeoutMs, background = false, __googleRetries, ...payload } = parameters;
   const visibleSyncRequest = background ? 0 : ++latestVisibleSyncRequest;
   const updateVisibleSync = (state, message) => {
     if (visibleSyncRequest && visibleSyncRequest === latestVisibleSyncRequest) setSyncStatus(state, message);
@@ -1072,6 +1072,12 @@ async function executePostService(parameters) {
         action: payload.action,
         preview: rawText.slice(0, 300),
       });
+      // Page d'erreur Google (doPost jamais execute) : jusqu'a 2 nouvelles tentatives.
+      const googleErrorPage = response.status >= 400 || /unable to open the file|impossible d.ouvrir le fichier/i.test(rawText);
+      if (googleErrorPage && (parameters.__googleRetries || 0) < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return executePostService({ ...parameters, __googleRetries: (parameters.__googleRetries || 0) + 1 });
+      }
       if (attempt < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 800));
         continue;
@@ -3207,7 +3213,7 @@ function renderAdminPrenets() {
   renderAdminPrenetSelectedClient();
   renderAdminPrenetReferenceChips();
   renderAdminPrenetReferenceSuggestions();
-  if (adminPrenetSendStatus && !adminPrenetSendStatus.dataset.keepMessage) adminPrenetSendStatus.textContent = "";
+  if (adminPrenetSendStatus && !adminPrenetSendStatus.dataset.keepMessage) setAdminPrenetStatus("", "");
   renderAdminPrenetSortIcons();
   const rows = getAdminPrenetRows();
   if (adminPrenetCount) adminPrenetCount.textContent = `${formatNumber(rows.length)} ligne${rows.length > 1 ? "s" : ""}`;
@@ -4318,7 +4324,7 @@ async function downloadAdminPrenetPdf() {
   if (adminPrenetDownload) adminPrenetDownload.disabled = true;
   if (adminPrenetSendStatus) {
     adminPrenetSendStatus.dataset.keepMessage = "1";
-    adminPrenetSendStatus.textContent = "Preparation du PDF...";
+    setAdminPrenetStatus("Préparation du PDF…", "pending");
   }
   try {
     const result = await postService({
@@ -4334,36 +4340,43 @@ async function downloadAdminPrenetPdf() {
     });
     if (!result.data) throw new Error("PDF indisponible.");
     downloadBase64File(result.data, result.mimeType || "application/pdf", result.fileName || "prix-nets.pdf");
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "PDF telecharge.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus("✓ " + (result.message || "PDF téléchargé."), "success");
   } catch (error) {
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = error.message || "Telechargement impossible.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus(error.message || "Téléchargement impossible.", "error");
   } finally {
     if (adminPrenetDownload) adminPrenetDownload.disabled = false;
     if (adminPrenetSendStatus) delete adminPrenetSendStatus.dataset.keepMessage;
   }
 }
 
+function setAdminPrenetStatus(message, state) {
+  if (!adminPrenetSendStatus) return;
+  adminPrenetSendStatus.textContent = message || "";
+  if (state && message) adminPrenetSendStatus.dataset.state = state;
+  else delete adminPrenetSendStatus.dataset.state;
+}
+
 async function sendAdminPrenetPrices() {
   const rows = getAdminPrenetRows();
   const recipient = String(adminPrenetEmail?.value || "").trim().toLowerCase();
   if (!selectedAdminPrenetClient) {
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Selectionnez d'abord un client.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus("Sélectionnez d'abord un client.", "error");
     return;
   }
   if (!rows.length) {
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Aucune ligne a envoyer.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus("Aucune ligne à envoyer.", "error");
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = "Adresse e-mail invalide.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus("Adresse e-mail invalide.", "error");
     adminPrenetEmail?.focus();
     return;
   }
   const commercial = getAdminCommercialForPrenetClient(selectedAdminPrenetClient);
-  if (adminPrenetSend) adminPrenetSend.disabled = true;
+  if (adminPrenetSend) { adminPrenetSend.disabled = true; adminPrenetSend.textContent = "Envoi en cours…"; }
   if (adminPrenetSendStatus) {
     adminPrenetSendStatus.dataset.keepMessage = "1";
-    adminPrenetSendStatus.textContent = "Envoi du PDF en cours...";
+    setAdminPrenetStatus("Envoi du PDF en cours… Google prépare le PDF, cela peut prendre jusqu'à une minute. Ne fermez pas la page.", "pending");
   }
   try {
     const result = await postService({
@@ -4378,11 +4391,11 @@ async function sendAdminPrenetPrices() {
       }),
       rows: JSON.stringify(rows),
     });
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = result.message || "PDF envoye.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus("✓ " + (result.message || "PDF envoyé."), "success");
   } catch (error) {
-    if (adminPrenetSendStatus) adminPrenetSendStatus.textContent = error.message || "Envoi impossible.";
+    if (adminPrenetSendStatus) setAdminPrenetStatus((error.message || "Envoi impossible.") + " Vérifiez la boîte de réception avant de renvoyer : l'e-mail a peut-être quand même été envoyé.", "error");
   } finally {
-    if (adminPrenetSend) adminPrenetSend.disabled = false;
+    if (adminPrenetSend) { adminPrenetSend.disabled = false; adminPrenetSend.textContent = "Envoyer"; }
     if (adminPrenetSendStatus) delete adminPrenetSendStatus.dataset.keepMessage;
   }
 }
