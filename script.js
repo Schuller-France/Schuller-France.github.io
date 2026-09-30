@@ -1217,7 +1217,10 @@ async function refreshSecureAppDataInBackground(token, userId) {
     applySecureAppData(result);
     saveSecureDataCache(userId || currentUser?.id || "", result);
     if (currentUser) {
-      visibleClients = filterClientsForUser(currentUser);
+      // (Appelait "filterClientsForUser", fonction inexistante : l'erreur etait
+      // avalee et la liste des clients restait vide apres une connexion sans
+      // cache -> recherche client vide, fiches client vides...)
+      visibleClients = getClientsForUser(currentUser);
       populateProductRefs();
       renderDashboard(currentUser);
       renderDashboardSectorSwitch(currentUser);
@@ -6632,18 +6635,25 @@ function buildGlobalSearchResults(query) {
   if (cleanQuery.length < 2) return [];
   const results = [];
 
+  // Classement : le client dont le NOM commence par la saisie d'abord, puis un
+  // mot du nom, puis le nom qui contient la saisie, puis code / ville / adresse.
+  const clientSearchRank = (client) => {
+    const name = normalize(client.name || "");
+    const code = normalize(client.code || "");
+    if (code === cleanQuery || name === cleanQuery) return 0;
+    if (name.startsWith(cleanQuery)) return 1;
+    if (name.split(/[\s\-'.,/&]+/).some((word) => word.startsWith(cleanQuery))) return 2;
+    if (name.includes(cleanQuery)) return 3;
+    if (code.includes(cleanQuery)) return 4;
+    const other = normalize([client.billingCity, client.billingZip, client.deliveryCity, client.deliveryZip, client.deliveryAddress, client.sector].join(" "));
+    return other.includes(cleanQuery) ? 5 : -1;
+  };
   visibleClients
-    .filter((client) => normalize([
-      client.code,
-      client.name,
-      client.billingCity,
-      client.billingZip,
-      client.deliveryCity,
-      client.deliveryZip,
-      client.deliveryAddress,
-      client.sector,
-    ].join(" ")).includes(cleanQuery))
+    .map((client) => ({ client, rank: clientSearchRank(client) }))
+    .filter((item) => item.rank >= 0)
+    .sort((a, b) => a.rank - b.rank || String(a.client.name || "").localeCompare(String(b.client.name || ""), "fr"))
     .slice(0, 8)
+    .map((item) => item.client)
     .forEach((client) => {
       results.push({
         type: "client",
