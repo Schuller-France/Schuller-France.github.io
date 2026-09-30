@@ -681,8 +681,9 @@ const stockAlertMinQty = document.querySelector("#stockAlertMinQty");
 const stockAlertAdd = document.querySelector("#stockAlertAdd");
 const stockAlertStatus = document.querySelector("#stockAlertStatus");
 const stockAlertsList = document.querySelector("#stockAlertsList");
-const directionAlertsCount = document.querySelector("#directionAlertsCount");
-const directionAlertsList = document.querySelector("#directionAlertsList");
+const adminNotificationsCount = document.querySelector("#adminNotificationsCount");
+const adminNotificationsList = document.querySelector("#adminNotificationsList");
+let adminCentralesLoadedForNotifications = false;
 const prospectionReminderModal = document.querySelector("#prospectionReminderModal");
 const prospectionReminderOk = document.querySelector("#prospectionReminderOk");
 const tutorialSteps = document.querySelector("#tutorialSteps");
@@ -4268,38 +4269,101 @@ function renderStockAlertsList() {
 
 // Panneau "Alertes & relances" du tableau de bord Direction : ne montre que les references
 // dont le stock connu est passe sous le seuil choisi. Charge le stock en tache de fond si besoin.
+// Bloc "Notifications" du journal de bord (a cote du chiffre d'affaires) :
+// references surveillees passees sous leur seuil de stock + relances de
+// referencement (fiches et interlocuteurs) arrivees a echeance.
+// (Ancien panneau "Alertes & relances" de l'onglet Direction, deplace ici.)
+function formatNotificationDate(isoDate) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? isoDate : date.toLocaleDateString("fr-FR");
+}
+
+function isIsoDateDue(isoDate) {
+  if (!isoDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${isoDate}T00:00:00`);
+  return !Number.isNaN(target.getTime()) && target.getTime() <= today.getTime();
+}
+
+function getAdminNotifications() {
+  const notifications = [];
+  if (stockAlertThresholds.length && adminStockLastDiff) {
+    const disparus = new Set((adminStockLastDiff.disparus || []).map((item) => normalize(item.ref || "")));
+    stockAlertThresholds.forEach((item) => {
+      const gone = disparus.has(normalize(item.ref || ""));
+      const qty = gone ? 0 : getKnownStockQty(item.ref);
+      if (qty == null || qty >= item.minQty) return;
+      notifications.push({
+        kind: "stock",
+        tab: "adminStock",
+        label: "Stock",
+        title: `${item.ref}${item.designation ? ` · ${item.designation}` : ""}`,
+        detail: gone
+          ? `Absente du dernier fichier stock (seuil ${formatNumber(item.minQty)}).`
+          : `Stock ${formatNumber(qty)}, sous le seuil de ${formatNumber(item.minQty)}.`,
+        sort: 0,
+      });
+    });
+  }
+  (centralesRecords || []).forEach((record) => {
+    if (isIsoDateDue(record.relanceDate)) {
+      notifications.push({
+        kind: "relance",
+        tab: "adminCentrales",
+        label: "Relance",
+        title: record.company || "Référencement",
+        detail: `Relance prévue le ${formatNotificationDate(record.relanceDate)} : échéance atteinte.`,
+        sort: 1,
+        date: record.relanceDate,
+      });
+    }
+    (Array.isArray(record.contacts) ? record.contacts : []).forEach((contact) => {
+      if (!isIsoDateDue(contact.relanceDate)) return;
+      notifications.push({
+        kind: "relance",
+        tab: "adminCentrales",
+        label: "Relance",
+        title: `${record.company || "Référencement"} · ${contact.name || "interlocuteur"}`,
+        detail: `Relance prévue le ${formatNotificationDate(contact.relanceDate)} : échéance atteinte.`,
+        sort: 1,
+        date: contact.relanceDate,
+      });
+    });
+  });
+  return notifications.sort((a, b) => a.sort - b.sort || String(a.date || "").localeCompare(String(b.date || "")));
+}
+
+function renderAdminNotifications() {
+  if (!adminNotificationsList || !adminNotificationsCount) return;
+  if (!currentUser || currentUser.role !== "admin") return;
+  // Donnees necessaires chargees a la demande (une seule fois).
+  if (stockAlertThresholds.length && !adminStockLastDiff && !adminStockLoaded && !adminStockImporting) {
+    loadStockComparatif().then(() => renderAdminNotifications());
+  }
+  if (!adminCentralesLoadedForNotifications) {
+    adminCentralesLoadedForNotifications = true;
+    loadCentralesData().then(() => renderAdminNotifications());
+  }
+  const notifications = getAdminNotifications();
+  adminNotificationsCount.textContent = String(notifications.length);
+  adminNotificationsCount.classList.toggle("is-zero", notifications.length === 0);
+  if (!notifications.length) {
+    adminNotificationsList.innerHTML = `<p class="admin-notifications-empty">Rien à signaler : aucun stock sous son seuil, aucune relance échue.</p>`;
+    return;
+  }
+  adminNotificationsList.innerHTML = notifications.map((item) => `
+    <button type="button" class="admin-notification is-${item.kind}" data-admin-notification-tab="${escapeHtml(item.tab)}">
+      <span class="admin-notification-pill">${escapeHtml(item.label)}</span>
+      <strong>${escapeHtml(item.title)}</strong>
+      <small>${escapeHtml(item.detail)}</small>
+    </button>
+  `).join("");
+}
+
+// Conserve pour les appels existants (seuils de stock, imports...).
 function renderDirectionAlerts() {
-  if (!directionAlertsList || !directionAlertsCount) return;
-  if (!stockAlertThresholds.length) {
-    directionAlertsCount.textContent = "0 alerte";
-    directionAlertsList.innerHTML = `<p class="admin-empty">Aucune alerte configurée. Ajoutez des seuils depuis l'onglet Stock.</p>`;
-    return;
-  }
-  if (!adminStockLastDiff) {
-    directionAlertsCount.textContent = "…";
-    directionAlertsList.innerHTML = `<p class="admin-empty">Chargement du stock…</p>`;
-    if (!adminStockLoaded && !adminStockImporting) loadStockComparatif().then(() => renderDirectionAlerts());
-    return;
-  }
-  const breaches = stockAlertThresholds
-    .map((item) => ({ ...item, qty: getKnownStockQty(item.ref) }))
-    .filter((item) => item.qty != null && item.qty < item.minQty);
-  directionAlertsCount.textContent = `${breaches.length} alerte${breaches.length > 1 ? "s" : ""}`;
-  if (!breaches.length) {
-    directionAlertsList.innerHTML = `<p class="admin-empty">Aucune référence surveillée sous son seuil pour le moment.</p>`;
-    return;
-  }
-  directionAlertsList.innerHTML = breaches
-    .map((item) => `
-      <article class="home-reminder-card late">
-        <div>
-          <span class="reminder-pill">Stock</span>
-          <strong>${escapeHtml(item.ref)}</strong>
-          <small>${escapeHtml(item.designation || "")} - quantité ${formatNumber(item.qty)} (seuil ${formatNumber(item.minQty)})</small>
-        </div>
-      </article>
-    `)
-    .join("");
+  renderAdminNotifications();
 }
 
 // ---- Rappel prospection : affiche une seule fois par commercial (jamais aux admins), a la connexion. ----
@@ -4310,7 +4374,10 @@ async function getProspectionReminderSeenIds() {
   if (prospectionReminderSeenIdsCache) return prospectionReminderSeenIdsCache;
   try {
     const result = await postService({ action: "getProspectionReminderSeen" });
-    prospectionReminderSeenIdsCache = Array.isArray(result.seen) ? result.seen : [];
+    // Le serveur repond "seen: true/false" pour l'utilisateur connecte (et non
+    // une liste d'identifiants) : avant, le rappel reapparaissait a chaque connexion.
+    if (Array.isArray(result.seen)) prospectionReminderSeenIdsCache = result.seen;
+    else prospectionReminderSeenIdsCache = result.seen && currentUser ? [currentUser.id] : [];
   } catch (error) {
     prospectionReminderSeenIdsCache = [];
   }
@@ -7262,6 +7329,7 @@ function showLogin() {
   }
   stopDriveAutoRefresh();
   executiveExpenseServerDrafts = null;
+  adminCentralesLoadedForNotifications = false;
   currentUser = null;
   currentSessionToken = "";
   visibleClients = [];
@@ -13098,6 +13166,7 @@ function renderCentralesRecords() {
     return record.company.toLowerCase().includes(query) || (record.contactName || "").toLowerCase().includes(query);
   });
   const dueCount = centralesRecords.filter(centraleIsDue).length;
+  renderAdminNotifications();
   if (centralesRelanceCount) centralesRelanceCount.textContent = `${dueCount} à relancer`;
   if (centralesReminderBadge) {
     centralesReminderBadge.textContent = String(dueCount);
@@ -13975,6 +14044,7 @@ function setActiveTab(tabName) {
 
   if (showAdmin) loadAdminLogs();
   if (showAdminChecking) {
+    renderAdminNotifications();
     if (!dashboardStatsOverride) restoreDashboardStatsCache();
     if (dashboardStatsOverride) renderAdminChecking();
     else if (dashboardStatsLoading && adminCheckingBody) {
@@ -14878,6 +14948,10 @@ adminStockBody?.addEventListener("click", (event) => {
   toggleAdminStockHistory(btn.dataset.adminStockHistoryBtn);
 });
 adminStockTab?.addEventListener("click", () => setActiveTab("adminStock"));
+adminNotificationsList?.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-admin-notification-tab]")?.dataset.adminNotificationTab;
+  if (tab) setActiveTab(tab);
+});
 stockAlertSearch?.addEventListener("input", () => {
   stockAlertSelectedProduct = null;
   renderStockAlertSuggestions(stockAlertSearch.value);

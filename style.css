@@ -11031,3 +11031,28 @@ body.tablet-mode .offre-prix-table td:nth-child(9)::before { content: ""; displa
   .backlog-toolbar:not(.is-admin) > label:first-child { grid-column: 1 / -1; }
 }
 body.tablet-mode .backlog-toolbar.backlog-toolbar { grid-template-columns: 1fr; }
+
+/* Journal de bord : bloc Notifications a cote du chiffre d'affaires */
+.admin-stats-summary { grid-template-columns: minmax(280px, 420px) minmax(300px, 460px); align-items: stretch; }
+.admin-notifications-card { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-height: 128px; max-height: 210px; padding: 16px 18px; overflow: hidden; }
+.admin-notifications-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.admin-notifications-head span { color: var(--muted); font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.admin-notifications-count { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px; color: #fff; background: #e30613; font-size: 13px; font-weight: 950; }
+.admin-notifications-count.is-zero { color: #166534; background: #dcfce7; }
+.admin-notifications-list { display: grid; gap: 6px; align-content: start; overflow-y: auto; padding-right: 4px; }
+.admin-notifications-empty { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.4; }
+.admin-notification { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; row-gap: 1px; align-items: center; width: 100%; padding: 7px 10px; text-align: left; border: 1px solid #fecdd3; border-left: 4px solid #e30613; border-radius: 10px; background: #fff7f7; cursor: pointer; font: inherit; }
+.admin-notification.is-relance { border-color: #fde68a; border-left-color: #d97706; background: #fffbeb; }
+.admin-notification:hover { filter: brightness(.98); }
+.admin-notification-pill { grid-row: 1 / span 2; align-self: start; padding: 2px 7px; border-radius: 999px; color: #fff; background: #e30613; font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+.admin-notification.is-relance .admin-notification-pill { background: #d97706; }
+.admin-notification strong { overflow: hidden; color: var(--dark); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-notification small { color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.3; }
+body.dark-theme .admin-notification { background: rgba(227, 6, 19, .12); border-color: rgba(227, 6, 19, .35); }
+body.dark-theme .admin-notification.is-relance { background: rgba(217, 119, 6, .14); border-color: rgba(217, 119, 6, .4); }
+@media (max-width: 860px) {
+  .admin-stats-summary { grid-template-columns: 1fr !important; }
+  .admin-notifications-card { max-height: 260px; }
+}
+.admin-notifications-list { display: flex !important; flex-direction: column; }
+.admin-notification { flex: 0 0 auto; height: auto !important; min-height: 0 !important; max-height: none !important; }

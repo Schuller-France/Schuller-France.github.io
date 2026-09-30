@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260930admin12" />
-    <link rel="icon" href="assets/favicon.ico?v=20260930admin12" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260930admin12" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260930admin12" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930admin12" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260930admin13" />
+    <link rel="icon" href="assets/favicon.ico?v=20260930admin13" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260930admin13" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260930admin13" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930admin13" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260930admin12" />
+    <link rel="stylesheet" href="style.css?v=20260930admin13" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1569,6 +1569,13 @@
         </section>
         <section class="dashboard-grid admin-metrics admin-stats-summary" aria-label="Résumé statistiques">
           <article class="panel metric-card admin-revenue-card"><span>Chiffre d'affaires du mois</span><strong id="checkingRevenueTotal">0 €</strong><small id="checkingUpdatedAt">Juillet 2026</small></article>
+          <article class="panel admin-notifications-card" aria-labelledby="adminNotificationsTitle">
+            <div class="admin-notifications-head">
+              <span id="adminNotificationsTitle">Notifications</span>
+              <b class="admin-notifications-count" id="adminNotificationsCount">0</b>
+            </div>
+            <div class="admin-notifications-list" id="adminNotificationsList"><p class="admin-notifications-empty">Chargement…</p></div>
+          </article>
         </section>
         <section class="panel admin-log-panel">
           <div class="panel-heading">
@@ -1817,18 +1824,6 @@
             <strong id="directionClassACount">--</strong>
             <small id="directionClassADetail">génèrent 80% du CA</small>
           </article>
-        </section>
-
-        <section class="panel direction-alerts-panel" aria-labelledby="directionAlertsTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="step">À traiter</p>
-              <h2 id="directionAlertsTitle">Alertes &amp; relances</h2>
-              <p class="helper-text">Ruptures de seuil de stock sur les références que vous surveillez. Réglez vos seuils depuis l'onglet Stock.</p>
-            </div>
-            <span class="status-pill" id="directionAlertsCount">0 alerte</span>
-          </div>
-          <div class="home-reminders-list" id="directionAlertsList"></div>
         </section>
 
         <section class="dashboard-grid direction-two-col" aria-label="Clients à surveiller">
@@ -2419,11 +2414,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260930admin12" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260930admin13" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260930admin12" charset="UTF-8"></script>
+    <script src="script.js?v=20260930admin13" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
