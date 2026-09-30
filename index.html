@@ -20,14 +20,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20260930firebase10" />
-    <link rel="icon" href="assets/favicon.ico?v=20260930firebase10" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20260930firebase10" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20260930firebase10" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930firebase10" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260930admin11" />
+    <link rel="icon" href="assets/favicon.ico?v=20260930admin11" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20260930admin11" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20260930admin11" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260930admin11" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260930firebase10" />
+    <link rel="stylesheet" href="style.css?v=20260930admin11" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -1156,13 +1156,13 @@
             <div>
               <p class="step">Suivi terrain</p>
               <h2 id="backlogTitle">Reliquats &amp; litiges</h2>
-              <p class="helper-text">Consultez les commandes en souffrance et les litiges clients de votre secteur.</p>
+              <p class="helper-text" id="backlogHelper">Consultez les commandes en souffrance et les litiges clients de votre secteur.</p>
             </div>
             <span class="status-pill" id="backlogStatus">À connecter au Drive</span>
           </div>
 
           <section class="dashboard-grid backlog-metrics" aria-label="Résumé reliquats et litiges">
-            <article class="panel metric-card"><span>Commandes en souffrance</span><strong id="backlogRemainderCount">0</strong><small>Sur votre secteur</small></article>
+            <article class="panel metric-card"><span>Commandes en souffrance</span><strong id="backlogRemainderCount">0</strong><small id="backlogRemainderScope">Sur votre secteur</small></article>
             <article class="panel metric-card"><span>Litiges en cours</span><strong id="backlogReturnCount">0</strong><small>À surveiller</small></article>
             <article class="panel metric-card"><span>Litiges résolus</span><strong id="backlogTotalCount">0</strong><small>Grisés dans le tableau</small></article>
           </section>
@@ -1173,6 +1173,18 @@
               <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, référence, ville…" />
             </label>
             <input id="backlogTypeFilter" type="hidden" value="all" />
+            <label class="is-hidden" id="backlogSectorField" for="backlogSectorFilter">
+              Secteur
+              <select id="backlogSectorFilter"><option value="all">Tous les secteurs</option></select>
+            </label>
+            <label class="is-hidden" id="backlogTypeField" for="backlogTypeSelect">
+              Type
+              <select id="backlogTypeSelect">
+                <option value="all">Tout</option>
+                <option value="reliquat">Commandes en souffrance</option>
+                <option value="litige">Litiges</option>
+              </select>
+            </label>
             <button class="primary-button compact" type="button" id="refreshBacklog">Actualiser</button>
           </div>
 
@@ -2089,6 +2101,7 @@
                   <option value="hausse">Hausse</option>
                   <option value="baisse">Baisse</option>
                   <option value="stable">Stable</option>
+                  <option value="disparu">Rupture potentielle</option>
                 </select>
               </label>
               <label class="admin-prenet-search-label">
@@ -2405,11 +2418,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20260930firebase10" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20260930admin11" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20260930firebase10" charset="UTF-8"></script>
+    <script src="script.js?v=20260930admin11" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

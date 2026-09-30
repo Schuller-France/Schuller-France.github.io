@@ -789,6 +789,12 @@ const backlogReturnCount = document.querySelector("#backlogReturnCount");
 const backlogTotalCount = document.querySelector("#backlogTotalCount");
 const backlogSearch = document.querySelector("#backlogSearch");
 const backlogTypeFilter = document.querySelector("#backlogTypeFilter");
+const backlogSectorField = document.querySelector("#backlogSectorField");
+const backlogSectorFilter = document.querySelector("#backlogSectorFilter");
+const backlogTypeField = document.querySelector("#backlogTypeField");
+const backlogTypeSelect = document.querySelector("#backlogTypeSelect");
+const backlogHelper = document.querySelector("#backlogHelper");
+const backlogRemainderScope = document.querySelector("#backlogRemainderScope");
 const refreshBacklog = document.querySelector("#refreshBacklog");
 const backlogBody = document.querySelector("#backlogBody");
 const refreshDashboardData = document.querySelector("#refreshDashboardData");
@@ -968,6 +974,7 @@ const FIREBASE_ACTIONS = new Set([
   "getDeliveryOrderHistory", "savePurchaseCatalogPrice", "importPurchasePriceExport", "importRuptureExport", "importStockExport", "saveStockAlertThresholds",
   "createAntiErosionRequest", "updateAntiErosionRequest", "saveOffrePrixDraft", "deletePriceOffer", "sendOffrePrix", "saveExpenseDraftSummary",
   "deleteExpenseReport", "sendExpenseReport", "sendExecutiveExpenseReport",
+  "getExecutiveExpenses", "saveExecutiveExpense", "deleteExecutiveExpense",
 ]);
 
 function endpointForAction(action) {
@@ -3823,12 +3830,14 @@ const STOCK_STATUS_LABELS = {
   hausse: "Hausse",
   baisse: "Baisse",
   stable: "Stable",
+  disparu: "Rupture potentielle",
 };
 const STOCK_STATUS_BADGE_CLASS = {
   nouveau: "is-nouveau",
   hausse: "is-hausse",
   baisse: "is-baisse",
   stable: "is-stable",
+  disparu: "is-rupture",
 };
 
 function detectStockHeaderColumns(row) {
@@ -3934,8 +3943,25 @@ async function loadStockComparatif() {
   renderAdminStock();
 }
 
+// References presentes au dernier import mais absentes du fichier de la
+// semaine : affichees comme des lignes du tableau (filtre "Ruptures
+// potentielles"), avec le dernier stock connu quand il est disponible.
+function getAdminStockDisparuRows() {
+  return (adminStockLastDiff?.disparus || []).map((item) => ({
+    ref: item.ref || "",
+    designation: item.designation || "",
+    designation2: item.designation2 || "",
+    qty: 0,
+    previousQty: item.previousQty != null ? Number(item.previousQty) : null,
+    unit: item.unit || "",
+    status: "disparu",
+  }));
+}
+
 function getAdminStockRows() {
-  let rows = adminStockLastDiff && Array.isArray(adminStockLastDiff.rows) ? adminStockLastDiff.rows.map((row) => ({ ...row })) : [];
+  let rows = adminStockStatusFilter === "disparu"
+    ? getAdminStockDisparuRows()
+    : (adminStockLastDiff && Array.isArray(adminStockLastDiff.rows) ? adminStockLastDiff.rows.map((row) => ({ ...row })) : []);
   const query = normalize(adminStockSearch?.value || "");
   if (query) {
     rows = rows.filter((row) => normalize([row.ref, row.designation, row.designation2].filter(Boolean).join(" ")).includes(query));
@@ -3992,20 +4018,21 @@ function renderAdminStockSummary() {
   }
   adminStockSummary?.querySelectorAll("[data-admin-stock-filter]").forEach((button) => {
     const status = button.dataset.adminStockFilter;
-    button.classList.toggle("is-active", status !== "disparu" && status === adminStockStatusFilter);
+    button.classList.toggle("is-active", Boolean(status) && status === adminStockStatusFilter);
   });
   if (adminStockStatusSelect) {
-    adminStockStatusSelect.value = adminStockStatusFilter === "disparu" ? "" : adminStockStatusFilter;
+    adminStockStatusSelect.value = adminStockStatusFilter;
   }
   const disparus = adminStockLastDiff?.disparus || [];
   if (adminStockDisparusBox) {
-    if (!disparus.length) {
+    // Le detail est maintenant dans le tableau (clic sur "Ruptures potentielles").
+    if (!disparus.length || adminStockStatusFilter === "disparu") {
       adminStockDisparusBox.classList.add("is-hidden");
       adminStockDisparusBox.innerHTML = "";
     } else {
       adminStockDisparusBox.classList.remove("is-hidden");
       const list = disparus.map((r) => escapeHtml(`${r.ref || ""} - ${r.designation || ""}`)).join(" • ");
-      adminStockDisparusBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>⚠️ ${disparus.length} référence(s) disparue(s) depuis le dernier import (rupture potentielle) :</strong> ${list}</p></div>`;
+      adminStockDisparusBox.innerHTML = `<div class="admin-purchase-meta"><p><strong>⚠️ ${disparus.length} référence(s) disparue(s) depuis le dernier import (rupture potentielle).</strong> <button type="button" class="ghost-button compact" data-admin-stock-show-disparus>Afficher la liste</button></p><p>${list}</p></div>`;
     }
   }
 }
@@ -4015,7 +4042,9 @@ function renderAdminStockRows(rows) {
   if (!rows.length) {
     let message = "Chargement...";
     if (adminStockLoaded) {
-      message = adminStockLastDiff ? "Aucune référence ne correspond à ce filtre." : "Déposez le fichier Artikel ci-dessus pour lancer le premier suivi.";
+      message = adminStockLastDiff
+        ? (adminStockStatusFilter === "disparu" ? "Aucune rupture potentielle : toutes les références du dernier import sont encore présentes." : "Aucune référence ne correspond à ce filtre.")
+        : "Déposez le fichier Artikel ci-dessus pour lancer le premier suivi.";
     }
     adminStockBody.innerHTML = `<tr><td colspan="7" class="admin-empty">${escapeHtml(message)}</td></tr>`;
     return;
@@ -4040,7 +4069,7 @@ function renderAdminStockRows(rows) {
       <td><strong>${escapeHtml(row.ref || "-")}</strong></td>
       <td>${escapeHtml(row.designation || "-")}</td>
       <td>${escapeHtml(row.designation2 || "-")}</td>
-      <td class="numeric">${formatNumber(row.qty || 0)}${row.previousQty != null && row.previousQty !== row.qty ? `<small>était ${formatNumber(row.previousQty)}</small>` : ""}</td>
+      <td class="numeric">${row.status === "disparu" ? "<strong>Absente</strong>" : formatNumber(row.qty || 0)}${row.previousQty != null && row.previousQty !== row.qty ? `<small>était ${formatNumber(row.previousQty)}</small>` : ""}</td>
       <td>${escapeHtml(row.unit || "-")}</td>
       <td><span class="admin-purchase-badge ${badgeClass}">${escapeHtml(statusLabel)}</span></td>
       <td><button type="button" class="ghost-button compact" data-admin-stock-history-btn="${escapeHtml(row.ref || "")}">${isOpen ? "Masquer" : "Voir"}</button></td>
@@ -6905,6 +6934,8 @@ function arrangeTabsForUser(user) {
     lastTab = adminRuptureTab;
     appTabs.insertBefore(adminStockTab, lastTab.nextSibling);
     lastTab = adminStockTab;
+    appTabs.insertBefore(backlogTab, lastTab.nextSibling);
+    lastTab = backlogTab;
     appTabs.insertBefore(prospectionTab, lastTab.nextSibling);
     return;
   }
@@ -7034,14 +7065,42 @@ function hideBacklogItem(id) {
   writeBacklogState(backlogDoneStorageKey, done);
 }
 
+function configureBacklogForUser(isAdmin) {
+  backlogSectorField?.classList.toggle("is-hidden", !isAdmin);
+  backlogTypeField?.classList.toggle("is-hidden", !isAdmin);
+  backlogSectorField?.closest(".backlog-toolbar")?.classList.toggle("is-admin", isAdmin);
+  if (backlogHelper) {
+    backlogHelper.textContent = isAdmin
+      ? "Tous les reliquats et litiges du fichier Drive, tous secteurs confondus. Filtrez par secteur ou par type."
+      : "Consultez les commandes en souffrance et les litiges clients de votre secteur.";
+  }
+  if (backlogRemainderScope) backlogRemainderScope.textContent = isAdmin ? "Tous secteurs" : "Sur votre secteur";
+  if (!isAdmin) {
+    if (backlogSectorFilter) backlogSectorFilter.value = "all";
+    if (backlogTypeFilter) backlogTypeFilter.value = "all";
+    if (backlogTypeSelect) backlogTypeSelect.value = "all";
+  }
+}
+
+function renderBacklogSectorOptions() {
+  if (!backlogSectorFilter || currentUser?.role !== "admin") return;
+  const current = backlogSectorFilter.value || "all";
+  const sectors = [...new Set(backlogItemsCache.map(normalizeBacklogItem).map((item) => item.sector).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+  backlogSectorFilter.innerHTML = `<option value="all">Tous les secteurs</option>${sectors.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(sector)}</option>`).join("")}`;
+  backlogSectorFilter.value = sectors.includes(current) ? current : "all";
+}
+
 function getFilteredBacklogItems() {
   const query = normalize(backlogSearch?.value || "");
   const typeFilter = backlogTypeFilter?.value || "all";
+  const sectorFilter = currentUser?.role === "admin" ? (backlogSectorFilter?.value || "all") : "all";
   return backlogItemsCache
     .map(normalizeBacklogItem)
     .filter(isBacklogItemForCurrentUser)
     .filter((item) => !isBacklogHidden(item.id))
     .filter((item) => typeFilter === "all" || item.type === typeFilter)
+    .filter((item) => sectorFilter === "all" || getBacklogSectorKey(item.sector) === getBacklogSectorKey(sectorFilter))
     .filter((item) => {
       if (!query) return true;
       return normalize([
@@ -7066,7 +7125,10 @@ function getFilteredBacklogItems() {
 
 function renderBacklog() {
   if (!backlogBody) return;
-  const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id));
+  renderBacklogSectorOptions();
+  const adminSector = currentUser?.role === "admin" ? (backlogSectorFilter?.value || "all") : "all";
+  const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id))
+    .filter((item) => adminSector === "all" || getBacklogSectorKey(item.sector) === getBacklogSectorKey(adminSector));
   const filteredItems = getFilteredBacklogItems();
   const reliquatCount = sectorItems.filter((item) => item.type === "reliquat").length;
   const openLitigeCount = sectorItems.filter((item) => item.type === "litige" && !item.resolved).length;
@@ -7179,6 +7241,7 @@ function showLogin() {
     localStorage.removeItem(`${dashboardStatsCacheKey}:${previousUserId}`);
   }
   stopDriveAutoRefresh();
+  executiveExpenseServerDrafts = null;
   currentUser = null;
   currentSessionToken = "";
   visibleClients = [];
@@ -7305,7 +7368,7 @@ function getLaunchTabFromUrl() {
 function getLaunchTabForUser(user) {
   const tab = getLaunchTabFromUrl();
   if (!tab) return "";
-  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "prospection", "tour", "history"]);
+  const adminTabs = new Set(["admin", "adminChecking", "adminExecutiveExpenses", "adminPrenet", "stats", "antiErosion", "prospection", "tour", "history", "backlog"]);
   const commercialTabs = new Set(["home", "client360", "stats", "antiErosion", "order", "history", "quote", "sample", "expenses", "notes", "tour", "backlog", "prenet", "tarif", "promotion", "prospection", "problem"]);
   return user.role === "admin"
     ? (adminTabs.has(tab) ? tab : "")
@@ -7344,7 +7407,10 @@ function showApp(user, token = user.token || "") {
   const isAdmin = currentUser.role === "admin";
   arrangeTabsForUser(currentUser);
   tutorialTab?.classList.toggle("is-hidden", isAdmin || !isTrainingAccount(currentUser));
-  [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, backlogTab, problemTab].forEach((tab) => tab?.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, quoteTab, sampleTab, expensesTab, notesTab, prenetTab, tarifTab, promotionTab, client360Tab, problemTab].forEach((tab) => tab?.classList.toggle("is-hidden", isAdmin));
+  // Reliquats & litiges : visible aussi cote administration, tous secteurs.
+  backlogTab?.classList.remove("is-hidden");
+  configureBacklogForUser(isAdmin);
   historyTab?.classList.remove("is-hidden");
   historyCommercialField?.classList.toggle("is-hidden", !isAdmin);
   if (historyDescription) historyDescription.textContent = isAdmin
@@ -8084,14 +8150,55 @@ function renderOffrePrixTotal() {
   offrePrixTotal.textContent = formatter.format(total);
 }
 
+// Import d'un fichier dans l'offre de prix (30/09/2026).
+// Corrige : les prix ecrits "4,15 €" ou "1.234,56" etaient lus comme 0 (le
+// site reprenait alors le prix du tarif sans rien dire) ; la colonne prix
+// pouvait etre "Prix brut"/"Montant" au lieu du "Prix net" ; la colonne
+// reference pouvait etre un code EAN ou un code client ; l'en-tete n'etait
+// cherche que sur la premiere ligne du fichier.
+function parseOffrePrixMoney(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  let text = String(value).replace(/[\s  ]/g, "").replace(/[^0-9,.\-]/g, "");
+  if (!text || !/\d/.test(text)) return null;
+  const lastComma = text.lastIndexOf(",");
+  const lastDot = text.lastIndexOf(".");
+  if (lastComma > -1 && lastDot > -1) {
+    // Le dernier separateur est la decimale, l'autre le separateur de milliers.
+    text = lastComma > lastDot ? text.replace(/\./g, "").replace(",", ".") : text.replace(/,/g, "");
+  } else if (lastComma > -1) {
+    text = text.replace(/,/g, (match, offset) => (offset === lastComma ? "." : ""));
+  } else if ((text.match(/\./g) || []).length > 1) {
+    const last = text.lastIndexOf(".");
+    text = text.replace(/\./g, (match, offset) => (offset === last ? "." : ""));
+  }
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
 function detectOffrePrixHeaderColumns(row) {
-  const keys = (row || []).map((cell) => normalize(String(cell ?? "").trim()));
-  const findIndex = (patterns) => keys.findIndex((key) => key && patterns.some((pattern) => key.includes(pattern)));
-  const refIdx = findIndex(["reference", "ref", "code", "sku", "article"]);
-  const qtyIdx = findIndex(["quantite", "qte", "qty", "quantity"]);
-  const priceIdx = findIndex(["prix", "price", "net", " pu", "pu ", "tarif"]);
+  // "P.U. HT" -> "p u ht", "Réf." -> "ref" : on ignore la ponctuation.
+  const keys = (row || []).map((cell) => normalize(String(cell ?? "")).replace(/[^a-z0-9%]+/g, " ").trim());
+  const pick = (groups, exclude = []) => {
+    for (const patterns of groups) {
+      const index = keys.findIndex((key) => key
+        && patterns.some((pattern) => key === pattern || key.includes(pattern))
+        && !exclude.some((bad) => key.includes(bad)));
+      if (index > -1) return index;
+    }
+    return -1;
+  };
+  const refIdx = pick(
+    [["reference", "ref article", "code article", "ref"], ["article", "sku", "code produit"], ["code"]],
+    ["client", "ean", "gencod", "barre", "fournisseur", "postal", "designation"]
+  );
   if (refIdx === -1) return null;
-  return { refIdx, qtyIdx, priceIdx };
+  const qtyIdx = pick([["quantite", "qte", "qty", "quantity"], ["nombre", "nb"]], ["prix", "unite de vente"]);
+  const priceIdx = pick(
+    [["prix net", "pu net", "net ht", "prix unitaire net"], ["prix unitaire", "pu ht", "p u", "pu"], ["prix", "price", "tarif", "net"]],
+    ["total", "montant", "brut", "remise", "%", "quantite", "qte"]
+  );
+  return { refIdx, qtyIdx: qtyIdx === refIdx ? -1 : qtyIdx, priceIdx: priceIdx === refIdx ? -1 : priceIdx };
 }
 
 function splitOffrePrixTextRow(line) {
@@ -8105,28 +8212,36 @@ function splitOffrePrixTextRow(line) {
 function parseOffrePrixImportMatrix(matrix) {
   const rows = (matrix || [])
     .map((row) => (Array.isArray(row) ? row : [row]))
-    .map((row) => row.map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim())))
+    .map((row) => row.map((cell) => (cell === undefined || cell === null ? "" : (typeof cell === "number" ? cell : String(cell).trim()))))
     .filter((row) => row.some((cell) => cell !== ""));
   if (!rows.length) return [];
 
   let dataRows = rows;
   let columns = { refIdx: 0, qtyIdx: 1, priceIdx: 2 };
-  const headerColumns = detectOffrePrixHeaderColumns(rows[0]);
-  if (headerColumns) {
-    columns = headerColumns;
-    dataRows = rows.slice(1);
+  // L'en-tete peut etre precede d'un titre, d'un logo ou de coordonnees.
+  for (let index = 0; index < Math.min(rows.length, 15); index += 1) {
+    const headerColumns = detectOffrePrixHeaderColumns(rows[index]);
+    if (headerColumns) {
+      columns = headerColumns;
+      dataRows = rows.slice(index + 1);
+      break;
+    }
   }
 
   return dataRows
     .map((row) => {
-      const rawRef = row[columns.refIdx] || "";
+      const rawRef = String(row[columns.refIdx] ?? "").trim();
       if (!rawRef) return null;
+      // Lignes de total / sous-total en bas de tableau.
+      if (/^(total|sous[\s-]?total|montant)/i.test(rawRef)) return null;
       const rawQty = columns.qtyIdx > -1 ? row[columns.qtyIdx] : "";
       const rawPrice = columns.priceIdx > -1 ? row[columns.priceIdx] : "";
+      const qty = parseOffrePrixMoney(rawQty);
+      const price = parseOffrePrixMoney(rawPrice);
       return {
         ref: rawRef,
-        qty: rawQty ? Math.max(Math.round(parseAmount(rawQty)), 0) : null,
-        price: rawPrice ? parseAmount(rawPrice) : null,
+        qty: qty != null ? Math.max(Math.round(qty), 0) : null,
+        price: price != null && price >= 0 ? Math.round(price * 10000) / 10000 : null,
       };
     })
     .filter(Boolean);
@@ -8135,11 +8250,13 @@ function parseOffrePrixImportMatrix(matrix) {
 function applyOffrePrixImportRows(parsedRows) {
   if (!parsedRows.length) return;
   const unmatched = [];
+  const tariffPriced = [];
   parsedRows.forEach((row) => {
     const product = findProduct(row.ref);
     const qty = row.qty && row.qty > 0 ? row.qty : (product ? defaultQuantityForProduct(product) : 1);
     const price = row.price != null && row.price > 0 ? row.price : (product ? getOffrePrixUnitPrice(product, qty) : 0);
     if (!product) unmatched.push(row.ref);
+    if (product && !(row.price != null && row.price > 0)) tariffPriced.push(product.ref);
     offrePrixLineItems.push({
       id: crypto.randomUUID(),
       ref: product ? product.ref : row.ref,
@@ -8155,6 +8272,9 @@ function applyOffrePrixImportRows(parsedRows) {
     if (unmatched.length) {
       const preview = unmatched.slice(0, 5).join(", ");
       parts.push(`Introuvable(s) dans le tarif : ${preview}${unmatched.length > 5 ? "…" : ""} (vérifiez la ligne avant d'envoyer).`);
+    }
+    if (tariffPriced.length) {
+      parts.push(`${tariffPriced.length} ligne(s) sans prix dans le fichier : prix du tarif appliqué (${tariffPriced.slice(0, 5).join(", ")}${tariffPriced.length > 5 ? "…" : ""}).`);
     }
     offrePrixStatus.textContent = parts.join(" ");
   }
@@ -9480,8 +9600,88 @@ function getExecutiveExpenseDrafts() {
   }
 }
 
+// Historique partage (Firebase) : le meme sur le PC et le telephone.
+// Le navigateur garde en plus une copie locale avec les photos des
+// justificatifs des brouillons (le serveur ne garde que leur nom).
+let executiveExpenseServerDrafts = null;
+
+function stripExecutiveDraftReceipts(draft) {
+  return {
+    ...draft,
+    lines: (draft?.lines || []).map(({ receiptDataUrl, receiptMimeType, receiptFile, ...rest }) => rest),
+  };
+}
+
 function saveExecutiveExpenseDrafts(drafts) {
-  localStorage.setItem(executiveExpenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
+  const list = Array.isArray(drafts) ? drafts : [];
+  const key = executiveExpenseDraftKey();
+  // Les photos peuvent depasser la place du navigateur (~5 Mo) : on garde
+  // alors les photos des 3 notes les plus recentes seulement, puis aucune.
+  const attempts = [
+    list,
+    list.map((draft, index) => (index < 3 ? draft : stripExecutiveDraftReceipts(draft))),
+    list.map(stripExecutiveDraftReceipts),
+  ];
+  for (const attempt of attempts) {
+    try {
+      localStorage.setItem(key, JSON.stringify(attempt));
+      return;
+    } catch (error) {
+      // essai suivant, plus leger
+    }
+  }
+  console.warn("Frais dirigeants : stockage local plein, historique conserve sur le serveur uniquement.");
+}
+
+function getMergedExecutiveExpenseDrafts() {
+  const byId = new Map();
+  (executiveExpenseServerDrafts || []).forEach((draft) => { if (draft?.id) byId.set(draft.id, draft); });
+  getExecutiveExpenseDrafts().forEach((draft) => {
+    if (!draft?.id) return;
+    const server = byId.get(draft.id);
+    if (!server || String(draft.updatedAt || "") >= String(server.updatedAt || "")) byId.set(draft.id, { ...(server || {}), ...draft });
+  });
+  return [...byId.values()];
+}
+
+function canSyncExecutiveExpenses() {
+  return Boolean(currentUser && currentUser.role === "admin" && !isLocalAdminSession());
+}
+
+async function pushExecutiveExpenseToServer(draft, replaceId = "") {
+  if (!draft?.id || !canSyncExecutiveExpenses()) return;
+  try {
+    const result = await postService({
+      action: "saveExecutiveExpense",
+      draft: JSON.stringify(stripExecutiveDraftReceipts(draft)),
+      replaceId: replaceId && replaceId !== draft.id ? replaceId : "",
+      background: true,
+    });
+    const saved = result.draft || stripExecutiveDraftReceipts(draft);
+    executiveExpenseServerDrafts = [saved, ...(executiveExpenseServerDrafts || []).filter((item) => item.id !== saved.id && item.id !== replaceId)];
+  } catch (error) {
+    console.warn("Frais dirigeants : synchronisation impossible pour le moment.", error);
+  }
+}
+
+async function loadExecutiveExpenseHistory() {
+  if (!canSyncExecutiveExpenses()) {
+    renderExecutiveExpenseHistory();
+    return;
+  }
+  try {
+    const result = await postService({ action: "getExecutiveExpenses", background: true });
+    executiveExpenseServerDrafts = Array.isArray(result.drafts) ? result.drafts : [];
+    renderExecutiveExpenseHistory();
+    // Notes enregistrees avant cette mise a jour (seulement sur cet appareil) :
+    // on les envoie une fois sur le serveur pour les retrouver partout.
+    const serverIds = new Set(executiveExpenseServerDrafts.map((draft) => draft.id));
+    const localOnly = getExecutiveExpenseDrafts().filter((draft) => draft?.id && !serverIds.has(draft.id));
+    for (const draft of localOnly) await pushExecutiveExpenseToServer(draft);
+  } catch (error) {
+    console.warn("Frais dirigeants : historique serveur indisponible.", error);
+  }
+  renderExecutiveExpenseHistory();
 }
 
 function getExecutiveExpenseDraftTitle() {
@@ -9496,23 +9696,25 @@ function getExecutiveExpenseDraftTitle() {
 function renderExecutiveExpenseHistory() {
   if (!executiveExpenseHistoryList) return;
   const query = normalize(executiveExpenseHistorySearch?.value || "");
-  const drafts = getExecutiveExpenseDrafts()
+  const drafts = getMergedExecutiveExpenseDrafts()
     .filter((draft) => !query || normalize(`${draft.title} ${draft.owner} ${draft.period} ${draft.note} ${draft.updatedLabel}`).includes(query))
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
   if (!drafts.length) {
-    executiveExpenseHistoryList.innerHTML = `<p class="empty-state">Aucune note de frais dirigeants enregistrée pour le moment.</p>`;
+    executiveExpenseHistoryList.innerHTML = executiveExpenseServerDrafts === null && canSyncExecutiveExpenses()
+      ? `<p class="empty-state">Chargement de l'historique…</p>`
+      : `<p class="empty-state">Aucune note de frais dirigeants enregistrée pour le moment.</p>`;
     return;
   }
   executiveExpenseHistoryList.innerHTML = drafts.map((draft) => {
     const totals = draft.totals || getExecutiveExpenseTotalsFor(draft.lines || []);
-    const receiptCount = (draft.lines || []).filter((line) => line.receiptName).length;
+    const receiptCount = draft.receiptCount || (draft.lines || []).filter((line) => line.receiptName).length;
     const active = draft.id === activeExecutiveExpenseDraftId ? " is-active" : "";
     const statusLabel = draft.status === "sent" ? "Envoyé" : "Brouillon";
     return `
       <article class="expense-history-item${active}" data-executive-expense-draft="${escapeHtml(draft.id)}">
         <button class="expense-history-open" type="button" data-open-executive-expense-draft="${escapeHtml(draft.id)}">
           <strong>${escapeHtml(draft.title || "Frais dirigeants")}</strong>
-          <span>${escapeHtml(statusLabel)} · ${escapeHtml(draft.updatedLabel || "Non daté")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
+          <span>${/^envoy/i.test(draft.updatedLabel || "") ? "" : `${escapeHtml(statusLabel)} · `}${escapeHtml(draft.updatedLabel || "Non daté")} · ${(draft.lines || []).length} ligne(s) · ${receiptCount} justificatif(s)</span>
           <em>${escapeHtml(formatter.format(roundMoney(totals.amount || 0)))} TTC</em>
         </button>
         <div class="expense-history-actions">
@@ -9532,7 +9734,7 @@ function getExecutiveExpenseTotalsFor(lines) {
 }
 
 function openExecutiveExpenseDraft(id) {
-  const draft = getExecutiveExpenseDrafts().find((item) => item.id === id);
+  const draft = getMergedExecutiveExpenseDrafts().find((item) => item.id === id);
   if (!draft) return;
   activeExecutiveExpenseDraftId = draft.id;
   executiveExpenseLineItems = (draft.lines || []).map(normalizeExecutiveExpenseLine);
@@ -9549,10 +9751,15 @@ function openExecutiveExpenseDraft(id) {
 }
 
 function deleteExecutiveExpenseDraft(id) {
-  const draft = getExecutiveExpenseDrafts().find((item) => item.id === id);
+  const draft = getMergedExecutiveExpenseDrafts().find((item) => item.id === id);
   if (!draft) return;
   if (!window.confirm(`Supprimer la note "${draft.title || "sans nom"}" ?`)) return;
   saveExecutiveExpenseDrafts(getExecutiveExpenseDrafts().filter((item) => item.id !== id));
+  if (executiveExpenseServerDrafts) executiveExpenseServerDrafts = executiveExpenseServerDrafts.filter((item) => item.id !== id);
+  if (canSyncExecutiveExpenses()) {
+    postService({ action: "deleteExecutiveExpense", id, background: true })
+      .catch((error) => console.warn("Frais dirigeants : suppression serveur impossible.", error));
+  }
   if (activeExecutiveExpenseDraftId === id) resetExecutiveExpensesForm();
   else renderExecutiveExpenseHistory();
 }
@@ -9584,8 +9791,10 @@ function saveSentExecutiveExpenseHistory(lines, receiptEntries, owner, period, n
     updatedLabel: `Envoyé le ${now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`,
     receiptCount: receiptEntries.length,
   };
-  saveExecutiveExpenseDrafts([item, ...getExecutiveExpenseDrafts().filter((draft) => draft.id !== activeExecutiveExpenseDraftId)].slice(0, 60));
+  const replacedDraftId = activeExecutiveExpenseDraftId || "";
+  saveExecutiveExpenseDrafts([item, ...getExecutiveExpenseDrafts().filter((draft) => draft.id !== replacedDraftId)].slice(0, 60));
   activeExecutiveExpenseDraftId = item.id;
+  pushExecutiveExpenseToServer(item, replacedDraftId);
 }
 
 function serializeExecutiveExpenseLine(line) {
@@ -9691,6 +9900,7 @@ async function saveCurrentExecutiveExpenseDraft() {
     else drafts.unshift(draft);
     saveExecutiveExpenseDrafts(drafts.slice(0, 40));
     activeExecutiveExpenseDraftId = draft.id;
+    pushExecutiveExpenseToServer(draft);
     if (executiveExpensesSendStatus) {
       executiveExpensesSendStatus.textContent = `Note enregistrée : ${title}.`;
       executiveExpensesSendStatus.className = "tarif-send-status is-success";
@@ -9812,7 +10022,11 @@ async function sendExecutiveExpenseReportDraft() {
       draftId: activeExecutiveExpenseDraftId || "",
       skipSessionToken: localAdmin ? "1" : "",
     });
-    saveSentExecutiveExpenseHistory(payloadLines, receiptEntries, owner, executiveExpensesPeriod?.value.trim() || "", executiveExpensesNote?.value.trim() || "");
+    try {
+      saveSentExecutiveExpenseHistory(payloadLines, receiptEntries, owner, executiveExpensesPeriod?.value.trim() || "", executiveExpensesNote?.value.trim() || "");
+    } catch (historyError) {
+      console.warn("Frais dirigeants : historique non enregistre.", historyError);
+    }
     resetExecutiveExpensesForm();
     if (executiveExpensesSendStatus) {
       executiveExpensesSendStatus.textContent = result.message || `Frais dirigeants envoyés à ${schullerOperationsEmail}.`;
@@ -13670,7 +13884,9 @@ function setActiveTab(tabName) {
 
   if (showAdminExecutiveExpenses) {
     renderExecutiveExpenses();
-    requestAnimationFrame(() => executiveExpenseOwner?.focus());
+    loadExecutiveExpenseHistory();
+    // Sur telephone, ne pas ouvrir le clavier des l'arrivee sur l'onglet.
+    if (window.innerWidth > 760) requestAnimationFrame(() => executiveExpenseOwner?.focus());
   }
 
   if (showNotes) {
@@ -14622,14 +14838,19 @@ adminStockSummary?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-admin-stock-filter]");
   if (!button) return;
   const status = button.dataset.adminStockFilter;
-  if (status === "disparu") {
-    adminStockDisparusBox?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
-  }
   setAdminStockStatusFilter(status);
+  if (status && adminStockStatusFilter === status) {
+    // Affiche le tableau filtre juste sous les compteurs.
+    adminStockBody?.closest(".admin-log-wrap")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 });
 document.querySelectorAll("[data-admin-stock-sort-btn]").forEach((button) => {
   button.addEventListener("click", () => setAdminStockSort(button.dataset.adminStockSortBtn));
+});
+adminStockDisparusBox?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-admin-stock-show-disparus]")) return;
+  setAdminStockStatusFilter("disparu");
+  adminStockBody?.closest(".admin-log-wrap")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 adminStockBody?.addEventListener("click", (event) => {
   const btn = event.target.closest("[data-admin-stock-history-btn]");
@@ -14761,6 +14982,11 @@ document.querySelectorAll("[data-tablet-tab]").forEach((button) => {
 refreshBacklog.addEventListener("click", () => loadBacklogItems(false));
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
+backlogSectorFilter?.addEventListener("change", renderBacklog);
+backlogTypeSelect?.addEventListener("change", () => {
+  if (backlogTypeFilter) backlogTypeFilter.value = backlogTypeSelect.value;
+  renderBacklog();
+});
 backlogBody.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-backlog-done]");
   if (!checkbox) return;

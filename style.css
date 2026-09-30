@@ -10930,3 +10930,88 @@ body.tablet-mode .offre-prix-table td:nth-child(9)::before { content: ""; displa
   .offre-prix-table td:nth-child(8)::before { content: "Montant HT"; }
   .offre-prix-table td:nth-child(9)::before { content: ""; display: none; }
 }
+
+/* ------------------------------------------------------------------
+   Frais dirigeants sur telephone (30/09/2026) : une carte par ligne,
+   gros champs tactiles, boutons pleine largeur, historique lisible.
+   ------------------------------------------------------------------ */
+.expense-history-actions [data-delete-executive-expense-draft] { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
+.executive-history-sync { margin: -6px 0 12px; color: var(--muted); font-size: 12px; font-weight: 800; }
+
+.tablet-mode .executive-expenses-table td:nth-child(6)::before { content: "Justificatif"; }
+.tablet-mode .executive-expenses-table td:nth-child(7)::before { content: ""; display: none; }
+
+/* Surcharge de la mise en page telephone existante (bloc "Frais dirigeants
+   mobile" plus haut) : la barre d'actions collante occupait la moitie de
+   l'ecran et recouvrait les lignes ; le bouton de suppression prenait toute
+   la largeur de la carte. */
+@media (max-width: 860px) {
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table tr {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    column-gap: 10px !important;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(3),
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(6) {
+    grid-column: 1 / -1;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(7) {
+    position: absolute !important;
+    top: 10px;
+    right: 10px;
+    display: block !important;
+    width: auto !important;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table .icon-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    color: #e30613;
+    font-size: 22px;
+    line-height: 1;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(4) input,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-table td:nth-child(5) input {
+    text-align: right;
+    font-size: 18px !important;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .expense-upload span {
+    min-height: 56px !important;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions {
+    position: static !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    margin-inline: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border-top: 0 !important;
+    backdrop-filter: none !important;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions .executive-expenses-summary,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions #addExecutiveExpenseLine,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions #sendExecutiveExpenseReport,
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions .tarif-send-status {
+    grid-column: 1 / -1;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions .executive-expenses-summary { order: -1; }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions #addExecutiveExpenseLine {
+    order: -2;
+    min-height: 52px !important;
+    border-style: dashed;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions #sendExecutiveExpenseReport {
+    min-height: 56px !important;
+    font-size: 17px;
+  }
+  body:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions .tarif-send-status { font-size: 15px; }
+  body.dark-theme:not(.tablet-mode) #adminExecutiveExpensesView .executive-expenses-actions { background: transparent !important; }
+}
+
+/* Reliquats & litiges cote administration : filtres secteur + type */
+.backlog-toolbar.is-admin { grid-template-columns: minmax(240px, 1fr) minmax(170px, .3fr) minmax(190px, .3fr) auto; }
+@media (max-width: 860px) {
+  .backlog-toolbar.is-admin { grid-template-columns: 1fr 1fr; }
+  .backlog-toolbar.is-admin > label:first-child,
+  .backlog-toolbar.is-admin #refreshBacklog { grid-column: 1 / -1; }
+}
