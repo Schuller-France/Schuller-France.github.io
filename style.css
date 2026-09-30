@@ -11009,9 +11009,25 @@ body.tablet-mode .offre-prix-table td:nth-child(9)::before { content: ""; displa
 }
 
 /* Reliquats & litiges cote administration : filtres secteur + type */
-.backlog-toolbar.is-admin { grid-template-columns: minmax(240px, 1fr) minmax(170px, .3fr) minmax(190px, .3fr) auto; }
+.backlog-toolbar.is-admin { grid-template-columns: minmax(220px, 1fr) minmax(160px, .3fr) minmax(170px, .3fr) auto auto; }
+.backlog-toolbar:not(.is-admin) { grid-template-columns: minmax(280px, 1fr) auto auto; }
+.backlog-resolved-toggle { min-height: 46px; white-space: nowrap; }
+.backlog-resolved-toggle.is-active { color: #fff !important; background: #171a21 !important; border-color: #171a21 !important; }
 @media (max-width: 860px) {
   .backlog-toolbar.is-admin { grid-template-columns: 1fr 1fr; }
   .backlog-toolbar.is-admin > label:first-child,
   .backlog-toolbar.is-admin #refreshBacklog { grid-column: 1 / -1; }
 }
+
+/* Stock : une hausse de stock est une bonne nouvelle (vert), une baisse une
+   alerte (rouge) - l'inverse du comparatif d'achat ou une hausse de prix est
+   mauvaise. Les memes classes servent aux deux ecrans, d'ou ce cadrage. */
+#adminStockView .admin-purchase-summary-item.is-hausse .admin-purchase-summary-value { color: #1e9e5a; }
+#adminStockView .admin-purchase-summary-item.is-baisse .admin-purchase-summary-value { color: #b3271f; }
+#adminStockView .admin-purchase-badge.is-hausse { color: #1e9e5a; background: rgba(30, 158, 90, 0.1); }
+#adminStockView .admin-purchase-badge.is-baisse { color: #b3271f; background: rgba(179, 39, 31, 0.1); }
+@media (max-width: 860px) {
+  .backlog-toolbar:not(.is-admin) { grid-template-columns: 1fr 1fr; }
+  .backlog-toolbar:not(.is-admin) > label:first-child { grid-column: 1 / -1; }
+}
+body.tablet-mode .backlog-toolbar.backlog-toolbar { grid-template-columns: 1fr; }

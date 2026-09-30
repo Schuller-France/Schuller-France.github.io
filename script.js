@@ -795,6 +795,24 @@ const backlogTypeField = document.querySelector("#backlogTypeField");
 const backlogTypeSelect = document.querySelector("#backlogTypeSelect");
 const backlogHelper = document.querySelector("#backlogHelper");
 const backlogRemainderScope = document.querySelector("#backlogRemainderScope");
+const backlogHideResolved = document.querySelector("#backlogHideResolved");
+const backlogHideResolvedKey = "schullerBacklogHideResolved";
+
+function isBacklogHidingResolved() {
+  try {
+    return localStorage.getItem(backlogHideResolvedKey) === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+function syncBacklogHideResolvedButton() {
+  if (!backlogHideResolved) return;
+  const hiding = isBacklogHidingResolved();
+  backlogHideResolved.classList.toggle("is-active", hiding);
+  backlogHideResolved.setAttribute("aria-pressed", hiding ? "true" : "false");
+  backlogHideResolved.textContent = hiding ? "Afficher les litiges résolus" : "Masquer les litiges résolus";
+}
 const refreshBacklog = document.querySelector("#refreshBacklog");
 const backlogBody = document.querySelector("#backlogBody");
 const refreshDashboardData = document.querySelector("#refreshDashboardData");
@@ -7100,6 +7118,7 @@ function getFilteredBacklogItems() {
     .filter(isBacklogItemForCurrentUser)
     .filter((item) => !isBacklogHidden(item.id))
     .filter((item) => typeFilter === "all" || item.type === typeFilter)
+    .filter((item) => !(isBacklogHidingResolved() && item.type === "litige" && item.resolved))
     .filter((item) => sectorFilter === "all" || getBacklogSectorKey(item.sector) === getBacklogSectorKey(sectorFilter))
     .filter((item) => {
       if (!query) return true;
@@ -7126,6 +7145,7 @@ function getFilteredBacklogItems() {
 function renderBacklog() {
   if (!backlogBody) return;
   renderBacklogSectorOptions();
+  syncBacklogHideResolvedButton();
   const adminSector = currentUser?.role === "admin" ? (backlogSectorFilter?.value || "all") : "all";
   const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser).filter((item) => !isBacklogHidden(item.id))
     .filter((item) => adminSector === "all" || getBacklogSectorKey(item.sector) === getBacklogSectorKey(adminSector));
@@ -14983,6 +15003,14 @@ refreshBacklog.addEventListener("click", () => loadBacklogItems(false));
 backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
 backlogSectorFilter?.addEventListener("change", renderBacklog);
+backlogHideResolved?.addEventListener("click", () => {
+  try {
+    localStorage.setItem(backlogHideResolvedKey, isBacklogHidingResolved() ? "0" : "1");
+  } catch (error) {
+    // navigation privee : le choix ne sera pas memorise
+  }
+  renderBacklog();
+});
 backlogTypeSelect?.addEventListener("change", () => {
   if (backlogTypeFilter) backlogTypeFilter.value = backlogTypeSelect.value;
   renderBacklog();
