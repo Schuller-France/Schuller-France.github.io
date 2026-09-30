@@ -2821,7 +2821,7 @@ async function sendCommercialPrenetPrices(event) {
       rows: JSON.stringify(rows),
     });
     if (prenetSendStatus) {
-      prenetSendStatus.textContent = result.message || `Prix nets envoyés à ${recipient}.`;
+      prenetSendStatus.textContent = `✓ E-mail envoyé à ${recipient}`;
       prenetSendStatus.classList.add("is-success");
     }
     recordActivity("Prix nets envoyés", `${selectedPrenetClient.name || "Client"} - ${rows.length} référence(s) à ${recipient}`);
@@ -4391,7 +4391,7 @@ async function sendAdminPrenetPrices() {
       }),
       rows: JSON.stringify(rows),
     });
-    if (adminPrenetSendStatus) setAdminPrenetStatus("✓ " + (result.message || "PDF envoyé."), "success");
+    if (adminPrenetSendStatus) setAdminPrenetStatus(`✓ E-mail envoyé à ${recipient}`, "success");
   } catch (error) {
     if (adminPrenetSendStatus) setAdminPrenetStatus((error.message || "Envoi impossible.") + (/temps|invalide|Connexion/i.test(error.message || "") ? " Vérifiez la boîte de réception avant de renvoyer : l'e-mail a peut-être quand même été envoyé." : ""), "error");
   } finally {
