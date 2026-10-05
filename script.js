@@ -68,6 +68,7 @@ let lines = [];
 let currentOrderDraftId = null;
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
+let offrePrixAutoEmail = "";
 let offrePrixLineItems = [];
 let offrePrixImporting = false;
 let priceOffers = [];
@@ -8260,13 +8261,23 @@ function selectOffrePrixClient(client) {
       <span>${escapeHtml(client.sector)}</span>
     `;
   }
-  if (offrePrixStatus) offrePrixStatus.textContent = "";
+  const clientEmail = getPrenetClientEmail(client);
+  if (offrePrixEmail) {
+    const current = offrePrixEmail.value.trim();
+    if (!current || current === offrePrixAutoEmail) {
+      offrePrixEmail.value = clientEmail;
+      offrePrixAutoEmail = clientEmail;
+    }
+  }
+  if (offrePrixStatus) offrePrixStatus.textContent = clientEmail ? "" : "Pas d'adresse e-mail enregistrée pour ce client : saisissez-la avant l'envoi.";
   recordActivity("Client offre de prix sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
   renderOffrePrixLines();
 }
 
 function clearOffrePrixClient() {
   selectedOffrePrixClient = null;
+  if (offrePrixEmail && offrePrixAutoEmail && offrePrixEmail.value.trim() === offrePrixAutoEmail) offrePrixEmail.value = "";
+  offrePrixAutoEmail = "";
   if (offrePrixClientSearch) {
     offrePrixClientSearch.value = "";
     offrePrixClientSearch.focus();
@@ -8711,7 +8722,49 @@ function getOffrePrixValidityDate() {
   return value;
 }
 
-async function previewOffrePrix() {
+// Aperçu instantané (05/10/2026) : la mise en page est construite directement dans
+// le navigateur, identique au PDF envoyé par e-mail. Plus d'attente du serveur Google.
+function buildOffrePrixPreviewHtml(client, rows, validUntil) {
+  const money = (value) => escapeHtml(formatter.format(Number(value) || 0));
+  const total = rows.reduce((sum, row) => sum + (Number(row.price) || 0) * (Number(row.quantity) || 0), 0);
+  const today = new Date().toLocaleDateString("fr-FR");
+  const validLabel = new Date(`${validUntil}T12:00:00`).toLocaleDateString("fr-FR");
+  const address = String(client.address || "Adresse non renseignée").trim();
+  const match = address.match(/^(.*?)(?:\s*[-–—,]\s*|\s+)(\d{5}\s+.+)$/);
+  const addressHtml = match ? `${escapeHtml(match[1])}<br>${escapeHtml(match[2])}` : escapeHtml(address);
+  const logoUrl = new URL("assets/schuller-logo.png", window.location.href).href;
+  const title = `Offre de prix - ${client.name || ""}`;
+  const tableRows = rows.map((row) => `<tr><td class="ref">${escapeHtml(row.ref)}</td><td>${escapeHtml(row.designation || "-")}</td><td class="num">${escapeHtml(String(row.quantity || "-"))}</td><td class="price">${money(row.price)}</td><td class="price">${money((Number(row.price) || 0) * (Number(row.quantity) || 0))}</td></tr>`).join("");
+  return `<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
+@page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#171717;font-family:Arial,Helvetica,sans-serif;font-size:12px}
+.bar{position:sticky;top:0;display:flex;justify-content:center;gap:10px;padding:12px;background:#171717}.bar button{border:0;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer;background:#e30613;color:#fff;font-size:14px}.bar button.ghost{background:#fff;color:#171717}
+.page{max-width:210mm;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:26px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #e30613;padding-bottom:18px;margin-bottom:22px}
+.brand{display:flex;gap:14px;align-items:center}.brand img{width:108px;height:auto}.brand h1{margin:0;font-size:24px;line-height:1.05}.brand p{margin:6px 0 0;color:#5f6b7a;line-height:1.45}
+.date{text-align:right;color:#5f6b7a}.date strong{display:block;color:#171717;font-size:16px;margin-top:5px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}.card{border:1px solid #e5e7eb;border-radius:14px;background:#fafafa;padding:16px}
+.label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#e30613;font-weight:800;margin-bottom:8px}.card h2{font-size:18px;margin:0 0 6px}.card p{margin:0;color:#4b5563;line-height:1.55}
+.summary{display:flex;gap:10px;margin-bottom:16px}.pill{border-radius:999px;background:#fee2e2;color:#b8000d;font-weight:800;padding:8px 12px}.pill.dark{background:#171717;color:#fff}
+table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid #e5e7eb;border-radius:14px}thead th{background:#171717;color:#fff;text-transform:uppercase;letter-spacing:.06em;font-size:10px;text-align:left;padding:12px}
+thead th.price,thead th.num{color:#fff;text-align:right}
+tbody td{border-top:1px solid #e5e7eb;padding:12px;vertical-align:middle}tbody tr:nth-child(even){background:#fafafa}.ref{font-weight:800;width:100px}.num{text-align:right;font-weight:800;width:80px}.price{text-align:right;font-weight:900;color:#b8000d;width:110px;white-space:nowrap}
+tfoot td{border-top:2px solid #171717;padding:12px;font-weight:900}.tfoot-label{text-align:right}.tfoot-total{text-align:right;color:#e30613;font-size:15px;white-space:nowrap}
+.footer{margin-top:22px;color:#6b7280;font-size:10px;line-height:1.5;border-top:1px solid #e5e7eb;padding-top:12px}
+@media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bar{display:none}.page{margin:0;border:0;padding:0;max-width:none}}
+@media(max-width:640px){.cards{grid-template-columns:1fr}.top{flex-direction:column;gap:12px}.date{text-align:left}.page{padding:16px;margin:10px}}
+</style></head><body>
+<div class="bar"><button type="button" onclick="window.print()">Enregistrer en PDF / Imprimer</button><button type="button" class="ghost" onclick="window.close()">Fermer</button></div>
+<div class="page"><div class="top"><div class="brand"><img src="${escapeHtml(logoUrl)}" alt="Schuller Eh'Klar"><div><h1>Offre de prix</h1><p>Schuller Eh'Klar France<br>4 rue Jean Marie Lehn, 67560 Rosheim<br>france@schuller.eu</p></div></div><div class="date">Document généré le<strong>${escapeHtml(today)}</strong></div></div>
+<div class="cards"><div class="card"><div class="label">Client</div><h2>${escapeHtml(client.name || "-")}</h2><p>Code client : ${escapeHtml(client.code || "-")}<br>${addressHtml}</p></div>
+<div class="card"><div class="label">Offre</div><h2>${rows.length} référence${rows.length > 1 ? "s" : ""}</h2><p>Total net HT : <strong>${money(total)}</strong><br><strong>Offre valable jusqu'au ${escapeHtml(validLabel)}.</strong></p></div></div>
+<div class="summary"><span class="pill dark">Schuller Eh'Klar</span><span class="pill">Offre de prix personnalisée</span></div>
+<table><thead><tr><th>Référence</th><th>Désignation</th><th class="num">Qté</th><th class="price">Prix net HT</th><th class="price">Montant HT</th></tr></thead><tbody>${tableRows}</tbody>
+<tfoot><tr><td colspan="4" class="tfoot-label">Total net HT</td><td class="tfoot-total">${money(total)}</td></tr></tfoot></table>
+<div class="footer">Offre de prix générée automatiquement par l'outil commercial Schuller Eh'Klar. Prix nets HT, hors frais de transport éventuels. Merci de ne pas répondre directement à l'adresse d'envoi automatique.</div>
+</div></body></html>`;
+}
+
+function previewOffrePrix() {
   const rows = getOffrePrixRows();
   const effectiveClient = getOffrePrixEffectiveClient();
   if (!effectiveClient) {
@@ -8724,33 +8777,20 @@ async function previewOffrePrix() {
   }
   const validUntil = getOffrePrixValidityDate();
   if (!validUntil) return;
-  if (offrePrixPreview) offrePrixPreview.disabled = true;
-  if (offrePrixStatus) offrePrixStatus.textContent = "Préparation de l'aperçu...";
-  // Ouvrir l'onglet immédiatement, de façon synchrone avec le clic, pour éviter que le
-  // navigateur ne bloque le window.open() une fois la réponse serveur arrivée (après un await).
+  const html = buildOffrePrixPreviewHtml({
+    name: effectiveClient.name || "",
+    code: effectiveClient.code || "",
+    address: formatAdminPrenetClientAddress(effectiveClient),
+  }, rows, validUntil);
   const previewWindow = window.open("", "_blank");
-  renderPdfPreviewWindow(previewWindow, "loading");
-  try {
-    const result = await postService({
-      action: "buildOffrePrixPdf",
-      client: JSON.stringify({
-        name: effectiveClient.name || "",
-        code: effectiveClient.code || "",
-        sector: effectiveClient.sector || "",
-        address: formatAdminPrenetClientAddress(effectiveClient),
-      }),
-      rows: JSON.stringify(rows),
-      validUntil,
-    });
-    if (!result.data) throw new Error("Aperçu indisponible.");
-    previewBase64File(result.data, result.mimeType || "application/pdf", previewWindow);
-    if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu généré.";
-  } catch (error) {
-    renderPdfPreviewWindow(previewWindow, "error", error.message || "La génération du PDF a échoué.");
-    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Aperçu impossible.";
-  } finally {
-    if (offrePrixPreview) offrePrixPreview.disabled = false;
+  if (!previewWindow) {
+    if (offrePrixStatus) offrePrixStatus.textContent = "Le navigateur a bloqué l'ouverture de l'aperçu. Autorisez les fenêtres pour ce site.";
+    return;
   }
+  previewWindow.document.open();
+  previewWindow.document.write(html);
+  previewWindow.document.close();
+  if (offrePrixStatus) offrePrixStatus.textContent = "Aperçu ouvert.";
 }
 
 function parseOffrePrixRecipients(raw) {
@@ -8795,6 +8835,7 @@ function loadPriceOfferIntoForm(id) {
   }));
   renderOffrePrixLines();
   if (offrePrixEmail) offrePrixEmail.value = offer.recipient || "";
+  offrePrixAutoEmail = "";
   if (offrePrixValidUntil) offrePrixValidUntil.value = offer.validUntil || getDefaultOffrePrixValidityDate();
   if (offrePrixSend) offrePrixSend.textContent = offer.status === "draft" ? "Envoyer l'offre" : "Mettre à jour et renvoyer";
   if (offrePrixCancelEdit) offrePrixCancelEdit.classList.remove("is-hidden");
