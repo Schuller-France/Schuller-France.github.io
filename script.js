@@ -945,7 +945,7 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
   // Lectures relayees par Firebase (reponse immediate si deja en memoire,
   // sinon Firebase attend Apps Script jusqu'a 50 s).
   getClientArticleStats: 60000,
-  getDashboardStats: 60000,
+  getDashboardStats: 125000,
   getDeliveryOrderHistory: 60000,
   getPurchaseComparatif: 60000, getRuptureComparatif: 60000, getRuptureHistory: 60000,
   getStockComparatif: 60000, getStockHistory: 60000, getStockAlertThresholds: 60000,
@@ -4805,7 +4805,7 @@ async function loadDashboardStatsFromDrive(options = {}) {
   }
   dashboardStatsLoadPromise = (async () => {
   try {
-    const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
+    const result = await postService({ action: "getDashboardStats", token: currentSessionToken, ...(options.force ? { refresh: "1" } : {}) });
     // Garde-fou : sous forte charge, une lecture Drive concurrente peut renvoyer une liste de
     // lignes vide ou anormalement courte (fichier en cours d'ecriture, lecture partielle...).
     // Si on avait deja de bonnes donnees affichees, on ne les remplace jamais par ce resultat
