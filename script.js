@@ -9401,7 +9401,112 @@ function getExpenseDrafts() {
 }
 
 function saveExpenseDrafts(drafts) {
-  localStorage.setItem(expenseDraftKey(), JSON.stringify(Array.isArray(drafts) ? drafts : []));
+  const list = Array.isArray(drafts) ? drafts : [];
+  // Le navigateur limite cet espace (~5 Mo) : si des photos d'anciens
+  // brouillons le remplissent, on les retire plutot que de bloquer la saisie.
+  const attempts = [
+    list,
+    list.map((draft, index) => (index < 3 ? draft : stripExecutiveDraftReceipts(draft))),
+    list.map(stripExecutiveDraftReceipts),
+  ];
+  for (const attempt of attempts) {
+    try {
+      localStorage.setItem(expenseDraftKey(), JSON.stringify(attempt));
+      return;
+    } catch (error) {
+      // essai suivant, plus leger
+    }
+  }
+  throw new Error("Stockage du navigateur plein.");
+}
+
+// ---- Justificatifs (photos / PDF) des brouillons de frais ----
+// Avant : stockes dans localStorage (~5 Mo pour tout le site) -> quelques
+// photos suffisaient a bloquer l'enregistrement ("Impossible d'enregistrer
+// les justificatifs"). Ils sont maintenant dans IndexedDB (plusieurs
+// centaines de Mo), le brouillon ne garde qu'une reference.
+const receiptDbName = "schullerReceipts";
+let receiptDbPromise = null;
+
+function openReceiptDb() {
+  if (!receiptDbPromise) {
+    receiptDbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        reject(new Error("IndexedDB indisponible"));
+        return;
+      }
+      const request = indexedDB.open(receiptDbName, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("receipts");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }).catch((error) => {
+      receiptDbPromise = null;
+      throw error;
+    });
+  }
+  return receiptDbPromise;
+}
+
+async function receiptStoreRequest(mode, action) {
+  const db = await openReceiptDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("receipts", mode);
+    const result = action(tx.objectStore("receipts"));
+    tx.oncomplete = () => resolve(result?.result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Enregistrement annule"));
+  });
+}
+
+function receiptKey(draftId, lineId) {
+  return `${currentUser?.id || "default"}:${draftId}:${lineId}`;
+}
+
+// Retourne les lignes a garder dans le brouillon (sans les donnees lourdes).
+async function storeDraftReceipts(draftId, lines) {
+  const out = [];
+  for (const line of lines) {
+    if (line.receiptDataUrl) {
+      try {
+        await receiptStoreRequest("readwrite", (store) => store.put({
+          dataUrl: line.receiptDataUrl,
+          mimeType: line.receiptMimeType || "",
+          name: line.receiptName || "",
+        }, receiptKey(draftId, line.id)));
+        out.push({ ...line, receiptDataUrl: "", receiptStored: true });
+        continue;
+      } catch (error) {
+        console.warn("Justificatif garde dans le brouillon (IndexedDB indisponible).", error);
+      }
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+async function restoreDraftReceipts(draftId, lines) {
+  for (const line of lines) {
+    if (!line.receiptStored || line.receiptDataUrl) continue;
+    try {
+      const saved = await receiptStoreRequest("readonly", (store) => store.get(receiptKey(draftId, line.id)));
+      if (saved?.dataUrl) {
+        line.receiptDataUrl = saved.dataUrl;
+        line.receiptMimeType = saved.mimeType || line.receiptMimeType || "";
+      }
+    } catch (error) {
+      console.warn("Justificatif introuvable sur cet appareil.", error);
+    }
+  }
+  return lines;
+}
+
+async function deleteDraftReceipts(draftId) {
+  try {
+    const prefix = `${currentUser?.id || "default"}:${draftId}:`;
+    await receiptStoreRequest("readwrite", (store) => store.delete(IDBKeyRange.bound(prefix, `${prefix}\uffff`)));
+  } catch (error) {
+    // rien a nettoyer
+  }
 }
 
 function parseServerDateTime(value) {
@@ -9661,12 +9766,14 @@ async function saveCurrentExpenseDraft() {
     }
     const now = new Date();
     const title = getExpenseDraftTitle();
+    const draftId = activeExpenseDraftId || crypto.randomUUID();
+    const storedLines = await storeDraftReceipts(draftId, linesToSave);
     const draft = {
-      id: activeExpenseDraftId || crypto.randomUUID(),
+      id: draftId,
       title,
       period: expensesPeriod?.value.trim() || title,
       note: expensesNote?.value.trim() || "",
-      lines: linesToSave,
+      lines: storedLines,
       totals: getExpenseDraftTotals(linesToSave),
       createdAt: activeExpenseDraftId ? undefined : now.toISOString(),
       updatedAt: now.toISOString(),
@@ -9691,7 +9798,8 @@ async function saveCurrentExpenseDraft() {
           title: draft.title,
           period: draft.period,
           note: draft.note,
-          lines: draft.lines,
+          // Les photos restent sur l'appareil : inutile de les envoyer ici.
+          lines: draft.lines.map(({ receiptDataUrl, ...line }) => line),
         }),
       });
     } catch (error) {
@@ -9710,11 +9818,11 @@ async function saveCurrentExpenseDraft() {
   }
 }
 
-function openExpenseDraft(id) {
+async function openExpenseDraft(id) {
   const draft = getExpenseDrafts().find((item) => item.id === id);
   if (!draft) return;
   activeExpenseDraftId = draft.id;
-  expenseLineItems = (draft.lines || []).map(normalizeExpenseLine);
+  expenseLineItems = await restoreDraftReceipts(draft.id, (draft.lines || []).map((line) => ({ ...normalizeExpenseLine(line), receiptStored: Boolean(line.receiptStored) })));
   if (!expenseLineItems.length) expenseLineItems = [newExpenseLine()];
   if (expensesPeriod) expensesPeriod.value = draft.period || draft.title || "";
   if (expensesNote) expensesNote.value = draft.note || "";
@@ -9782,6 +9890,7 @@ function deleteExpenseDraft(id) {
   if (!draft) return;
   if (!window.confirm(`Supprimer la note de frais "${draft.title || "sans nom"}" ?`)) return;
   saveExpenseDrafts(getExpenseDrafts().filter((item) => item.id !== id));
+  deleteDraftReceipts(id);
   if (activeExpenseDraftId === id) resetExpenses();
   else renderExpenseHistory();
 }
@@ -10062,11 +10171,11 @@ function getExecutiveExpenseTotalsFor(lines) {
   }, { amount: 0, vat: 0 });
 }
 
-function openExecutiveExpenseDraft(id) {
+async function openExecutiveExpenseDraft(id) {
   const draft = getMergedExecutiveExpenseDrafts().find((item) => item.id === id);
   if (!draft) return;
   activeExecutiveExpenseDraftId = draft.id;
-  executiveExpenseLineItems = (draft.lines || []).map(normalizeExecutiveExpenseLine);
+  executiveExpenseLineItems = await restoreDraftReceipts(draft.id, (draft.lines || []).map((line) => ({ ...normalizeExecutiveExpenseLine(line), receiptStored: Boolean(line.receiptStored) })));
   if (!executiveExpenseLineItems.length) executiveExpenseLineItems = [newExecutiveExpenseLine()];
   if (executiveExpenseOwner) executiveExpenseOwner.value = draft.owner || "";
   if (executiveExpensesPeriod) executiveExpensesPeriod.value = draft.period || "";
@@ -10084,6 +10193,7 @@ function deleteExecutiveExpenseDraft(id) {
   if (!draft) return;
   if (!window.confirm(`Supprimer la note "${draft.title || "sans nom"}" ?`)) return;
   saveExecutiveExpenseDrafts(getExecutiveExpenseDrafts().filter((item) => item.id !== id));
+  deleteDraftReceipts(id);
   if (executiveExpenseServerDrafts) executiveExpenseServerDrafts = executiveExpenseServerDrafts.filter((item) => item.id !== id);
   if (canSyncExecutiveExpenses()) {
     postService({ action: "deleteExecutiveExpense", id, background: true })
@@ -10212,13 +10322,15 @@ async function saveCurrentExecutiveExpenseDraft() {
     }
     const now = new Date();
     const title = getExecutiveExpenseDraftTitle();
+    const executiveDraftId = activeExecutiveExpenseDraftId || crypto.randomUUID();
+    const storedExecutiveLines = await storeDraftReceipts(executiveDraftId, linesToSave.map(serializeExecutiveExpenseLine));
     const draft = {
-      id: activeExecutiveExpenseDraftId || crypto.randomUUID(),
+      id: executiveDraftId,
       title,
       owner: executiveExpenseOwner?.value.trim() || "",
       period: executiveExpensesPeriod?.value.trim() || "",
       note: executiveExpensesNote?.value.trim() || "",
-      lines: linesToSave.map(serializeExecutiveExpenseLine),
+      lines: storedExecutiveLines,
       totals: getExecutiveExpenseTotals(),
       updatedAt: now.toISOString(),
       updatedLabel: now.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
