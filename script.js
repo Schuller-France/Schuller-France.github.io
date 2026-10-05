@@ -169,7 +169,7 @@ const adminCommercials = [
   { id: "bollagnon", name: "Bruno Ollagnon", sectors: ["Secteur 4", "Secteur 4A"] },
   { id: "msoubiran", name: "Matthieu Soubiran", sectors: ["Secteur 5"] },
   { id: "rlambert", name: "Rémi Lambert", sectors: ["Secteur 6"] },
-  { id: "gsylvestre", name: "Guy Sylvestre", sectors: ["Secteur 7"] },
+  { id: "gsylvestre", name: "Secteur 7", sectors: ["Secteur 7"] },
   { id: "secteur 8", name: "Secteur 8", sectors: ["Secteur 8"] },
   { id: "flo", name: "Secteur 9", sectors: ["Secteur 9"] },
   { id: "purecrea", name: "Purecrea", sectors: ["Purecrea"], revenueSectors: purecreaAdminSectors, objectiveSectors: ["Purecrea"] },
@@ -216,11 +216,11 @@ const initialProspectionRows = [
   ["Agymat", "59115", "LEERS", "0366721498", "Secteur 5 + 5A", "msoubiran", "Matthieu Soubiran", ""],
   ["Sotimat", "30260", "QUISSAC", "0466777608", "Secteur 2", "arey", "Alain Rey", ""],
   ["2G Matériaux", "31130", "BALMA", "0537115040", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
-  ["Lanvers Matériaux", "74140", "NERNIER", "0450728225", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["Lanvers Matériaux", "74140", "NERNIER", "0450728225", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["Mister Matériaux", "69002", "LYON", "0535542760", "Secteur 6", "rlambert", "Rémi Lambert", ""],
   ["GLC Matériaux", "04300", "FORCALQUIER", "0492730321", "Secteur 2", "arey", "Alain Rey", ""],
   ["Pommier Bricomat", "39260", "MOIRANS-EN-MONTAGNÉE", "0345165212", "Secteur 6", "rlambert", "Rémi Lambert", ""],
-  ["Quincallerie St Jean ETS Pommez", "97170", "PETIT-BOURG", "0590861718", "Secteur 7", "gsylvestre", "Guy Sylvestre", "Hors table force de vente, secteur repris du fichier prospect."],
+  ["Quincallerie St Jean ETS Pommez", "97170", "PETIT-BOURG", "0590861718", "Secteur 7", "gsylvestre", "Secteur 7", "Hors table force de vente, secteur repris du fichier prospect."],
   ["ECO - LOGIC Matériaux", "82000", "MONTAUBAN", "0563673816", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
   ["Aditec Normandie", "76300", "SOTTEVILLE LES ROUEN", "0278260384", "Secteur 5A", "ployer", "Pierre Loyer", "Secteur confirmé manuellement : 005A."],
   ["BH Matériaux", "82110", "LAUZERTE", "0563953908", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
@@ -228,15 +228,15 @@ const initialProspectionRows = [
   ["BML MAT", "69930", "SAINT LAURENT DE CHAMOUSSET", "0478486857", "Secteur 6", "rlambert", "Rémi Lambert", ""],
   ["LAFFORGUE", "31100", "TOULOUSE", "0533003330", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
   ["CATMAT", "66200", "ELNE", "0494040404", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
-  ["COSTAZ PERES ET FILS", "74380", "NANGY", "0450369926", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["COSTAZ PERES ET FILS", "74380", "NANGY", "0450369926", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["ENDUIT 34", "34440", "COLOMBIERS", "0981147470", "Secteur 2", "arey", "Alain Rey", ""],
-  ["D C A Groupe", "93160", "NOISY LE GRAND", "0143040022", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
-  ["ITS 95", "95500", "LE THILLAY", "0186220308", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["D C A Groupe", "93160", "NOISY LE GRAND", "0143040022", "Secteur 7", "gsylvestre", "Secteur 7", ""],
+  ["ITS 95", "95500", "LE THILLAY", "0186220308", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["LIBOURNE MATERIAUX", "33500", "ARVEYRES", "0557847809", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
-  ["NOVAMAT Bois Couverture", "74200", "THONON LES BAINS", "0450263352", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["NOVAMAT Bois Couverture", "74200", "THONON LES BAINS", "0450263352", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["D A N S MATERIAUX TP", "33700", "MERIGNAC", "0556478618", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
   ["ALPESMAT", "38530", "PONTCHARA", "0458474949", "Secteur 6", "rlambert", "Rémi Lambert", ""],
-  ["TGV MATERIAUX", "93190", "LIVRY - GARGAN", "0181210210", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["TGV MATERIAUX", "93190", "LIVRY - GARGAN", "0181210210", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["OPC CONCEPT 89", "89100", "SENS", "0659115267", "Secteur 6", "rlambert", "Rémi Lambert", ""],
   ["ISECOMAT", "10190", "NEUVILLE SUR VANNE", "0755643622", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["COULOUVRAT", "38110", "MONTAGNIEU", "0437066588", "Secteur 6", "rlambert", "Rémi Lambert", ""],
@@ -244,7 +244,7 @@ const initialProspectionRows = [
   ["MULTIMAT ETAIN", "55400", "ETAIN", "0376080123", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["CASTRES BOIS ET MATERIAUX", "81100", "CASTRES", "", "Secteur 4 + 4A", "bollagnon", "Bruno Ollagnon", ""],
   ["DUTREIX", "87000", "LIMOGES", "0555306758", "Secteur 9", "flo", "Secteur 9", ""],
-  ["COTTIN", "74910", "SEYSSEL", "0450592048", "Secteur 7", "gsylvestre", "Guy Sylvestre", ""],
+  ["COTTIN", "74910", "SEYSSEL", "0450592048", "Secteur 7", "gsylvestre", "Secteur 7", ""],
   ["ART COLOR", "67590", "SCHWEIGHOUSE SUR MODER", "0388059867", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["BINA MATERIAUX", "57170", "CHÂTEAU SALINS", "0387866910", "Secteur 8", "secteur 8", "Secteur 8", ""],
   ["SILMATHS", "03630", "DESERTINES", "", "Secteur 6", "rlambert", "Rémi Lambert", "Secteur confirmé manuellement : 6."],
@@ -1092,7 +1092,8 @@ async function executePostService(parameters) {
     clearTimeout(timeoutId);
     let result;
     try {
-      result = JSON.parse(rawText);
+      // Ancien nom de commercial remplace partout par son secteur (05/10/2026), y compris dans l'historique deja enregistre.
+      result = JSON.parse(String(rawText).replace(/Guy Sylvestre/gi, "Secteur 7"));
     } catch (error) {
       console.warn("Reponse Google non JSON", {
         status: response.status,
