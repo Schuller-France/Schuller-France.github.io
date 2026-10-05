@@ -990,12 +990,20 @@ const FIREBASE_ACTIONS = new Set([
   "deleteCentraleContact", "getOrders", "saveOrder", "deleteOrder", "getPurchaseComparatif", "getRuptureComparatif",
   "getRuptureHistory", "getStockComparatif", "getStockHistory", "getStockAlertThresholds", "getAntiErosionRequests", "getPriceOffers",
   "getMyExpenseDrafts", "getExpenseReports", "getDashboardStats", "getClientArticleStats", "getPromotions", "getReliquatsReprises",
-  "getDeliveryOrderHistory", "savePurchaseCatalogPrice", "importPurchasePriceExport", "importRuptureExport", "importStockExport", "saveStockAlertThresholds",
+  "getDeliveryOrderHistory", "savePurchaseCatalogPrice", "saveStockAlertThresholds",
   "createAntiErosionRequest", "updateAntiErosionRequest", "saveOffrePrixDraft", "deletePriceOffer", "sendOffrePrix", "saveExpenseDraftSummary",
   "deleteExpenseReport", "sendExpenseReport", "sendExecutiveExpenseReport",
   "getExecutiveExpenses", "saveExecutiveExpense", "deleteExecutiveExpense",
   "getClientNotes", "saveClientNotes",
 ]);
+
+// Imports lourds (achat, rupture, stock) : envoyes directement a Apps Script comme avant
+// la migration (05/10/2026). Via Firebase, Google renvoyait une reponse vide ou trop tardive.
+// Apres un import, les lectures suivantes demandent a Firebase de relire (refresh=1).
+const importRefreshPending = { purchase: false, rupture: false, stock: false };
+function refreshParam(group) {
+  return importRefreshPending[group] ? { refresh: "1" } : {};
+}
 
 function endpointForAction(action) {
   return FIREBASE_ACTIONS.has(action) ? FIREBASE_API_ENDPOINT : tariffConfig.endpoint;
@@ -3294,7 +3302,7 @@ async function loadPurchaseComparatif() {
   if (!adminPurchaseBody) return;
   if (adminPurchaseStatus) adminPurchaseStatus.textContent = "Chargement du comparatif...";
   try {
-    const result = await postService({ action: "getPurchaseComparatif" });
+    const result = await postService({ action: "getPurchaseComparatif", ...refreshParam("purchase") });
     adminPurchaseCatalog = Array.isArray(result.catalog) ? result.catalog : [];
     adminPurchaseLastDiff = result.lastDiff || null;
     adminPurchaseLoaded = true;
@@ -3503,6 +3511,7 @@ async function handleAdminPurchaseFile(file) {
     }
     if (adminPurchaseStatus) adminPurchaseStatus.textContent = `Import de ${rows.length} références en cours...`;
     const result = await postService({ action: "importPurchasePriceExport", rows: JSON.stringify(rows) });
+    importRefreshPending.purchase = true;
     adminPurchaseLastDiff = result.lastDiff || null;
     if (adminPurchaseStatus) {
       const s = adminPurchaseLastDiff?.summary || {};
@@ -3620,6 +3629,7 @@ async function handleAdminRuptureFile(file) {
     }
     if (adminRuptureStatus) adminRuptureStatus.textContent = `Import de ${rows.length} référence(s) en cours...`;
     const result = await postService({ action: "importRuptureExport", rows: JSON.stringify(rows) });
+    importRefreshPending.rupture = true;
     adminRuptureLastDiff = result.lastDiff || null;
     adminRuptureOpenHistoryRef = null;
     adminRuptureHistoryCache = {};
@@ -3640,7 +3650,7 @@ async function loadRuptureComparatif() {
   if (!adminRuptureBody) return;
   if (adminRuptureStatus) adminRuptureStatus.textContent = "Chargement du suivi...";
   try {
-    const result = await postService({ action: "getRuptureComparatif" });
+    const result = await postService({ action: "getRuptureComparatif", ...refreshParam("rupture") });
     adminRuptureLastDiff = result.lastDiff || null;
     adminRuptureLoaded = true;
     if (adminRuptureStatus) adminRuptureStatus.textContent = "";
@@ -3768,7 +3778,7 @@ async function toggleAdminRuptureRetourHistory(ref) {
   renderAdminRuptureSummary();
   if (!adminRuptureHistoryCache[ref]) {
     try {
-      const result = await postService({ action: "getRuptureHistory", ref });
+      const result = await postService({ action: "getRuptureHistory", ref, ...refreshParam("rupture") });
       adminRuptureHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
     } catch (error) {
       adminRuptureHistoryCache[ref] = [];
@@ -3840,7 +3850,7 @@ async function toggleAdminRuptureHistory(ref) {
   renderAdminRupture();
   if (!adminRuptureHistoryCache[ref]) {
     try {
-      const result = await postService({ action: "getRuptureHistory", ref });
+      const result = await postService({ action: "getRuptureHistory", ref, ...refreshParam("rupture") });
       adminRuptureHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
     } catch (error) {
       adminRuptureHistoryCache[ref] = [];
@@ -3920,13 +3930,14 @@ async function handleAdminStockFile(file) {
     if (adminStockStatus) adminStockStatus.textContent = `Import de ${rows.length} référence(s) en cours... (peut prendre jusqu'à une minute pour un fichier complet)`;
     let result;
     try {
-      result = await postService({ action: "importStockExport", rows: JSON.stringify(rows), timeoutMs: 90000 });
+      result = await postService({ action: "importStockExport", rows: JSON.stringify(rows), timeoutMs: 150000 });
     } catch (importError) {
       // Le traitement cote serveur continue meme si le client abandonne l'attente :
       // on verifie si l'import a quand meme abouti avant d'afficher une erreur.
       if (adminStockStatus) adminStockStatus.textContent = "Toujours en cours... verification du resultat.";
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      const check = await postService({ action: "getStockComparatif" }).catch(() => null);
+      importRefreshPending.stock = true;
+      const check = await postService({ action: "getStockComparatif", refresh: "1" }).catch(() => null);
       const checkDate = check?.lastDiff?.date;
       const today = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", year: "numeric" })
         .format(new Date())
@@ -3937,6 +3948,7 @@ async function handleAdminStockFile(file) {
         throw importError;
       }
     }
+    importRefreshPending.stock = true;
     adminStockLastDiff = result.lastDiff || null;
     adminStockOpenHistoryRef = null;
     adminStockHistoryCache = {};
@@ -3957,7 +3969,7 @@ async function loadStockComparatif() {
   if (!adminStockBody) return;
   if (adminStockStatus) adminStockStatus.textContent = "Chargement du stock...";
   try {
-    const result = await postService({ action: "getStockComparatif" });
+    const result = await postService({ action: "getStockComparatif", ...refreshParam("stock") });
     adminStockLastDiff = result.lastDiff || null;
     adminStockLoaded = true;
     if (adminStockStatus) adminStockStatus.textContent = "";
@@ -4127,7 +4139,7 @@ async function toggleAdminStockHistory(ref) {
   renderAdminStock();
   if (!adminStockHistoryCache[ref]) {
     try {
-      const result = await postService({ action: "getStockHistory", ref });
+      const result = await postService({ action: "getStockHistory", ref, ...refreshParam("stock") });
       adminStockHistoryCache[ref] = Array.isArray(result.history) ? result.history : [];
     } catch (error) {
       adminStockHistoryCache[ref] = [];
