@@ -4151,20 +4151,50 @@ async function toggleAdminStockHistory(ref) {
 // ---- Alertes de stock (seuils par reference, surveilles sur le tableau de bord Direction) ----
 // Stockees cote serveur (Apps Script) : partagees entre tous les postes.
 
+let stockAlertThresholdsLoaded = false;
+
+function backupStockAlertThresholds() {
+  try { localStorage.setItem(stockAlertThresholdsStorageKey, JSON.stringify(stockAlertThresholds)); } catch (error) {}
+}
+
 async function loadStockAlertThresholds() {
   try {
     const result = await postService({ action: "getStockAlertThresholds" });
     stockAlertThresholds = Array.isArray(result.thresholds) ? result.thresholds : [];
+    stockAlertThresholdsLoaded = true;
+    backupStockAlertThresholds();
   } catch (error) {
-    stockAlertThresholds = [];
+    // Jamais de liste vide par defaut : on garde la derniere liste connue sur ce poste.
+    if (!stockAlertThresholdsLoaded) {
+      try {
+        const backup = JSON.parse(localStorage.getItem(stockAlertThresholdsStorageKey) || "[]");
+        if (Array.isArray(backup) && backup.length) stockAlertThresholds = backup;
+      } catch (storageError) {}
+    }
   }
 }
 
-async function saveStockAlertThresholdsToStorage() {
+// Envoie une seule modification (ajout/mise a jour ou retrait) : le serveur garde le reste
+// de la liste intact, meme si ce poste n'avait pas reussi a la charger.
+async function saveStockAlertChange(change) {
   try {
-    await postService({ action: "saveStockAlertThresholds", thresholds: JSON.stringify(stockAlertThresholds) });
+    const payload = { action: "saveStockAlertThresholds", op: change.op };
+    if (change.op === "upsert") payload.item = JSON.stringify(change.item);
+    else payload.ref = change.ref;
+    // Compatibilite si Firebase n'est pas encore a jour : liste complete deja modifiee.
+    if (stockAlertThresholdsLoaded) payload.thresholds = JSON.stringify(stockAlertThresholds);
+    const result = await postService(payload);
+    if (Array.isArray(result.thresholds)) {
+      stockAlertThresholds = result.thresholds;
+      stockAlertThresholdsLoaded = true;
+      backupStockAlertThresholds();
+      renderStockAlertsList();
+      renderDirectionAlerts();
+    }
+    return true;
   } catch (error) {
-    if (stockAlertStatus) stockAlertStatus.textContent = "Erreur : la sauvegarde n'a pas pu être synchronisée avec le serveur.";
+    if (stockAlertStatus) stockAlertStatus.textContent = error.message || "Erreur : la sauvegarde n'a pas pu être synchronisée avec le serveur.";
+    return false;
   }
 }
 
@@ -4232,8 +4262,8 @@ async function addStockAlertThreshold() {
   if (stockAlertStatus) stockAlertStatus.textContent = `Enregistrement en cours pour ${ref}…`;
   renderStockAlertsList();
   renderDirectionAlerts();
-  await saveStockAlertThresholdsToStorage();
-  if (stockAlertStatus && stockAlertStatus.textContent === `Enregistrement en cours pour ${ref}…`) {
+  const saved = await saveStockAlertChange({ op: "upsert", item: { ref, designation, minQty } });
+  if (saved && stockAlertStatus && stockAlertStatus.textContent === `Enregistrement en cours pour ${ref}…`) {
     stockAlertStatus.textContent = `Surveillance enregistrée pour ${ref}.`;
   }
 }
@@ -4242,7 +4272,7 @@ async function removeStockAlertThreshold(ref) {
   stockAlertThresholds = stockAlertThresholds.filter((item) => normalize(item.ref) !== normalize(ref));
   renderStockAlertsList();
   renderDirectionAlerts();
-  await saveStockAlertThresholdsToStorage();
+  await saveStockAlertChange({ op: "remove", ref });
 }
 
 // Quantite actuelle connue pour une reference, a partir du dernier import Stock (onglet Stock) ;
