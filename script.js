@@ -8791,7 +8791,7 @@ function buildOffrePrixPreviewHtml(client, rows, validUntil) {
 table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid #e5e7eb;border-radius:14px}thead th{background:#171717;color:#fff;text-transform:uppercase;letter-spacing:.06em;font-size:10px;text-align:left;padding:12px}
 thead th.price,thead th.num{color:#fff;text-align:right}
 tbody td{border-top:1px solid #e5e7eb;padding:12px;vertical-align:middle}tbody tr:nth-child(even){background:#fafafa}.ref{font-weight:800;width:100px}.num{text-align:right;font-weight:800;width:80px}.price{text-align:right;font-weight:900;color:#b8000d;width:110px;white-space:nowrap}
-tfoot td{border-top:2px solid #171717;padding:12px;font-weight:900}.tfoot-label{text-align:right}.tfoot-total{text-align:right;color:#e30613;font-size:15px;white-space:nowrap}
+tr.total-row td{border-top:2px solid #171717;padding:12px;font-weight:900;background:#fff}tr.total-row{page-break-inside:avoid}.tfoot-label{text-align:right}.tfoot-total{text-align:right;color:#e30613;font-size:15px;white-space:nowrap}
 .footer{margin-top:22px;color:#6b7280;font-size:10px;line-height:1.5;border-top:1px solid #e5e7eb;padding-top:12px}
 @media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bar{display:none}.page{margin:0;border:0;padding:0;max-width:none}}
 @media(max-width:640px){.cards{grid-template-columns:1fr}.top{flex-direction:column;gap:12px}.date{text-align:left}.page{padding:16px;margin:10px}}
@@ -8801,8 +8801,8 @@ tfoot td{border-top:2px solid #171717;padding:12px;font-weight:900}.tfoot-label{
 <div class="cards"><div class="card"><div class="label">Client</div><h2>${escapeHtml(client.name || "-")}</h2><p>Code client : ${escapeHtml(client.code || "-")}<br>${addressHtml}</p></div>
 <div class="card"><div class="label">Offre</div><h2>${rows.length} référence${rows.length > 1 ? "s" : ""}</h2><p>Total net HT : <strong>${money(total)}</strong><br><strong>Offre valable jusqu'au ${escapeHtml(validLabel)}.</strong></p></div></div>
 <div class="summary"><span class="pill dark">Schuller Eh'Klar</span><span class="pill">Offre de prix personnalisée</span></div>
-<table><thead><tr><th>Référence</th><th>Désignation</th><th class="num">Qté</th><th class="price">Prix net HT</th><th class="price">Montant HT</th></tr></thead><tbody>${tableRows}</tbody>
-<tfoot><tr><td colspan="4" class="tfoot-label">Total net HT</td><td class="tfoot-total">${money(total)}</td></tr></tfoot></table>
+<table><thead><tr><th>Référence</th><th>Désignation</th><th class="num">Qté</th><th class="price">Prix net HT</th><th class="price">Montant HT</th></tr></thead><tbody>${tableRows}
+<tr class="total-row"><td colspan="4" class="tfoot-label">Total net HT</td><td class="tfoot-total">${money(total)}</td></tr></tbody></table>
 <div class="footer">Offre de prix générée automatiquement par l'outil commercial Schuller Eh'Klar. Prix nets HT, hors frais de transport éventuels. Merci de ne pas répondre directement à l'adresse d'envoi automatique.</div>
 </div></body></html>`;
 }
