@@ -8777,9 +8777,11 @@ function buildOffrePrixPreviewHtml(client, rows, validUntil) {
   const addressHtml = match ? `${escapeHtml(match[1])}<br>${escapeHtml(match[2])}` : escapeHtml(address);
   const logoUrl = new URL("assets/schuller-logo.png", window.location.href).href;
   const title = `Offre de prix - ${client.name || ""}`;
+  const pdfLibUrl = new URL("assets/vendor/html2pdf.bundle.min.js", window.location.href).href;
+  const pdfFileName = `Offre de prix - ${String(client.name || "client").replace(/[\\/:*?"<>|]+/g, " ").trim()}.pdf`;
   const tableRows = rows.map((row) => `<tr><td class="ref">${escapeHtml(row.ref)}</td><td>${escapeHtml(row.designation || "-")}</td><td class="num">${escapeHtml(String(row.quantity || "-"))}</td><td class="price">${money(row.price)}</td><td class="price">${money((Number(row.price) || 0) * (Number(row.quantity) || 0))}</td></tr>`).join("");
   return `<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
-@page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#171717;font-family:Arial,Helvetica,sans-serif;font-size:12px}
+@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#171717;font-family:Arial,Helvetica,sans-serif;font-size:12px}
 .bar{position:sticky;top:0;display:flex;justify-content:center;gap:10px;padding:12px;background:#171717}.bar button{border:0;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer;background:#e30613;color:#fff;font-size:14px}.bar button.ghost{background:#fff;color:#171717}
 .page{max-width:210mm;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:26px}
 .top{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #e30613;padding-bottom:18px;margin-bottom:22px}
@@ -8793,10 +8795,11 @@ thead th.price,thead th.num{color:#fff;text-align:right}
 tbody td{border-top:1px solid #e5e7eb;padding:12px;vertical-align:middle}tbody tr:nth-child(even){background:#fafafa}.ref{font-weight:800;width:100px}.num{text-align:right;font-weight:800;width:80px}.price{text-align:right;font-weight:900;color:#b8000d;width:110px;white-space:nowrap}
 tr.total-row td{border-top:2px solid #171717;padding:12px;font-weight:900;background:#fff}tr.total-row{page-break-inside:avoid}.tfoot-label{text-align:right}.tfoot-total{text-align:right;color:#e30613;font-size:15px;white-space:nowrap}
 .footer{margin-top:22px;color:#6b7280;font-size:10px;line-height:1.5;border-top:1px solid #e5e7eb;padding-top:12px}
-@media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bar{display:none}.page{margin:0;border:0;padding:0;max-width:none}}
+@media print{body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bar{display:none}.page{margin:0;border:0;border-radius:0;padding:12mm 10mm;max-width:none;box-decoration-break:clone;-webkit-box-decoration-break:clone}}
+body.exporting .bar{display:none}body.exporting{background:#fff}body.exporting .page{width:190mm;max-width:none;margin:0;border:0;border-radius:0;padding:0}
 @media(max-width:640px){.cards{grid-template-columns:1fr}.top{flex-direction:column;gap:12px}.date{text-align:left}.page{padding:16px;margin:10px}}
 </style></head><body>
-<div class="bar"><button type="button" onclick="window.print()">Enregistrer en PDF / Imprimer</button><button type="button" class="ghost" onclick="window.close()">Fermer</button></div>
+<div class="bar"><button type="button" id="pdfBtn" onclick="savePdf(this)">Télécharger le PDF</button><button type="button" class="ghost" onclick="window.print()">Imprimer</button><button type="button" class="ghost" onclick="window.close()">Fermer</button></div>
 <div class="page"><div class="top"><div class="brand"><img src="${escapeHtml(logoUrl)}" alt="Schuller Eh'Klar"><div><h1>Offre de prix</h1><p>Schuller Eh'Klar France<br>4 rue Jean Marie Lehn, 67560 Rosheim<br>france@schuller.eu</p></div></div><div class="date">Document généré le<strong>${escapeHtml(today)}</strong></div></div>
 <div class="cards"><div class="card"><div class="label">Client</div><h2>${escapeHtml(client.name || "-")}</h2><p>Code client : ${escapeHtml(client.code || "-")}<br>${addressHtml}</p></div>
 <div class="card"><div class="label">Offre</div><h2>${rows.length} référence${rows.length > 1 ? "s" : ""}</h2><p>Total net HT : <strong>${money(total)}</strong><br><strong>Offre valable jusqu'au ${escapeHtml(validLabel)}.</strong></p></div></div>
@@ -8804,7 +8807,42 @@ tr.total-row td{border-top:2px solid #171717;padding:12px;font-weight:900;backgr
 <table><thead><tr><th>Référence</th><th>Désignation</th><th class="num">Qté</th><th class="price">Prix net HT</th><th class="price">Montant HT</th></tr></thead><tbody>${tableRows}
 <tr class="total-row"><td colspan="4" class="tfoot-label">Total net HT</td><td class="tfoot-total">${money(total)}</td></tr></tbody></table>
 <div class="footer">Offre de prix générée automatiquement par l'outil commercial Schuller Eh'Klar. Prix nets HT, hors frais de transport éventuels. Merci de ne pas répondre directement à l'adresse d'envoi automatique.</div>
-</div></body></html>`;
+</div>
+<script>
+var PDF_LIB_URL = ${JSON.stringify(pdfLibUrl)};
+function loadPdfLib() {
+  if (window.html2pdf) return Promise.resolve();
+  return new Promise(function (resolve, reject) {
+    var tag = document.createElement("script");
+    tag.src = PDF_LIB_URL; tag.onload = resolve; tag.onerror = reject;
+    document.head.appendChild(tag);
+  });
+}
+loadPdfLib().catch(function () {});
+// PDF fabrique directement (05/10/2026) : aucun en-tete ni pied de page du navigateur
+// (titre de l'onglet, adresse du site, date et heure).
+function savePdf(btn) {
+  var label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Création du PDF…";
+  loadPdfLib().then(function () {
+  document.body.classList.add("exporting");
+  window.scrollTo(0, 0);
+  return html2pdf().set({
+    margin: [12, 10, 12, 10],
+    filename: ${JSON.stringify(pdfFileName)},
+    image: { type: "jpeg", quality: 0.96 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".top", ".cards", ".footer"] }
+  }).from(document.querySelector(".page")).save().then(function () {
+    document.body.classList.remove("exporting"); btn.disabled = false; btn.textContent = label;
+  });
+  }).catch(function () {
+    document.body.classList.remove("exporting"); btn.disabled = false; btn.textContent = label; window.print();
+  });
+}
+</script>
+</body></html>`;
 }
 
 function previewOffrePrix() {
