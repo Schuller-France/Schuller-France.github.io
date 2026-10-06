@@ -74,6 +74,7 @@ let offrePrixImporting = false;
 let priceOffers = [];
 let priceOffersLoaded = false;
 let editingOfferId = null;
+let offrePrixIdGenerated = false;
 let sampleLineItems = [];
 let expenseLineItems = [];
 let executiveExpenseLineItems = [];
@@ -959,7 +960,7 @@ const POST_SERVICE_TIMEOUT_BY_ACTION = {
   sendClientStatsReport: 120000, sendQuoteRequest: 120000, sendSampleRequest: 120000,
   sendVisitReport: 120000, sendProblemReport: 120000, exportPriceOffers: 120000,
   // Imports et envois relayes par Firebase (jusqu'a 170 s cote serveur).
-  sendOffrePrix: 180000, sendExpenseReport: 180000, sendExecutiveExpenseReport: 180000,
+  sendOffrePrix: 180000, saveOffrePrixDraft: 90000, sendExpenseReport: 180000, sendExecutiveExpenseReport: 180000,
   importPurchasePriceExport: 180000, importRuptureExport: 180000, importStockExport: 180000,
 };
 // Actions sans effet de bord (lecture seule) : on peut les retenter automatiquement
@@ -8319,6 +8320,8 @@ function selectOffrePrixClient(client) {
 
 function clearOffrePrixClient() {
   selectedOffrePrixClient = null;
+  // Nouveau client = nouvelle offre (sauf offre rouverte depuis l'historique).
+  if (offrePrixIdGenerated) { editingOfferId = null; offrePrixIdGenerated = false; }
   if (offrePrixEmail && offrePrixAutoEmail && offrePrixEmail.value.trim() === offrePrixAutoEmail) offrePrixEmail.value = "";
   offrePrixAutoEmail = "";
   if (offrePrixClientSearch) {
@@ -8878,8 +8881,13 @@ function parseOffrePrixRecipients(raw) {
   return [...new Set(String(raw || "").split(/[,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))];
 }
 
+function newOffrePrixId() {
+  try { return crypto.randomUUID(); } catch (error) { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`; }
+}
+
 function cancelOffrePrixEdit(resetStatus = true) {
   editingOfferId = null;
+  offrePrixIdGenerated = false;
   if (offrePrixSend) offrePrixSend.textContent = "Envoyer l'offre";
   if (offrePrixCancelEdit) offrePrixCancelEdit.classList.add("is-hidden");
   if (resetStatus && offrePrixStatus) offrePrixStatus.textContent = "";
@@ -8889,6 +8897,7 @@ function loadPriceOfferIntoForm(id) {
   const offer = priceOffers.find((item) => item.id === id);
   if (!offer) return;
   editingOfferId = offer.id;
+  offrePrixIdGenerated = false;
   selectedOffrePrixClient = {
     name: offer.clientName || "",
     code: offer.clientCode || "",
@@ -8957,7 +8966,10 @@ async function saveOffrePrixDraft() {
       validUntil,
     };
     if (offrePrixEmail?.value?.trim()) payload.recipient = offrePrixEmail.value;
-    if (editingOfferId) payload.offerId = editingOfferId;
+    // Identifiant fixe des le premier clic : un nouvel essai (ou l'envoi qui suit) met a jour
+    // la meme offre au lieu de creer un doublon, meme si la premiere reponse s'est perdue.
+    if (!editingOfferId) { editingOfferId = newOffrePrixId(); offrePrixIdGenerated = true; }
+    payload.offerId = editingOfferId;
     const result = await postService(payload);
     if (result.ok) {
       editingOfferId = result.offerId || editingOfferId;
@@ -9009,7 +9021,8 @@ async function sendOffrePrixEmail() {
       rows: JSON.stringify(rows),
       validUntil,
     };
-    if (editingOfferId) payload.offerId = editingOfferId;
+    if (!editingOfferId) { editingOfferId = newOffrePrixId(); offrePrixIdGenerated = true; }
+    payload.offerId = editingOfferId;
     const result = await postService(payload);
     if (offrePrixStatus) offrePrixStatus.textContent = result.message || "Offre envoyée.";
     if (result.ok) {
