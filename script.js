@@ -8701,17 +8701,152 @@ async function handleOffrePrixImportFile(file) {
   }
 }
 
-function exportOffrePrixCsv() {
+// Export Excel mis en forme (07/10/2026) : remplace l'ancien CSV.
+let excelJsLoadPromise = null;
+function loadExcelJs() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (!excelJsLoadPromise) {
+    excelJsLoadPromise = new Promise((resolve, reject) => {
+      const tag = document.createElement("script");
+      tag.src = "assets/vendor/exceljs.min.js";
+      tag.onload = () => resolve(window.ExcelJS);
+      tag.onerror = () => { excelJsLoadPromise = null; reject(new Error("Module Excel indisponible. Vérifiez la connexion puis réessayez.")); };
+      document.head.appendChild(tag);
+    });
+  }
+  return excelJsLoadPromise;
+}
+
+async function exportOffrePrixExcel() {
   const rows = getOffrePrixRows();
+  const client = getOffrePrixEffectiveClient();
   if (!rows.length) {
     if (offrePrixStatus) offrePrixStatus.textContent = "Aucune ligne dans l'offre.";
     return;
   }
-  const clientLabel = selectedOffrePrixClient?.code || getOffrePrixEffectiveClient()?.name || "offre";
-  const safeLabel = String(clientLabel).replace(/[^a-z0-9_-]/gi, "_");
-  const csvRows = buildErpCsvRows(rows.map((row) => ({ product: { ref: row.ref } })));
-  downloadErpCsv(`OFFRE_${safeLabel}_${todayInputDate()}_ERP_REFERENCES.csv`, csvRows);
-  if (offrePrixStatus) offrePrixStatus.textContent = "CSV exporté.";
+  if (offrePrixExportCsv) offrePrixExportCsv.disabled = true;
+  if (offrePrixStatus) offrePrixStatus.textContent = "Création du fichier Excel...";
+  try {
+    const ExcelJS = await loadExcelJs();
+    const red = "FFE30613";
+    const dark = "FF171717";
+    const grey = "FF5F6B7A";
+    const euro = '#,##0.00 "€"';
+    const thin = { style: "thin", color: { argb: "FFE5E7EB" } };
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Schuller Eh'Klar France";
+    const sheet = workbook.addWorksheet("Offre de prix", {
+      pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0, footer: 0 } },
+      views: [{ showGridLines: false }],
+    });
+    sheet.columns = [{ width: 15 }, { width: 52 }, { width: 10 }, { width: 16 }, { width: 18 }];
+
+    try {
+      const logo = await fetch("assets/schuller-logo.png").then((response) => response.arrayBuffer());
+      const imageId = workbook.addImage({ buffer: logo, extension: "png" });
+      sheet.addImage(imageId, { tl: { col: 0.15, row: 0.3 }, ext: { width: 90, height: 65 } });
+    } catch (error) {}
+
+    sheet.getRow(1).height = 26;
+    sheet.mergeCells("B1:E1");
+    sheet.getCell("B1").value = "Offre de prix";
+    sheet.getCell("B1").font = { bold: true, size: 20, color: { argb: dark } };
+    sheet.mergeCells("B2:E2");
+    sheet.getCell("B2").value = "Schuller Eh'Klar France · 4 rue Jean Marie Lehn, 67560 Rosheim · france@schuller.eu";
+    sheet.getCell("B2").font = { size: 10, color: { argb: grey } };
+    sheet.getRow(3).height = 18;
+    for (let col = 1; col <= 5; col += 1) sheet.getCell(4, col).border = { bottom: { style: "medium", color: { argb: red } } };
+
+    const validUntil = String(offrePrixValidUntil?.value || "");
+    const validLabel = /^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? validUntil.split("-").reverse().join("/") : "-";
+    const address = formatAdminPrenetClientAddress(client || {}) || "";
+    const infoRows = [
+      ["Client", client?.name || "-", "Date", new Date().toLocaleDateString("fr-FR")],
+      ["Code client", client?.code || "-", "Valable jusqu'au", validLabel],
+      ["Adresse", address || "-", "Références", rows.length],
+    ];
+    infoRows.forEach((info, index) => {
+      const rowNumber = 6 + index;
+      sheet.getCell(rowNumber, 1).value = info[0];
+      sheet.getCell(rowNumber, 2).value = info[1];
+      sheet.getCell(rowNumber, 4).value = info[2];
+      sheet.getCell(rowNumber, 5).value = info[3];
+      [1, 4].forEach((col) => { sheet.getCell(rowNumber, col).font = { bold: true, size: 9, color: { argb: red } }; });
+      sheet.getCell(rowNumber, 2).font = { bold: index === 0, size: index === 0 ? 13 : 10 };
+      sheet.getCell(rowNumber, 5).font = { bold: true, size: 10 };
+      sheet.getCell(rowNumber, 5).alignment = { horizontal: "right" };
+      sheet.getCell(rowNumber, 2).alignment = { wrapText: true, vertical: "top" };
+    });
+
+    const headerRowNumber = 10;
+    const header = sheet.getRow(headerRowNumber);
+    header.values = ["Référence", "Désignation", "Qté", "Prix net HT", "Montant HT"];
+    header.height = 22;
+    header.eachCell((cell, col) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: dark } };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
+      cell.alignment = { vertical: "middle", horizontal: col >= 3 ? "right" : "left" };
+    });
+
+    rows.forEach((row, index) => {
+      const rowNumber = headerRowNumber + 1 + index;
+      const quantity = Number(row.quantity) || 0;
+      const price = Number(row.price) || 0;
+      const line = sheet.getRow(rowNumber);
+      line.values = [String(row.ref || ""), row.designation || "", quantity, price, { formula: `C${rowNumber}*D${rowNumber}`, result: Math.round(quantity * price * 100) / 100 }];
+      line.height = 18;
+      line.eachCell({ includeEmpty: true }, (cell, col) => {
+        cell.border = { bottom: thin };
+        cell.alignment = { vertical: "middle", horizontal: col >= 3 ? "right" : "left", wrapText: col === 2 };
+        if (index % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F7F8" } };
+      });
+      line.getCell(1).font = { bold: true };
+      line.getCell(3).font = { bold: true };
+      line.getCell(4).numFmt = euro;
+      line.getCell(5).numFmt = euro;
+      line.getCell(4).font = { bold: true, color: { argb: "FFB8000D" } };
+      line.getCell(5).font = { bold: true, color: { argb: "FFB8000D" } };
+    });
+
+    const lastDataRow = headerRowNumber + rows.length;
+    const totalRowNumber = lastDataRow + 1;
+    const total = rows.reduce((sum, row) => sum + (Number(row.quantity) || 0) * (Number(row.price) || 0), 0);
+    sheet.mergeCells(totalRowNumber, 1, totalRowNumber, 4);
+    sheet.getCell(totalRowNumber, 1).value = "Total net HT";
+    sheet.getCell(totalRowNumber, 1).alignment = { horizontal: "right", vertical: "middle" };
+    sheet.getCell(totalRowNumber, 1).font = { bold: true, size: 11 };
+    sheet.getCell(totalRowNumber, 5).value = { formula: `SUM(E${headerRowNumber + 1}:E${lastDataRow})`, result: Math.round(total * 100) / 100 };
+    sheet.getCell(totalRowNumber, 5).numFmt = euro;
+    sheet.getCell(totalRowNumber, 5).font = { bold: true, size: 12, color: { argb: red } };
+    sheet.getCell(totalRowNumber, 5).alignment = { horizontal: "right", vertical: "middle" };
+    sheet.getRow(totalRowNumber).height = 24;
+    for (let col = 1; col <= 5; col += 1) sheet.getCell(totalRowNumber, col).border = { top: { style: "medium", color: { argb: dark } } };
+
+    const noteRow = totalRowNumber + 2;
+    sheet.mergeCells(noteRow, 1, noteRow, 5);
+    sheet.getCell(noteRow, 1).value = "Prix nets HT, hors frais de transport éventuels.";
+    sheet.getCell(noteRow, 1).font = { italic: true, size: 9, color: { argb: grey } };
+
+    sheet.views = [{ state: "frozen", ySplit: headerRowNumber, showGridLines: false }];
+    sheet.pageSetup.printTitlesRow = `${headerRowNumber}:${headerRowNumber}`;
+    sheet.pageSetup.printArea = `A1:E${noteRow}`;
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const safeName = String(client?.name || "client").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Offre de prix - ${safeName} - ${todayInputDate()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    if (offrePrixStatus) offrePrixStatus.textContent = "Fichier Excel téléchargé.";
+  } catch (error) {
+    if (offrePrixStatus) offrePrixStatus.textContent = error.message || "Export Excel impossible.";
+  } finally {
+    if (offrePrixExportCsv) offrePrixExportCsv.disabled = false;
+  }
 }
 
 function previewBase64File(base64, mimeType, targetWindow) {
@@ -15340,7 +15475,7 @@ offrePrixCancelEdit?.addEventListener("click", () => {
 
 resetOffrePrixValidityDate();
 
-offrePrixExportCsv?.addEventListener("click", exportOffrePrixCsv);
+offrePrixExportCsv?.addEventListener("click", exportOffrePrixExcel);
 
 offrePrixImportInput?.addEventListener("change", () => {
   const file = offrePrixImportInput.files?.[0];
