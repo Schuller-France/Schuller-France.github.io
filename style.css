@@ -11101,3 +11101,17 @@ body.dark-theme .direction-client-link strong { color: #eaf2ff; }
 @media (max-width: 1100px) { #adminDirectionView .direction-two-col { grid-template-columns: minmax(0, 1fr) !important; } }
 .client360-deliveries-card #client360Deliveries { padding: 14px 18px 18px; }
 .client360-deliveries-card [data-client360-open-history] { margin-top: 6px; }
+
+/* Offre de prix : outils de ligne (deplacer / inserer) et message d'envoi (07/10/2026) */
+.offre-prix-table td.offre-line-tools { width: 84px; min-width: 84px; padding-left: 4px; padding-right: 0; }
+.offre-line-tools-grid { display: grid; grid-template-columns: repeat(3, 24px); gap: 4px; justify-content: end; align-items: center; }
+.offre-line-tools .icon-button { width: 24px; height: 24px; min-width: 24px; min-height: 24px; padding: 0; font-size: 13px; line-height: 1; border-radius: 7px; }
+.offre-line-tools .offre-line-tool[disabled] { opacity: .3; cursor: default; }
+.offre-line-handle { display: inline-block; text-align: center; padding: 0; color: #9aa1ab; cursor: grab; font-size: 13px; letter-spacing: -3px; vertical-align: middle; user-select: none; }
+.offre-line-handle:active { cursor: grabbing; }
+.offre-prix-table tr.is-dragging { opacity: .45; }
+.offre-prix-table tr.drop-before td { box-shadow: inset 0 3px 0 #e30613; }
+.offre-prix-table tr.drop-after td { box-shadow: inset 0 -3px 0 #e30613; }
+.offre-prix-send-status { margin: 14px 0 0; text-align: right; }
+.offre-prix-send-status:empty { display: none; }
+@media (max-width: 760px) { .offre-line-handle { display: none; } .offre-prix-send-status { text-align: left; } }

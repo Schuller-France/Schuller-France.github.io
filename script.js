@@ -8388,6 +8388,37 @@ function ensureOffrePrixTrailingBlankLine() {
   }
 }
 
+// Reorganisation des lignes (07/10/2026) : monter/descendre, inserer une ligne
+// vide juste en dessous, ou glisser-deposer la ligne avec la poignee.
+function moveOffrePrixLine(id, direction) {
+  const index = offrePrixLineItems.findIndex((line) => line.id === id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= offrePrixLineItems.length) return;
+  const [line] = offrePrixLineItems.splice(index, 1);
+  offrePrixLineItems.splice(target, 0, line);
+  renderOffrePrixLines();
+  offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(id)}"] [data-move-offre-line][data-direction="${direction}"]`)?.focus();
+}
+
+function insertOffrePrixLineAfter(id) {
+  const index = offrePrixLineItems.findIndex((line) => line.id === id);
+  const newLine = { id: crypto.randomUUID(), ref: "", qty: 1, price: 0 };
+  offrePrixLineItems.splice(index < 0 ? offrePrixLineItems.length : index + 1, 0, newLine);
+  renderOffrePrixLines();
+  offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(newLine.id)}"] [data-offre-field="ref"]`)?.focus();
+}
+
+function dropOffrePrixLine(dragId, targetId, after) {
+  if (!dragId || !targetId || dragId === targetId) return;
+  const from = offrePrixLineItems.findIndex((line) => line.id === dragId);
+  if (from < 0) return;
+  const [line] = offrePrixLineItems.splice(from, 1);
+  let to = offrePrixLineItems.findIndex((item) => item.id === targetId);
+  if (to < 0) to = offrePrixLineItems.length; else if (after) to += 1;
+  offrePrixLineItems.splice(to, 0, line);
+  renderOffrePrixLines();
+}
+
 function removeOffrePrixLine(id) {
   offrePrixLineItems = offrePrixLineItems.filter((line) => line.id !== id);
   if (!offrePrixLineItems.length) addOffrePrixLine();
@@ -8508,7 +8539,13 @@ function renderOffrePrixLines() {
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
           <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
           <td data-offre-amount>${formatter.format(amount)}</td>
-          <td><button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button></td>
+          <td class="offre-line-tools"><div class="offre-line-tools-grid">
+            <span class="offre-line-handle" draggable="true" data-offre-drag="${escapeHtml(line.id)}" title="Glisser pour déplacer la ligne" aria-hidden="true">&#8942;&#8942;</span>
+            <button class="icon-button offre-line-tool" type="button" data-move-offre-line="${escapeHtml(line.id)}" data-direction="-1" aria-label="Monter la ligne" title="Monter"${index === 0 ? " disabled" : ""}>&#8593;</button>
+            <button class="icon-button offre-line-tool" type="button" data-move-offre-line="${escapeHtml(line.id)}" data-direction="1" aria-label="Descendre la ligne" title="Descendre"${index === offrePrixLineItems.length - 1 ? " disabled" : ""}>&#8595;</button>
+            <button class="icon-button offre-line-tool" type="button" data-insert-offre-line="${escapeHtml(line.id)}" aria-label="Insérer une ligne en dessous" title="Insérer une ligne en dessous">+</button>
+            <button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button>
+          </div></td>
         </tr>
       `;
     }).join("");
@@ -15450,8 +15487,56 @@ offrePrixLines?.addEventListener("change", (event) => {
 });
 offrePrixLines?.addEventListener("click", (event) => {
   const removeId = event.target.closest("[data-remove-offre-line]")?.dataset.removeOffreLine;
-  if (removeId) removeOffrePrixLine(removeId);
+  if (removeId) { removeOffrePrixLine(removeId); return; }
+  const moveButton = event.target.closest("[data-move-offre-line]");
+  if (moveButton) { moveOffrePrixLine(moveButton.dataset.moveOffreLine, Number(moveButton.dataset.direction) || 0); return; }
+  const insertId = event.target.closest("[data-insert-offre-line]")?.dataset.insertOffreLine;
+  if (insertId) insertOffrePrixLineAfter(insertId);
 });
+let offrePrixDragId = null;
+offrePrixLines?.addEventListener("dragstart", (event) => {
+  const handle = event.target.closest?.("[data-offre-drag]");
+  if (!handle) { event.preventDefault(); return; }
+  offrePrixDragId = handle.dataset.offreDrag;
+  const row = handle.closest("[data-offre-line]");
+  row?.classList.add("is-dragging");
+  try {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", offrePrixDragId);
+    if (row) event.dataTransfer.setDragImage(row, 20, 20);
+  } catch (error) {}
+});
+offrePrixLines?.addEventListener("dragover", (event) => {
+  if (!offrePrixDragId) return;
+  const row = event.target.closest("[data-offre-line]");
+  if (!row) return;
+  event.preventDefault();
+  const rect = row.getBoundingClientRect();
+  const after = event.clientY > rect.top + rect.height / 2;
+  offrePrixLines.querySelectorAll(".drop-before, .drop-after").forEach((item) => item.classList.remove("drop-before", "drop-after"));
+  row.classList.add(after ? "drop-after" : "drop-before");
+});
+offrePrixLines?.addEventListener("drop", (event) => {
+  if (!offrePrixDragId) return;
+  event.preventDefault();
+  const row = event.target.closest("[data-offre-line]");
+  const after = row?.classList.contains("drop-after");
+  const dragId = offrePrixDragId;
+  offrePrixDragId = null;
+  if (row) dropOffrePrixLine(dragId, row.dataset.offreLine, after);
+});
+offrePrixLines?.addEventListener("dragend", () => {
+  offrePrixDragId = null;
+  offrePrixLines.querySelectorAll(".is-dragging, .drop-before, .drop-after").forEach((item) => item.classList.remove("is-dragging", "drop-before", "drop-after"));
+});
+// Couleur du message d'envoi (vert = fait, rouge = probleme).
+if (offrePrixStatus) {
+  new MutationObserver(() => {
+    const text = offrePrixStatus.textContent || "";
+    offrePrixStatus.classList.toggle("is-error", /impossible|invalide|erreur|échou|indisponible|refus|bloqué|trop de temps|inattendue/i.test(text));
+    offrePrixStatus.classList.toggle("is-success", !offrePrixStatus.classList.contains("is-error") && /envoyée|enregistrée|téléchargé|ouvert|exporté|mis à jour/i.test(text));
+  }).observe(offrePrixStatus, { childList: true, characterData: true, subtree: true });
+}
 offrePrixPreview?.addEventListener("click", previewOffrePrix);
 offrePrixSaveDraft?.addEventListener("click", saveOffrePrixDraft);
 offrePrixSend?.addEventListener("click", sendOffrePrixEmail);
