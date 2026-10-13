@@ -494,6 +494,7 @@ const offrePrixPreview = document.querySelector("#offrePrixPreview");
 const offrePrixExportCsv = document.querySelector("#offrePrixExportCsv");
 const offrePrixValidUntil = document.querySelector("#offrePrixValidUntil");
 const offrePrixEmail = document.querySelector("#offrePrixEmail");
+const offrePrixMessage = document.querySelector("#offrePrixMessage");
 const offrePrixSend = document.querySelector("#offrePrixSend");
 const offrePrixSaveDraft = document.querySelector("#offrePrixSaveDraft");
 const offrePrixCancelEdit = document.querySelector("#offrePrixCancelEdit");
@@ -8397,7 +8398,6 @@ function moveOffrePrixLine(id, direction) {
   const [line] = offrePrixLineItems.splice(index, 1);
   offrePrixLineItems.splice(target, 0, line);
   renderOffrePrixLines();
-  offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(id)}"] [data-move-offre-line][data-direction="${direction}"]`)?.focus();
 }
 
 function insertOffrePrixLineAfter(id) {
@@ -8521,7 +8521,91 @@ function applyOffrePrixReference(id, value) {
   renderOffrePrixLines();
 }
 
+const OFFRE_GRIP_ICON = '<svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true"><g fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></g></svg>';
+const OFFRE_MORE_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="8" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="13" cy="8" r="1.6"/></g></svg>';
+
+// Menu d'actions d'une ligne (inserer, deplacer, dupliquer, supprimer).
+let offrePrixLineMenu = null;
+function closeOffrePrixLineMenu() {
+  if (!offrePrixLineMenu) return;
+  offrePrixLineMenu.remove();
+  offrePrixLineMenu = null;
+  document.querySelectorAll(".offre-line-menu-btn.is-open").forEach((button) => button.classList.remove("is-open"));
+}
+
+function openOffrePrixLineMenu(button) {
+  const id = button.dataset.offreMenu;
+  const wasOpen = button.classList.contains("is-open");
+  closeOffrePrixLineMenu();
+  if (wasOpen) return;
+  const index = offrePrixLineItems.findIndex((line) => line.id === id);
+  if (index < 0) return;
+  const last = offrePrixLineItems.length - 1;
+  const items = [
+    { action: "insert-above", label: "Insérer une ligne au-dessus" },
+    { action: "insert-below", label: "Insérer une ligne en dessous" },
+    { action: "duplicate", label: "Dupliquer la ligne" },
+    { sep: true },
+    { action: "up", label: "Monter", disabled: index === 0 },
+    { action: "down", label: "Descendre", disabled: index === last },
+    { action: "top", label: "Placer en premier", disabled: index === 0 },
+    { sep: true },
+    { action: "remove", label: "Supprimer la ligne", danger: true },
+  ];
+  const menu = document.createElement("div");
+  menu.className = "offre-line-menu";
+  menu.setAttribute("role", "menu");
+  menu.innerHTML = items.map((item) => item.sep
+    ? '<div class="offre-line-menu-sep" role="separator"></div>'
+    : `<button type="button" role="menuitem" data-offre-menu-action="${item.action}"${item.disabled ? " disabled" : ""} class="${item.danger ? "is-danger" : ""}">${escapeHtml(item.label)}</button>`).join("");
+  document.body.appendChild(menu);
+  const rect = button.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const top = rect.bottom + 6 + menuRect.height > window.innerHeight ? rect.top - menuRect.height - 6 : rect.bottom + 6;
+  menu.style.top = `${Math.max(8, top)}px`;
+  menu.style.left = `${Math.max(8, Math.min(window.innerWidth - menuRect.width - 8, rect.right - menuRect.width))}px`;
+  button.classList.add("is-open");
+  offrePrixLineMenu = menu;
+  menu.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-offre-menu-action]")?.dataset.offreMenuAction;
+    if (!action) return;
+    closeOffrePrixLineMenu();
+    runOffrePrixLineAction(id, action);
+  });
+  menu.querySelector("button:not([disabled])")?.focus();
+}
+
+function runOffrePrixLineAction(id, action) {
+  const index = offrePrixLineItems.findIndex((line) => line.id === id);
+  if (index < 0) return;
+  if (action === "insert-above") return insertOffrePrixLineAt(index);
+  if (action === "insert-below") return insertOffrePrixLineAt(index + 1);
+  if (action === "duplicate") {
+    const copy = { ...offrePrixLineItems[index], id: crypto.randomUUID() };
+    offrePrixLineItems.splice(index + 1, 0, copy);
+    renderOffrePrixLines();
+    return;
+  }
+  if (action === "up") return moveOffrePrixLine(id, -1);
+  if (action === "down") return moveOffrePrixLine(id, 1);
+  if (action === "top") {
+    const [line] = offrePrixLineItems.splice(index, 1);
+    offrePrixLineItems.unshift(line);
+    renderOffrePrixLines();
+    return;
+  }
+  if (action === "remove") removeOffrePrixLine(id);
+}
+
+function insertOffrePrixLineAt(position) {
+  const newLine = { id: crypto.randomUUID(), ref: "", qty: 1, price: 0 };
+  offrePrixLineItems.splice(Math.max(0, Math.min(position, offrePrixLineItems.length)), 0, newLine);
+  renderOffrePrixLines();
+  offrePrixLines?.querySelector(`[data-offre-line="${CSS.escape(newLine.id)}"] [data-offre-field="ref"]`)?.focus();
+}
+
 function renderOffrePrixLines() {
+  closeOffrePrixLineMenu();
   ensureOffrePrixTrailingBlankLine();
   if (offrePrixLines) {
     offrePrixLines.innerHTML = offrePrixLineItems.map((line, index) => {
@@ -8531,7 +8615,7 @@ function renderOffrePrixLines() {
       const margin = purchasePrice != null && Number(line.price) > 0 ? 1 - (purchasePrice / Number(line.price)) : null;
       return `
         <tr data-offre-line="${escapeHtml(line.id)}">
-          <td class="quote-ref-cell"><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></td>
+          <td class="quote-ref-cell"><div class="offre-ref-wrap"><span class="offre-line-handle" draggable="true" data-offre-drag="${escapeHtml(line.id)}" title="Glisser pour déplacer la ligne" aria-hidden="true">${OFFRE_GRIP_ICON}</span><input type="text" value="${escapeHtml(line.ref)}" list="productRefs" placeholder="Référence ${index + 1}" data-offre-field="ref" /></div></td>
           <td class="quote-name-cell ${product || line.designation ? "" : "empty-product"}">${product ? escapeHtml(product.name) : line.designation ? escapeHtml(line.designation) : "Saisir une référence"}</td>
           <td class="quote-qty-cell"><input type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(line.qty)}" data-offre-field="qty" aria-label="Quantité" /></td>
           <td class="numeric offre-prix-purchase">${purchasePrice == null ? "—" : `<strong>${formatter.format(purchasePrice)}</strong>`}</td>
@@ -8539,13 +8623,9 @@ function renderOffrePrixLines() {
           <td class="quote-qty-cell"><input type="text" inputmode="decimal" value="${escapeHtml(line.price)}" data-offre-field="price" aria-label="Prix net HT" /></td>
           <td class="numeric offre-prix-margin${margin != null && margin < 0.3 ? " is-low" : ""}" data-offre-margin>${margin == null ? "—" : `${(margin * 100).toFixed(1).replace(".", ",")}%`}</td>
           <td data-offre-amount>${formatter.format(amount)}</td>
-          <td class="offre-line-tools"><div class="offre-line-tools-grid">
-            <span class="offre-line-handle" draggable="true" data-offre-drag="${escapeHtml(line.id)}" title="Glisser pour déplacer la ligne" aria-hidden="true">&#8942;&#8942;</span>
-            <button class="icon-button offre-line-tool" type="button" data-move-offre-line="${escapeHtml(line.id)}" data-direction="-1" aria-label="Monter la ligne" title="Monter"${index === 0 ? " disabled" : ""}>&#8593;</button>
-            <button class="icon-button offre-line-tool" type="button" data-move-offre-line="${escapeHtml(line.id)}" data-direction="1" aria-label="Descendre la ligne" title="Descendre"${index === offrePrixLineItems.length - 1 ? " disabled" : ""}>&#8595;</button>
-            <button class="icon-button offre-line-tool" type="button" data-insert-offre-line="${escapeHtml(line.id)}" aria-label="Insérer une ligne en dessous" title="Insérer une ligne en dessous">+</button>
-            <button class="icon-button" type="button" data-remove-offre-line="${escapeHtml(line.id)}" aria-label="Supprimer la ligne">&times;</button>
-          </div></td>
+          <td class="offre-line-actions">
+            <button class="offre-line-menu-btn" type="button" data-offre-menu="${escapeHtml(line.id)}" aria-haspopup="menu" aria-label="Actions sur la ligne" title="Actions sur la ligne">${OFFRE_MORE_ICON}</button>
+          </td>
         </tr>
       `;
     }).join("");
@@ -9097,6 +9177,7 @@ function loadPriceOfferIntoForm(id) {
   }));
   renderOffrePrixLines();
   if (offrePrixEmail) offrePrixEmail.value = offer.recipient || "";
+  if (offrePrixMessage) offrePrixMessage.value = offer.message || "";
   offrePrixAutoEmail = "";
   if (offrePrixValidUntil) offrePrixValidUntil.value = offer.validUntil || getDefaultOffrePrixValidityDate();
   if (offrePrixSend) offrePrixSend.textContent = offer.status === "draft" ? "Envoyer l'offre" : "Mettre à jour et renvoyer";
@@ -9138,6 +9219,7 @@ async function saveOffrePrixDraft() {
       validUntil,
     };
     if (offrePrixEmail?.value?.trim()) payload.recipient = offrePrixEmail.value;
+    if (offrePrixMessage?.value?.trim()) payload.message = offrePrixMessage.value.trim();
     // Identifiant fixe des le premier clic : un nouvel essai (ou l'envoi qui suit) met a jour
     // la meme offre au lieu de creer un doublon, meme si la premiere reponse s'est perdue.
     if (!editingOfferId) { editingOfferId = newOffrePrixId(); offrePrixIdGenerated = true; }
@@ -9193,6 +9275,7 @@ async function sendOffrePrixEmail() {
       rows: JSON.stringify(rows),
       validUntil,
     };
+    if (offrePrixMessage?.value?.trim()) payload.message = offrePrixMessage.value.trim();
     if (!editingOfferId) { editingOfferId = newOffrePrixId(); offrePrixIdGenerated = true; }
     payload.offerId = editingOfferId;
     const result = await postService(payload);
@@ -9202,6 +9285,7 @@ async function sendOffrePrixEmail() {
       renderOffrePrixLines();
       clearOffrePrixClient();
       if (offrePrixEmail) offrePrixEmail.value = "";
+      if (offrePrixMessage) offrePrixMessage.value = "";
       resetOffrePrixValidityDate();
       cancelOffrePrixEdit(false);
       loadPriceOffers();
@@ -15488,11 +15572,15 @@ offrePrixLines?.addEventListener("change", (event) => {
 offrePrixLines?.addEventListener("click", (event) => {
   const removeId = event.target.closest("[data-remove-offre-line]")?.dataset.removeOffreLine;
   if (removeId) { removeOffrePrixLine(removeId); return; }
-  const moveButton = event.target.closest("[data-move-offre-line]");
-  if (moveButton) { moveOffrePrixLine(moveButton.dataset.moveOffreLine, Number(moveButton.dataset.direction) || 0); return; }
-  const insertId = event.target.closest("[data-insert-offre-line]")?.dataset.insertOffreLine;
-  if (insertId) insertOffrePrixLineAfter(insertId);
+  const menuButton = event.target.closest("[data-offre-menu]");
+  if (menuButton) { event.stopPropagation(); openOffrePrixLineMenu(menuButton); }
 });
+document.addEventListener("click", (event) => {
+  if (offrePrixLineMenu && !event.target.closest(".offre-line-menu") && !event.target.closest("[data-offre-menu]")) closeOffrePrixLineMenu();
+});
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeOffrePrixLineMenu(); });
+window.addEventListener("resize", closeOffrePrixLineMenu);
+document.addEventListener("scroll", closeOffrePrixLineMenu, true);
 let offrePrixDragId = null;
 offrePrixLines?.addEventListener("dragstart", (event) => {
   const handle = event.target.closest?.("[data-offre-drag]");
@@ -15555,6 +15643,7 @@ offrePrixCancelEdit?.addEventListener("click", () => {
   renderOffrePrixLines();
   clearOffrePrixClient();
   if (offrePrixEmail) offrePrixEmail.value = "";
+  if (offrePrixMessage) offrePrixMessage.value = "";
   resetOffrePrixValidityDate();
 });
 
