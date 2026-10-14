@@ -11161,12 +11161,6 @@ body.dark-theme .offre-prix-message-field span { color: #d1d5db; }
 .relance-kpi.is-stake { background: #171717; border-color: #171717; }
 .relance-kpi.is-stake span, .relance-kpi.is-stake small { color: #c9ccd1; }
 .relance-kpi.is-stake strong { color: #fff; }
-.relance-month { display: grid; gap: 8px; }
-.relance-month-label { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #5f6b7a; }
-.relance-month-label strong { color: #111827; }
-.relance-month-track { position: relative; height: 10px; border-radius: 999px; background: #f1e3e4; overflow: visible; }
-.relance-month-track i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, #18a058, #1f9d55); }
-.relance-month-track b { position: absolute; top: -4px; width: 2px; height: 18px; background: #e30613; border-radius: 2px; }
 .relance-filters { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(170px, 1fr)); gap: 12px; align-items: end; }
 .relance-filters label { display: grid; gap: 6px; font-size: 12px; font-weight: 800; color: #374151; }
 .relance-filters label.is-hidden { display: none; }
@@ -11219,7 +11213,7 @@ body.dark-theme .relance-filters input, body.dark-theme .relance-filters select 
 .relance-products-toggle.is-open span { transform: rotate(180deg); }
 .relance-products { grid-column: 1 / -1; display: grid; gap: 6px; padding: 12px 14px; border: 1px solid #eceef1; border-radius: 12px; background: #fafbfc; }
 .relance-products.is-hidden { display: none; }
-.relance-products-head, .relance-product { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(150px, 1fr) minmax(120px, 1.2fr) minmax(140px, .9fr); gap: 14px; align-items: center; }
+.relance-products-head, .relance-product { display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(130px, .9fr) minmax(170px, 1fr) minmax(190px, 1.1fr); gap: 18px; align-items: center; }
 .relance-products-head { padding: 0 2px 4px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #8a919c; }
 .relance-product { padding: 6px 2px; border-bottom: 1px dashed #eceef1; }
 .relance-product:last-of-type { border-bottom: 0; }
@@ -11246,4 +11240,44 @@ body.dark-theme .relance-product-name span { color: #d1d5db; }
   .relance-product { grid-template-columns: 1fr auto; gap: 6px 12px; }
   .relance-product-name { grid-column: 1 / -1; }
   .relance-product-bar { grid-column: 1 / -1; }
+}
+
+/* Relances v2 : marges, barre du mois, colonnes produits */
+.relance-shell .relance-hero, .relance-shell .relance-list-panel { padding: 26px 28px; }
+.relance-month { display: grid; gap: 10px; padding: 18px 20px; border: 1px solid #eceef1; border-radius: 16px; background: #fafbfc; }
+.relance-month-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.relance-month-name { display: block; font-size: 18px; font-weight: 900; color: #111827; }
+.relance-month-sub { display: block; margin-top: 2px; font-size: 13px; color: #5f6b7a; }
+.relance-month-left { display: flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: 12px; background: #171717; color: #fff; }
+.relance-month-left strong { font-size: 26px; line-height: 1; }
+.relance-month-left span { font-size: 13px; font-weight: 700; color: #d1d5db; }
+.relance-month-left.is-late { background: #e30613; }
+.relance-month-left.is-late span { color: #ffe1e3; }
+.relance-month-track { position: relative; height: 30px; margin: 20px 0 4px; border-radius: 10px; background: repeating-linear-gradient(90deg, #eef0f3 0 calc(100% / var(--days, 31) - 2px), #fafbfc calc(100% / var(--days, 31) - 2px) calc(100% / var(--days, 31))); overflow: visible; }
+.relance-month-track i { position: absolute; inset: 0 auto 0 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; border-radius: 10px; font-style: normal; }
+.relance-month-track i.is-ahead { background: linear-gradient(90deg, #1f9d55, #18a058); }
+.relance-month-track i.is-behind { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.relance-month-track i span { color: #fff; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.relance-month-track b { position: absolute; top: -8px; bottom: -8px; width: 3px; margin-left: -1px; border-radius: 3px; background: #e30613; }
+.relance-month-track b em { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; padding: 2px 8px; border-radius: 999px; background: #e30613; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.relance-month-hint { margin: 2px 0 0; font-size: 13px; font-weight: 700; }
+.relance-month-hint.is-ahead { color: #18794e; }
+.relance-month-hint.is-behind { color: #b45309; }
+.relance-product-qty, .relance-product-figures { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.relance-product-qty strong, .relance-product-figures strong { font-size: 17px; font-weight: 900; color: #111827; }
+.relance-product-qty span, .relance-product-figures span { font-size: 14px; font-weight: 700; color: #6b7280; }
+.relance-product-level { display: grid; gap: 4px; }
+.relance-product.is-stable .relance-product-state { color: #1f6feb; }
+.relance-product.is-stable .relance-product-bar i { background: #3b82f6; }
+.relance-product.is-new .relance-product-state { color: #6d28d9; }
+.relance-product.is-new .relance-product-bar i { background: #8b5cf6; }
+.relance-product-state { font-size: 13px; }
+.delivery-order-card.is-highlighted { outline: 3px solid #e30613; outline-offset: 2px; transition: outline-color .6s; }
+body.dark-theme .relance-month { background: #191c21; border-color: #343a43; }
+body.dark-theme .relance-month-name, body.dark-theme .relance-product-qty strong, body.dark-theme .relance-product-figures strong { color: #f3f4f6; }
+@media (max-width: 760px) {
+  .relance-shell .relance-hero, .relance-shell .relance-list-panel { padding: 18px 16px; }
+  .relance-product { grid-template-columns: 1fr 1fr; }
+  .relance-product-name, .relance-product-level { grid-column: 1 / -1; }
+  .relance-month-track b em { font-size: 10px; }
 }

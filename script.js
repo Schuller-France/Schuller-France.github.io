@@ -5172,7 +5172,7 @@ function renderDeliveryOrderHistory() {
     const lines = Array.isArray(order.lines) ? order.lines : [];
     const commercialLabel = order.commercialName || order.sector || "Commercial non identifié";
     return `
-      <details class="delivery-order-card">
+      <details class="delivery-order-card" data-delivery-number="${escapeHtml(order.number || "")}">
         <summary>
           <span class="delivery-order-chevron" aria-hidden="true"></span>
           <span class="delivery-order-main"><strong>${escapeHtml(order.clientName || "Client non identifié")}</strong><small>${escapeHtml(order.clientCode || "Code client inconnu")}</small></span>
@@ -6324,8 +6324,6 @@ function relanceLastOrderText(row) {
 function renderRelanceCard(row) {
   const client = row.client;
   const city = client.deliveryCity || client.billingCity || "";
-  const phone = String(client.phone || "").replace(/[^\d+]/g, "");
-  const phoneHref = phone ? `tel:+${phone.replace(/^\+/, "")}` : "";
   const progress = row.monthlyAverage > 0 ? Math.min(100, Math.round((row.monthRevenue / row.monthlyAverage) * 100)) : (row.monthRevenue > 0 ? 100 : 0);
   const contacted = row.lastNote && row.lastNote.time >= new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
   return `
@@ -6346,7 +6344,7 @@ function renderRelanceCard(row) {
         </div>
       </div>
       <div class="relance-actions">
-        ${phoneHref ? `<a class="ghost-button compact" href="${escapeHtml(phoneHref)}">Appeler</a>` : ""}
+        ${row.last?.source === "BL" && row.last.number ? `<button class="ghost-button compact" type="button" data-relance-last-order="${escapeHtml(row.last.number)}" data-relance-client-code="${escapeHtml(client.code || "")}">Voir sa dernière commande</button>` : ""}
         ${client.email ? `<a class="ghost-button compact" href="mailto:${escapeHtml(client.email)}">E-mail</a>` : ""}
         <button class="ghost-button compact" type="button" data-relance-open="${escapeHtml(client.code || "")}">Fiche client</button>
         ${row.level !== "ok" && contacted && row.lastNote.relance && row.lastNote.mine
@@ -6395,9 +6393,20 @@ function renderRelance() {
   const monthBar = document.querySelector("#relanceMonthBar");
   if (monthBar) {
     const monthName = now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    const dayPct = Math.round((now.getDate() / daysInMonth) * 100);
+    const left = daysInMonth - now.getDate();
+    const ahead = share >= dayPct;
     monthBar.innerHTML = `
-      <div class="relance-month-label"><strong>${escapeHtml(monthName.charAt(0).toUpperCase() + monthName.slice(1))}</strong><span>jour ${now.getDate()} sur ${daysInMonth} · ${daysInMonth - now.getDate()} jour${daysInMonth - now.getDate() > 1 ? "s" : ""} pour relancer</span></div>
-      <div class="relance-month-track" aria-label="${share} % des clients ont commandé"><i class="is-ordered" style="width:${share}%"></i><b style="left:${Math.round((now.getDate() / daysInMonth) * 100)}%" title="Aujourd'hui"></b></div>`;
+      <div class="relance-month-head">
+        <div><span class="relance-month-name">${escapeHtml(monthName.charAt(0).toUpperCase() + monthName.slice(1))}</span>
+          <span class="relance-month-sub">${share} % des clients ont commandé · ${dayPct} % du mois écoulé</span></div>
+        <div class="relance-month-left ${left <= 7 ? "is-late" : ""}"><strong>${left}</strong><span>jour${left > 1 ? "s" : ""} pour relancer</span></div>
+      </div>
+      <div class="relance-month-track" style="--days:${daysInMonth}" role="img" aria-label="${share} % des clients ont commandé, jour ${now.getDate()} sur ${daysInMonth}">
+        <i class="${ahead ? "is-ahead" : "is-behind"}" style="width:${Math.max(share, 2)}%"><span>${ordered.length} / ${scoped.length}</span></i>
+        <b style="left:${dayPct}%"><em>Aujourd'hui · ${now.getDate()}/${daysInMonth}</em></b>
+      </div>
+      <p class="relance-month-hint ${ahead ? "is-ahead" : "is-behind"}">${ahead ? "Bon rythme : plus de clients ont commandé que de jours écoulés." : `En retard sur le mois : ${Math.max(0, Math.ceil((dayPct / 100) * scoped.length) - ordered.length)} client(s) de plus devraient déjà avoir commandé.`}</p>`;
   }
   const badge = document.querySelector("#relanceBadge");
   if (badge && !isAdmin) {
@@ -6448,6 +6457,24 @@ function isRelanceNote(note) {
   return note?.source === "relance" || String(note?.text || "").startsWith("Relance commande du mois (onglet Relances clients)");
 }
 
+// Ouvre l'onglet Historique commandes filtre sur le client et deplie directement
+// le bon de livraison demande.
+function openDeliveryOrderInHistory(number, clientCode) {
+  setActiveTab("history");
+  if (historySearch) historySearch.value = clientCode || number || "";
+  const reveal = () => {
+    renderDeliveryOrderHistory();
+    const card = deliveryHistoryList?.querySelector(`[data-delivery-number="${CSS.escape(number)}"]`);
+    if (!card) return false;
+    card.open = true;
+    card.classList.add("is-highlighted");
+    requestAnimationFrame(() => card.scrollIntoView({ behavior: "smooth", block: "start" }));
+    setTimeout(() => card.classList.remove("is-highlighted"), 2600);
+    return true;
+  };
+  if (!reveal()) loadDeliveryOrderHistory().then(reveal);
+}
+
 function undoRelance(noteId) {
   if (!currentUser) return;
   const notes = getStoredNotes();
@@ -6469,25 +6496,30 @@ function renderRelanceProducts(code) {
   if (!articles.length) {
     return `<p class="relance-products-empty">${clientArticleStats360?.available ? "Aucun article trouvé pour ce client dans le fichier Articles par client." : "Fichier Articles par client en cours de chargement…"}</p>`;
   }
+  const year = new Date().getFullYear();
   const rowsHtml = articles.map((article) => {
     const now = Number(article.ca2026) || 0;
     const before = Number(article.ca2025) || 0;
+    const qtyNow = Number(article.quantity2026) || 0;
+    const qtyBefore = Number(article.quantity2025) || 0;
     const ratio = before > 0 ? now / before : (now > 0 ? 1 : 0);
     const pct = Math.round(ratio * 100);
-    const state = before > 0 && now <= 0 ? "lost" : ratio >= 1 ? "up" : ratio >= 0.7 ? "mid" : "down";
-    const stateLabel = state === "lost" ? "Plus commandé" : state === "up" ? "Au niveau" : state === "mid" ? "Un peu en retrait" : "En baisse";
-    const qty = (Number(article.quantity2026) || 0) || (Number(article.quantity2025) || 0)
-      ? `${formatNumber(Number(article.quantity2026) || 0)} / ${formatNumber(Number(article.quantity2025) || 0)} u.` : "";
+    const state = before > 0 && now <= 0 ? "lost" : before <= 0 ? "new" : ratio > 1.02 ? "up" : ratio >= 0.98 ? "stable" : ratio >= 0.7 ? "mid" : "down";
+    const stateLabel = { lost: "Plus commandé", new: "Nouveau", up: "Progression", stable: "Stable", mid: "Un peu en retrait", down: "En baisse" }[state];
+    const delta = before > 0 ? `${pct - 100 > 0 ? "+" : ""}${pct - 100} %` : "";
     return `
       <div class="relance-product is-${state}">
         <div class="relance-product-name"><strong>${escapeHtml(article.articleCode || "")}</strong><span>${escapeHtml(article.articleName || "")}</span></div>
-        <div class="relance-product-figures"><strong>${escapeHtml(relanceCurrency(now))}</strong><span>/ ${escapeHtml(relanceCurrency(before))}</span>${qty ? `<small>${escapeHtml(qty)}</small>` : ""}</div>
-        <div class="relance-product-bar" aria-hidden="true"><i style="width:${Math.min(100, pct)}%"></i></div>
-        <span class="relance-product-state">${before > 0 ? `${pct} %` : "Nouveau"} · ${stateLabel}</span>
+        <div class="relance-product-qty"><strong>${escapeHtml(formatNumber(qtyNow))}</strong><span>/ ${escapeHtml(formatNumber(qtyBefore))}</span></div>
+        <div class="relance-product-figures"><strong>${escapeHtml(relanceCurrency(now))}</strong><span>/ ${escapeHtml(relanceCurrency(before))}</span></div>
+        <div class="relance-product-level">
+          <div class="relance-product-bar" aria-hidden="true"><i style="width:${Math.min(100, before > 0 ? pct : 100)}%"></i></div>
+          <span class="relance-product-state">${escapeHtml(stateLabel)}${delta ? ` · ${escapeHtml(delta)}` : ""}</span>
+        </div>
       </div>`;
   }).join("");
   return `
-    <div class="relance-products-head"><span>Article</span><span>${new Date().getFullYear()} / ${new Date().getFullYear() - 1}</span><span></span><span>Niveau</span></div>
+    <div class="relance-products-head"><span>Article</span><span>Quantité ${year} / ${year - 1}</span><span>CA ${year} / ${year - 1}</span><span>Niveau</span></div>
     ${rowsHtml}
     <p class="relance-products-note">CA cumulé de l'année en cours comparé à l'an dernier (fichier ${escapeHtml(clientArticleStats360?.sourceFile || "Articles par client")}). Les articles en rouge sont à proposer en priorité.</p>`;
 }
@@ -6538,6 +6570,8 @@ document.querySelector("#relanceList")?.addEventListener("click", (event) => {
   if (openCode) { openDirectionClient(openCode); return; }
   const doneCode = event.target.closest("[data-relance-done]")?.dataset.relanceDone;
   if (doneCode) { markRelanceDone(doneCode); return; }
+  const lastOrderButton = event.target.closest("[data-relance-last-order]");
+  if (lastOrderButton) { openDeliveryOrderInHistory(lastOrderButton.dataset.relanceLastOrder, lastOrderButton.dataset.relanceClientCode); return; }
   const undoId = event.target.closest("[data-relance-undo]")?.dataset.relanceUndo;
   if (undoId) { undoRelance(undoId); return; }
   const productsButton = event.target.closest("[data-relance-products]");
