@@ -435,6 +435,8 @@ const expensesTab = document.querySelector("#expensesTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const tourTab = document.querySelector("#tourTab");
+const relanceTab = document.querySelector("#relanceTab");
+const relanceView = document.querySelector("#relanceView");
 const backlogTab = document.querySelector("#backlogTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
@@ -4856,6 +4858,7 @@ async function loadDashboardStatsFromDrive(options = {}) {
     // suspect (ce qui affichait des "0" partout malgre un statut "Synchronise") : on garde
     // l'ancien override et on retentera au prochain rafraichissement.
     const incomingRows = Array.isArray(result.rows) ? result.rows : [];
+    rememberMonthClientRevenue(incomingRows, result);
     if (incomingRows.length === 0 && dashboardStatsOverride && Object.keys(dashboardStatsOverride.bySector || {}).length) {
       if (currentUser?.role === "admin") {
         renderAdminChecking();
@@ -6180,6 +6183,305 @@ function renderDirectionDailyActions(overview) {
 
 let adminDirectionDeliveriesTriggered = false;
 
+// ---------------------------------------------------------------------------
+// Relances clients (14/10/2026) : qui n'a pas encore commandé ce mois-ci,
+// depuis quand, et combien de chiffre d'affaires est en jeu.
+// Sources croisées :
+//  - fichier CA du mois (Drive, celui du Journal de bord) : CA du mois par client ;
+//  - bons de livraison reçus (Historique commandes) : date de la dernière livraison ;
+//  - commandes saisies dans le CRM : date de saisie ;
+//  - fichier "Articles par client" : CA 2025 / 2026 pour estimer l'enjeu ;
+//  - notes clients : date du dernier contact noté.
+// ---------------------------------------------------------------------------
+let monthClientRevenue = { loaded: false, byKey: new Map(), sourceFile: "", updatedAt: "", monthLabel: "" };
+let relanceDataPromise = null;
+
+function relanceClientKey(value) {
+  return normalize(value || "").replace(/\s+/g, "").replace(/^fr/, "");
+}
+
+function rememberMonthClientRevenue(rows, result) {
+  const byKey = new Map();
+  (rows || []).forEach((row) => {
+    const client = typeof findStatsClient === "function" ? findStatsClient(row) : null;
+    const key = relanceClientKey(client?.code || row.clientCode || "");
+    const nameKey = normalize(client?.name || row.clientName || "");
+    const revenue = Number(row.revenue) || 0;
+    if (key) byKey.set(key, (byKey.get(key) || 0) + revenue);
+    else if (nameKey) byKey.set(`name:${nameKey}`, (byKey.get(`name:${nameKey}`) || 0) + revenue);
+  });
+  monthClientRevenue = {
+    loaded: true,
+    byKey,
+    sourceFile: result?.sourceFile || "",
+    updatedAt: result?.updatedAt || "",
+    monthLabel: result?.objectiveMonthLabel || "",
+  };
+  if (relanceView && !relanceView.classList.contains("is-hidden")) renderRelance();
+}
+
+function relanceDaysSince(time) {
+  if (!time) return null;
+  return Math.max(0, Math.floor((Date.now() - time) / 86400000));
+}
+
+function relanceFormatDate(time) {
+  return time ? new Date(time).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+}
+
+function relancePortfolio() {
+  if (!currentUser) return [];
+  if (currentUser.role === "admin") return allClients.slice();
+  return getClientsForUser(currentUser);
+}
+
+function buildRelanceRows() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthIndex = now.getMonth() + 1;
+  const lastDelivery = new Map();
+  let earliestDelivery = 0;
+  (deliveryOrderHistory || []).forEach((order) => {
+    const key = relanceClientKey(order.clientCode);
+    const time = deliveryHistoryDateValue(order.date);
+    if (!key || !time) return;
+    if (!earliestDelivery || time < earliestDelivery) earliestDelivery = time;
+    const current = lastDelivery.get(key);
+    if (!current || time > current.time) lastDelivery.set(key, { time, amount: Number(order.totalHt) || 0, number: order.number || "", source: "BL" });
+  });
+  const crmOrders = new Map();
+  (typeof getStoredOrders === "function" ? getStoredOrders() : []).forEach((order) => {
+    const key = relanceClientKey(order.client?.code);
+    const time = Date.parse(order.isoDate || "") || 0;
+    if (!key || !time) return;
+    const current = crmOrders.get(key);
+    if (!current || time > current.time) crmOrders.set(key, { time, amount: Number(order.total) || 0, number: order.orderNumber || "", source: "CRM" });
+  });
+  const lastNotes = new Map();
+  getStoredNotes().forEach((note) => {
+    const key = relanceClientKey(note.clientCode);
+    const time = Date.parse(note.date || note.createdAt || "") || 0;
+    if (!key || !time) return;
+    if (!lastNotes.has(key) || time > lastNotes.get(key).time) lastNotes.set(key, { time, text: note.text || "" });
+  });
+  const statsByKey = new Map();
+  Object.values(clientArticleStats360?.byClient || {}).forEach((block) => {
+    const summary = block?.summary;
+    if (summary?.clientCode) statsByKey.set(relanceClientKey(summary.clientCode), summary);
+  });
+
+  return relancePortfolio().map((client) => {
+    const key = relanceClientKey(client.code);
+    const summary = statsByKey.get(key) || null;
+    const ca2025 = Number(summary?.ca2025) || 0;
+    const ca2026 = Number(summary?.ca2026) || 0;
+    const monthRevenue = monthClientRevenue.byKey.get(key) ?? monthClientRevenue.byKey.get(`name:${normalize(client.name || "")}`) ?? 0;
+    const delivery = lastDelivery.get(key) || null;
+    const crm = crmOrders.get(key) || null;
+    const last = [delivery, crm].filter(Boolean).sort((a, b) => b.time - a.time)[0] || null;
+    const orderedThisMonth = monthRevenue > 0 || Boolean(last && last.time >= monthStart);
+    const monthlyAverage = ca2025 > 0 ? ca2025 / 12 : (ca2026 > 0 ? ca2026 / monthIndex : 0);
+    const days = last ? relanceDaysSince(last.time) : null;
+    let level = "ok";
+    if (!orderedThisMonth) {
+      if (days == null || days > 60) level = "urgent";
+      else if (days > 30) level = "relance";
+      else level = "watch";
+    }
+    const active = ca2025 > 0 || ca2026 > 0 || Boolean(last) || monthRevenue > 0;
+    const urgencyWeight = level === "urgent" ? 1.6 : level === "relance" ? 1.3 : level === "watch" ? 1 : 0;
+    return {
+      client, key, ca2025, ca2026, monthRevenue, monthlyAverage, last, days, orderedThisMonth, level, active,
+      lastNote: lastNotes.get(key) || null,
+      priority: monthlyAverage * urgencyWeight + (days || 90) * 2,
+    };
+  }).concat([]).map((row) => ({ ...row, earliestDelivery }));
+}
+
+const relanceEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+function relanceCurrency(value) {
+  return relanceEuro.format(Math.round(Number(value) || 0));
+}
+
+function relanceLevelLabel(row) {
+  if (row.level === "ok") return "Commandé ce mois";
+  if (row.level === "urgent") return "Urgent";
+  if (row.level === "relance") return "À relancer";
+  return "À surveiller";
+}
+
+function relanceLastOrderText(row) {
+  if (row.last) {
+    const ago = row.days === 0 ? "aujourd'hui" : row.days === 1 ? "hier" : `il y a ${row.days} jours`;
+    const what = row.last.source === "BL" ? "livraison" : "commande saisie";
+    return `<strong>${escapeHtml(relanceFormatDate(row.last.time))}</strong> <span>${ago} · ${what}${row.last.amount ? ` · ${escapeHtml(relanceCurrency(row.last.amount))}` : ""}</span>`;
+  }
+  if (row.monthRevenue > 0) return `<strong>Ce mois-ci</strong> <span>date exacte non disponible</span>`;
+  const since = row.earliestDelivery ? relanceFormatDate(row.earliestDelivery) : "";
+  return `<strong>Aucune depuis le ${escapeHtml(since || "début du suivi")}</strong> <span>pas de livraison reçue sur la période suivie</span>`;
+}
+
+function renderRelanceCard(row) {
+  const client = row.client;
+  const city = client.deliveryCity || client.billingCity || "";
+  const phone = String(client.phone || "").replace(/[^\d+]/g, "");
+  const phoneHref = phone ? `tel:+${phone.replace(/^\+/, "")}` : "";
+  const progress = row.monthlyAverage > 0 ? Math.min(100, Math.round((row.monthRevenue / row.monthlyAverage) * 100)) : (row.monthRevenue > 0 ? 100 : 0);
+  const contacted = row.lastNote && row.lastNote.time >= new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  return `
+    <article class="relance-card is-${row.level}" data-relance-client="${escapeHtml(client.code || "")}">
+      <div class="relance-card-main">
+        <div class="relance-card-title">
+          <span class="relance-pill is-${row.level}">${escapeHtml(relanceLevelLabel(row))}</span>
+          ${contacted ? `<span class="relance-pill is-contact">Contacté le ${escapeHtml(relanceFormatDate(row.lastNote.time))}</span>` : ""}
+          <h3>${escapeHtml(client.name || "Client")}</h3>
+          <p>${escapeHtml([client.code, city, currentUser?.role === "admin" ? client.sector : ""].filter(Boolean).join(" · "))}</p>
+        </div>
+        <div class="relance-facts">
+          <div class="relance-fact"><span>Dernière commande</span>${relanceLastOrderText(row)}</div>
+          <div class="relance-fact"><span>CA ce mois</span><strong>${escapeHtml(relanceCurrency(row.monthRevenue))}</strong><span>${row.monthlyAverage > 0 ? `habituellement ≈ ${escapeHtml(relanceCurrency(row.monthlyAverage))} / mois` : "pas d'historique de CA"}</span>
+            ${row.monthlyAverage > 0 ? `<div class="relance-progress" aria-hidden="true"><i style="width:${progress}%"></i></div>` : ""}
+          </div>
+          <div class="relance-fact"><span>CA cumulé</span><strong>${escapeHtml(relanceCurrency(row.ca2026))}</strong><span>2025 : ${escapeHtml(relanceCurrency(row.ca2025))}</span></div>
+        </div>
+      </div>
+      <div class="relance-actions">
+        ${phoneHref ? `<a class="ghost-button compact" href="${escapeHtml(phoneHref)}">Appeler</a>` : ""}
+        ${client.email ? `<a class="ghost-button compact" href="mailto:${escapeHtml(client.email)}">E-mail</a>` : ""}
+        <button class="ghost-button compact" type="button" data-relance-open="${escapeHtml(client.code || "")}">Fiche client</button>
+        ${row.level !== "ok" ? `<button class="primary-button compact" type="button" data-relance-done="${escapeHtml(client.code || "")}">Relance faite</button>` : ""}
+      </div>
+    </article>`;
+}
+
+function renderRelance() {
+  const list = document.querySelector("#relanceList");
+  if (!list || !currentUser) return;
+  const isAdmin = currentUser.role === "admin";
+  const sectorField = document.querySelector("#relanceSectorField");
+  const sectorSelect = document.querySelector("#relanceSector");
+  sectorField?.classList.toggle("is-hidden", !isAdmin);
+  const rows = buildRelanceRows().filter((row) => row.active);
+  if (isAdmin && sectorSelect) {
+    const current = sectorSelect.value || "all";
+    const sectors = [...new Set(rows.map((row) => row.client.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+    sectorSelect.innerHTML = `<option value="all">Tous les secteurs</option>${sectors.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(directionCommercialLabel ? directionCommercialLabel(sector) : sector)}</option>`).join("")}`;
+    sectorSelect.value = sectors.includes(current) ? current : "all";
+  }
+  const sector = isAdmin ? (sectorSelect?.value || "all") : "all";
+  const intro = document.querySelector("#relanceIntro");
+  if (intro) intro.textContent = isAdmin
+    ? "Les clients de tous les secteurs qui n'ont pas encore commandé ce mois-ci, classés par chiffre d'affaires en jeu."
+    : "Les clients de votre portefeuille qui n'ont pas encore commandé ce mois-ci, du plus important au moins important.";
+  const scoped = rows.filter((row) => sector === "all" || row.client.sector === sector);
+
+  const ordered = scoped.filter((row) => row.orderedThisMonth);
+  const todo = scoped.filter((row) => !row.orderedThisMonth);
+  const urgent = todo.filter((row) => row.level === "urgent");
+  const atStake = todo.reduce((sum, row) => sum + row.monthlyAverage, 0);
+  const share = scoped.length ? Math.round((ordered.length / scoped.length) * 100) : 0;
+  const kpis = document.querySelector("#relanceKpis");
+  if (kpis) kpis.innerHTML = `
+    <div class="relance-kpi"><span>Clients actifs</span><strong>${scoped.length}</strong><small>dans ${isAdmin ? "le périmètre affiché" : "votre portefeuille"}</small></div>
+    <div class="relance-kpi is-ok"><span>Ont commandé ce mois</span><strong>${ordered.length}</strong><small>${share} % du portefeuille</small></div>
+    <div class="relance-kpi is-todo"><span>À relancer</span><strong>${todo.length}</strong><small>dont ${urgent.length} urgent${urgent.length > 1 ? "s" : ""} (+60 jours)</small></div>
+    <div class="relance-kpi is-stake"><span>CA à aller chercher</span><strong>${escapeHtml(relanceCurrency(atStake))}</strong><small>CA mensuel habituel des clients à relancer</small></div>`;
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthBar = document.querySelector("#relanceMonthBar");
+  if (monthBar) {
+    const monthName = now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    monthBar.innerHTML = `
+      <div class="relance-month-label"><strong>${escapeHtml(monthName.charAt(0).toUpperCase() + monthName.slice(1))}</strong><span>jour ${now.getDate()} sur ${daysInMonth} · ${daysInMonth - now.getDate()} jour${daysInMonth - now.getDate() > 1 ? "s" : ""} pour relancer</span></div>
+      <div class="relance-month-track" aria-label="${share} % des clients ont commandé"><i class="is-ordered" style="width:${share}%"></i><b style="left:${Math.round((now.getDate() / daysInMonth) * 100)}%" title="Aujourd'hui"></b></div>`;
+  }
+  const badge = document.querySelector("#relanceBadge");
+  if (badge && !isAdmin) {
+    badge.textContent = String(urgent.length);
+    badge.classList.toggle("is-hidden", !urgent.length);
+  }
+
+  const query = normalize(document.querySelector("#relanceSearch")?.value || "");
+  const status = document.querySelector("#relanceStatus")?.value || "todo";
+  const sort = document.querySelector("#relanceSort")?.value || "priority";
+  let visible = status === "ordered" ? ordered : status === "all" ? scoped : status === "urgent" ? urgent : todo;
+  if (query) visible = visible.filter((row) => normalize([row.client.name, row.client.code, row.client.deliveryCity, row.client.billingCity].join(" ")).includes(query));
+  visible = visible.slice().sort((a, b) => {
+    if (sort === "name") return String(a.client.name || "").localeCompare(String(b.client.name || ""), "fr");
+    if (sort === "oldest") return (a.last?.time || 0) - (b.last?.time || 0);
+    if (a.orderedThisMonth !== b.orderedThisMonth) return a.orderedThisMonth ? 1 : -1;
+    return b.priority - a.priority;
+  });
+  const statusText = document.querySelector("#relanceStatusText");
+  const loading = !monthClientRevenue.loaded || !deliveryOrderHistoryLoaded;
+  if (statusText) statusText.textContent = loading ? "Chargement des dernières données…" : `${visible.length} client${visible.length > 1 ? "s" : ""} affiché${visible.length > 1 ? "s" : ""}`;
+  const limit = 150;
+  list.innerHTML = visible.length
+    ? visible.slice(0, limit).map(renderRelanceCard).join("") + (visible.length > limit ? `<p class="relance-more">${visible.length - limit} autres clients : affinez avec la recherche.</p>` : "")
+    : `<div class="dashboard-empty">${status === "ordered" ? "Aucun client n'a encore commandé ce mois-ci." : "Bravo, aucun client à relancer avec ces filtres."}</div>`;
+  const source = document.querySelector("#relanceSource");
+  if (source) {
+    const parts = [];
+    if (monthClientRevenue.sourceFile) parts.push(`CA du mois : ${monthClientRevenue.sourceFile}${monthClientRevenue.updatedAt ? ` (mis à jour le ${monthClientRevenue.updatedAt})` : ""}`);
+    if (deliveryOrderHistoryLoaded) parts.push(`${deliveryOrderHistory.length} bons de livraison reçus`);
+    if (clientArticleStats360?.sourceFile) parts.push(`CA annuel : ${clientArticleStats360.sourceFile}`);
+    source.textContent = parts.length ? `Sources : ${parts.join(" · ")}.` : "";
+  }
+}
+
+function openRelanceTab() {
+  renderRelance();
+  if (!relanceDataPromise) {
+    relanceDataPromise = Promise.allSettled([
+      deliveryOrderHistoryLoaded ? Promise.resolve() : loadDeliveryOrderHistory(),
+      clientArticleStats360?.available ? Promise.resolve() : loadClientArticleStatsFromDrive(),
+      monthClientRevenue.loaded ? Promise.resolve() : loadDashboardStatsFromDrive(),
+    ]).finally(() => { relanceDataPromise = null; renderRelance(); });
+  }
+}
+
+function markRelanceDone(code) {
+  const client = allClients.find((item) => item.code === code);
+  if (!client || !currentUser) return;
+  const notes = getStoredNotes();
+  const now = new Date().toISOString();
+  notes.push({
+    id: `note-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    userId: currentUser.id,
+    userName: currentUser.name,
+    clientCode: client.code,
+    clientName: client.name,
+    clientSector: client.sector,
+    date: todayInputDate(),
+    text: "Relance commande du mois (onglet Relances clients).",
+    reminderDate: "",
+    reminderText: "",
+    reminderDone: false,
+    reminderDoneAt: "",
+    createdAt: now,
+    updatedAt: now,
+  });
+  saveStoredNotes(notes);
+  recordActivity("Relance client faite", `${client.name} (${client.code})`);
+  renderRelance();
+}
+
+document.querySelector("#relanceList")?.addEventListener("click", (event) => {
+  const openCode = event.target.closest("[data-relance-open]")?.dataset.relanceOpen;
+  if (openCode) { openDirectionClient(openCode); return; }
+  const doneCode = event.target.closest("[data-relance-done]")?.dataset.relanceDone;
+  if (doneCode) markRelanceDone(doneCode);
+});
+["#relanceSearch", "#relanceStatus", "#relanceSort", "#relanceSector"].forEach((selector) => {
+  document.querySelector(selector)?.addEventListener(selector === "#relanceSearch" ? "input" : "change", renderRelance);
+});
+document.querySelector("#relanceRefresh")?.addEventListener("click", () => {
+  const button = document.querySelector("#relanceRefresh");
+  if (button) button.disabled = true;
+  Promise.allSettled([loadDeliveryOrderHistory(true), loadDashboardStatsFromDrive({ force: true })])
+    .finally(() => { if (button) button.disabled = false; renderRelance(); });
+});
+
 function openDirectionClient(codeOrName) {
   const key = normalize(codeOrName || "");
   const client = allClients.find((item) => normalize(item.code || "") === key)
@@ -7274,6 +7576,10 @@ function arrangeTabsForUser(user) {
       appTabs.insertBefore(adminDirectionTab, lastTab.nextSibling);
       lastTab = adminDirectionTab;
     }
+    if (relanceTab) {
+      appTabs.insertBefore(relanceTab, lastTab.nextSibling);
+      lastTab = relanceTab;
+    }
     appTabs.insertBefore(adminPrenetTab, lastTab.nextSibling);
     lastTab = adminPrenetTab;
     appTabs.insertBefore(adminPurchaseTab, lastTab.nextSibling);
@@ -7314,6 +7620,7 @@ function arrangeTabsForUser(user) {
     homeTab,
     client360Tab,
     statsTab,
+    ...(relanceTab ? [relanceTab] : []),
     antiErosionTab,
     orderTab,
     historyTab,
@@ -7796,6 +8103,7 @@ function showApp(user, token = user.token || "") {
   statsTab.classList.remove("is-hidden");
   antiErosionTab?.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
+  relanceTab?.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
@@ -14652,6 +14960,7 @@ function setActiveTab(tabName) {
   const showExpenses = tabName === "expenses";
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
+  const showRelance = tabName === "relance";
   const showBacklog = tabName === "backlog";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
@@ -14681,6 +14990,7 @@ function setActiveTab(tabName) {
   expensesTab.classList.toggle("is-active", showExpenses);
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
+  relanceTab?.classList.toggle("is-active", showRelance);
   backlogTab.classList.toggle("is-active", showBacklog);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
@@ -14710,6 +15020,7 @@ function setActiveTab(tabName) {
   expensesView.classList.toggle("is-hidden", !showExpenses);
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
+  relanceView?.classList.toggle("is-hidden", !showRelance);
   backlogView.classList.toggle("is-hidden", !showBacklog);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
@@ -14729,7 +15040,7 @@ function setActiveTab(tabName) {
   adminOrderView?.classList.toggle("is-hidden", !showAdminOrder);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", order: "Saisie commande", history: "Historique commandes", quote: "Demande devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
+    const names = { tutorial: "Formation tablette", home: "Accueil", client360: "Fiche client", stats: "Statistiques", antiErosion: "Anti-érosion", order: "Saisie commande", history: "Historique commandes", quote: "Demande devis", sample: "Demande échantillon", expenses: "Frais", notes: "Prise de notes", prospection: "Prospection", relance: "Relances clients", tour: "Tournées", backlog: "Reliquats & litiges", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions", problem: "Signaler un problème" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -14751,6 +15062,7 @@ function setActiveTab(tabName) {
   }
 
   if (showAntiErosion) loadAntiErosion();
+  if (showRelance) openRelanceTab();
 
   if (showClient360) {
     loadClientArticleStatsFromDrive();
@@ -15478,6 +15790,7 @@ sampleTab.addEventListener("click", () => setActiveTab("sample"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
+relanceTab?.addEventListener("click", () => setActiveTab("relance"));
 backlogTab.addEventListener("click", () => setActiveTab("backlog"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));

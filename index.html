@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261013menu29" />
-    <link rel="icon" href="assets/favicon.ico?v=20261013menu29" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261013menu29" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261013menu29" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261013menu29" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261014relance30" />
+    <link rel="icon" href="assets/favicon.ico?v=20261014relance30" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261014relance30" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261014relance30" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261014relance30" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261013menu29" />
+    <link rel="stylesheet" href="style.css?v=20261014relance30" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261013menu29" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261014relance30" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -161,6 +161,7 @@
         <button class="tab-button" type="button" id="prospectionTab" data-icon="🔎">Prospection</button>
         <button class="tab-button" type="button" id="promotionTab" data-icon="🎯">Promotions</button>
         <button class="tab-button" type="button" id="tarifTab" data-icon="📚">Tarifs &amp; Documents</button>
+        <button class="tab-button" type="button" id="relanceTab" data-icon="📞">Relances clients <span class="tab-badge is-hidden" id="relanceBadge">0</span></button>
         <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
         <button class="tab-button" type="button" id="prenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
@@ -1073,6 +1074,54 @@
             <button class="primary-button" type="submit" id="sendProblemReport">Envoyer le problème</button>
             <p class="tarif-send-status" id="problemStatus" role="status"></p>
           </form>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden relance-shell" id="relanceView">
+        <section class="panel relance-hero" aria-labelledby="relanceTitle">
+          <div class="relance-hero-head">
+            <div>
+              <p class="step">Chiffre d'affaires à débloquer</p>
+              <h2 id="relanceTitle">Relances clients</h2>
+              <p class="relance-intro" id="relanceIntro">Les clients de votre portefeuille qui n'ont pas encore commandé ce mois-ci, du plus important au moins important.</p>
+            </div>
+            <button class="ghost-button" type="button" id="relanceRefresh">Actualiser</button>
+          </div>
+          <div class="relance-kpis" id="relanceKpis"></div>
+          <div class="relance-month" id="relanceMonthBar"></div>
+        </section>
+
+        <section class="panel relance-list-panel" aria-label="Liste des clients">
+          <div class="relance-filters">
+            <label class="relance-search">
+              <span>Rechercher</span>
+              <input type="search" id="relanceSearch" placeholder="Client, ville, code…" autocomplete="off" />
+            </label>
+            <label class="is-hidden" id="relanceSectorField">
+              <span>Secteur</span>
+              <select id="relanceSector"><option value="all">Tous les secteurs</option></select>
+            </label>
+            <label>
+              <span>Afficher</span>
+              <select id="relanceStatus">
+                <option value="todo">À relancer (pas de commande ce mois)</option>
+                <option value="urgent">Urgent uniquement (plus de 60 jours)</option>
+                <option value="ordered">Ont commandé ce mois</option>
+                <option value="all">Tous les clients actifs</option>
+              </select>
+            </label>
+            <label>
+              <span>Trier par</span>
+              <select id="relanceSort">
+                <option value="priority">Priorité (CA en jeu)</option>
+                <option value="oldest">Dernière commande la plus ancienne</option>
+                <option value="name">Nom du client</option>
+              </select>
+            </label>
+          </div>
+          <p class="relance-status" id="relanceStatusText" role="status" aria-live="polite"></p>
+          <div class="relance-list" id="relanceList"></div>
+          <p class="relance-source" id="relanceSource"></p>
         </section>
       </main>
 
@@ -2463,11 +2512,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261013menu29" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261014relance30" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261013menu29" charset="UTF-8"></script>
+    <script src="script.js?v=20261014relance30" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
