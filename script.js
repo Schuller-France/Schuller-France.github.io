@@ -6262,7 +6262,7 @@ function buildRelanceRows() {
     const key = relanceClientKey(note.clientCode);
     const time = Date.parse(note.date || note.createdAt || "") || 0;
     if (!key || !time) return;
-    if (!lastNotes.has(key) || time > lastNotes.get(key).time) lastNotes.set(key, { time, text: note.text || "" });
+    if (!lastNotes.has(key) || time > lastNotes.get(key).time) lastNotes.set(key, { time, text: note.text || "", id: note.id, relance: isRelanceNote(note), mine: note.userId === currentUser?.id });
   });
   const statsByKey = new Map();
   Object.values(clientArticleStats360?.byClient || {}).forEach((block) => {
@@ -6349,8 +6349,12 @@ function renderRelanceCard(row) {
         ${phoneHref ? `<a class="ghost-button compact" href="${escapeHtml(phoneHref)}">Appeler</a>` : ""}
         ${client.email ? `<a class="ghost-button compact" href="mailto:${escapeHtml(client.email)}">E-mail</a>` : ""}
         <button class="ghost-button compact" type="button" data-relance-open="${escapeHtml(client.code || "")}">Fiche client</button>
-        ${row.level !== "ok" ? `<button class="primary-button compact" type="button" data-relance-done="${escapeHtml(client.code || "")}">Relance faite</button>` : ""}
+        ${row.level !== "ok" && contacted && row.lastNote.relance && row.lastNote.mine
+          ? `<button class="ghost-button compact relance-undo" type="button" data-relance-undo="${escapeHtml(row.lastNote.id)}">Annuler la relance</button>`
+          : row.level !== "ok" ? `<button class="primary-button compact" type="button" data-relance-done="${escapeHtml(client.code || "")}">Relance faite</button>` : ""}
       </div>
+      <button class="relance-products-toggle" type="button" data-relance-products="${escapeHtml(client.code || "")}" aria-expanded="false">Produits habituels <span aria-hidden="true">▾</span></button>
+      <div class="relance-products is-hidden" data-relance-products-panel="${escapeHtml(client.code || "")}"></div>
     </article>`;
 }
 
@@ -6440,6 +6444,68 @@ function openRelanceTab() {
   }
 }
 
+function isRelanceNote(note) {
+  return note?.source === "relance" || String(note?.text || "").startsWith("Relance commande du mois (onglet Relances clients)");
+}
+
+function undoRelance(noteId) {
+  if (!currentUser) return;
+  const notes = getStoredNotes();
+  const note = notes.find((item) => item.id === noteId && item.userId === currentUser.id && isRelanceNote(item));
+  if (!note) return;
+  saveStoredNotes(notes.filter((item) => item.id !== noteId));
+  recordActivity("Relance client annulée", `${note.clientName} (${note.clientCode})`);
+  renderRelance();
+}
+
+// Produits habituels du client (fichier "Articles par client") : CA de l'annee
+// en cours face a l'an dernier, article par article.
+function renderRelanceProducts(code) {
+  const block = Object.values(clientArticleStats360?.byClient || {}).find((item) => relanceClientKey(item?.summary?.clientCode) === relanceClientKey(code));
+  const articles = (block?.topArticles || [])
+    .filter((article) => (Number(article.ca2025) || 0) > 0 || (Number(article.ca2026) || 0) > 0)
+    .sort((a, b) => Math.max(Number(b.ca2025) || 0, Number(b.ca2026) || 0) - Math.max(Number(a.ca2025) || 0, Number(a.ca2026) || 0))
+    .slice(0, 12);
+  if (!articles.length) {
+    return `<p class="relance-products-empty">${clientArticleStats360?.available ? "Aucun article trouvé pour ce client dans le fichier Articles par client." : "Fichier Articles par client en cours de chargement…"}</p>`;
+  }
+  const rowsHtml = articles.map((article) => {
+    const now = Number(article.ca2026) || 0;
+    const before = Number(article.ca2025) || 0;
+    const ratio = before > 0 ? now / before : (now > 0 ? 1 : 0);
+    const pct = Math.round(ratio * 100);
+    const state = before > 0 && now <= 0 ? "lost" : ratio >= 1 ? "up" : ratio >= 0.7 ? "mid" : "down";
+    const stateLabel = state === "lost" ? "Plus commandé" : state === "up" ? "Au niveau" : state === "mid" ? "Un peu en retrait" : "En baisse";
+    const qty = (Number(article.quantity2026) || 0) || (Number(article.quantity2025) || 0)
+      ? `${formatNumber(Number(article.quantity2026) || 0)} / ${formatNumber(Number(article.quantity2025) || 0)} u.` : "";
+    return `
+      <div class="relance-product is-${state}">
+        <div class="relance-product-name"><strong>${escapeHtml(article.articleCode || "")}</strong><span>${escapeHtml(article.articleName || "")}</span></div>
+        <div class="relance-product-figures"><strong>${escapeHtml(relanceCurrency(now))}</strong><span>/ ${escapeHtml(relanceCurrency(before))}</span>${qty ? `<small>${escapeHtml(qty)}</small>` : ""}</div>
+        <div class="relance-product-bar" aria-hidden="true"><i style="width:${Math.min(100, pct)}%"></i></div>
+        <span class="relance-product-state">${before > 0 ? `${pct} %` : "Nouveau"} · ${stateLabel}</span>
+      </div>`;
+  }).join("");
+  return `
+    <div class="relance-products-head"><span>Article</span><span>${new Date().getFullYear()} / ${new Date().getFullYear() - 1}</span><span></span><span>Niveau</span></div>
+    ${rowsHtml}
+    <p class="relance-products-note">CA cumulé de l'année en cours comparé à l'an dernier (fichier ${escapeHtml(clientArticleStats360?.sourceFile || "Articles par client")}). Les articles en rouge sont à proposer en priorité.</p>`;
+}
+
+function toggleRelanceProducts(button) {
+  const code = button.dataset.relanceProducts;
+  const panel = button.parentElement?.querySelector(`[data-relance-products-panel="${CSS.escape(code)}"]`);
+  if (!panel) return;
+  const open = panel.classList.contains("is-hidden");
+  if (open) panel.innerHTML = renderRelanceProducts(code);
+  panel.classList.toggle("is-hidden", !open);
+  button.setAttribute("aria-expanded", String(open));
+  button.classList.toggle("is-open", open);
+  if (open && !clientArticleStats360?.available) {
+    loadClientArticleStatsFromDrive().then(() => { if (!panel.classList.contains("is-hidden")) panel.innerHTML = renderRelanceProducts(code); });
+  }
+}
+
 function markRelanceDone(code) {
   const client = allClients.find((item) => item.code === code);
   if (!client || !currentUser) return;
@@ -6454,6 +6520,7 @@ function markRelanceDone(code) {
     clientSector: client.sector,
     date: todayInputDate(),
     text: "Relance commande du mois (onglet Relances clients).",
+    source: "relance",
     reminderDate: "",
     reminderText: "",
     reminderDone: false,
@@ -6470,7 +6537,11 @@ document.querySelector("#relanceList")?.addEventListener("click", (event) => {
   const openCode = event.target.closest("[data-relance-open]")?.dataset.relanceOpen;
   if (openCode) { openDirectionClient(openCode); return; }
   const doneCode = event.target.closest("[data-relance-done]")?.dataset.relanceDone;
-  if (doneCode) markRelanceDone(doneCode);
+  if (doneCode) { markRelanceDone(doneCode); return; }
+  const undoId = event.target.closest("[data-relance-undo]")?.dataset.relanceUndo;
+  if (undoId) { undoRelance(undoId); return; }
+  const productsButton = event.target.closest("[data-relance-products]");
+  if (productsButton) toggleRelanceProducts(productsButton);
 });
 ["#relanceSearch", "#relanceStatus", "#relanceSort", "#relanceSector"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener(selector === "#relanceSearch" ? "input" : "change", renderRelance);

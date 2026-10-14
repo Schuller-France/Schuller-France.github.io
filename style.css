@@ -11212,3 +11212,38 @@ body.dark-theme .relance-filters input, body.dark-theme .relance-filters select 
   .relance-filters { grid-template-columns: 1fr; }
   .relance-kpi strong { font-size: 24px; }
 }
+.relance-undo { color: #6b7280; }
+.relance-products-toggle { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: -4px; padding: 6px 10px; border: 0; border-radius: 8px; background: #f3f4f6; color: #374151; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.relance-products-toggle:hover { background: #e9ebef; }
+.relance-products-toggle span { transition: transform .15s; }
+.relance-products-toggle.is-open span { transform: rotate(180deg); }
+.relance-products { grid-column: 1 / -1; display: grid; gap: 6px; padding: 12px 14px; border: 1px solid #eceef1; border-radius: 12px; background: #fafbfc; }
+.relance-products.is-hidden { display: none; }
+.relance-products-head, .relance-product { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(150px, 1fr) minmax(120px, 1.2fr) minmax(140px, .9fr); gap: 14px; align-items: center; }
+.relance-products-head { padding: 0 2px 4px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #8a919c; }
+.relance-product { padding: 6px 2px; border-bottom: 1px dashed #eceef1; }
+.relance-product:last-of-type { border-bottom: 0; }
+.relance-product-name { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.relance-product-name strong { flex: 0 0 auto; }
+.relance-product-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #374151; font-size: 13px; }
+.relance-product-figures { display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap; }
+.relance-product-figures strong { font-size: 15px; }
+.relance-product-figures span { color: #6b7280; font-size: 13px; }
+.relance-product-figures small { flex-basis: 100%; color: #8a919c; font-size: 11px; }
+.relance-product-bar { height: 8px; border-radius: 999px; background: #eceef1; overflow: hidden; }
+.relance-product-bar i { display: block; height: 100%; border-radius: 999px; background: #18a058; }
+.relance-product.is-mid .relance-product-bar i { background: #f59e0b; }
+.relance-product.is-down .relance-product-bar i, .relance-product.is-lost .relance-product-bar i { background: #e30613; }
+.relance-product-state { font-size: 12px; font-weight: 800; color: #18794e; }
+.relance-product.is-mid .relance-product-state { color: #a35200; }
+.relance-product.is-down .relance-product-state, .relance-product.is-lost .relance-product-state { color: #b8000d; }
+.relance-products-note, .relance-products-empty { margin: 6px 0 0; color: #8a919c; font-size: 12px; }
+body.dark-theme .relance-products { background: #191c21; border-color: #343a43; }
+body.dark-theme .relance-products-toggle { background: #2b3038; color: #e5e7eb; }
+body.dark-theme .relance-product-name span { color: #d1d5db; }
+@media (max-width: 760px) {
+  .relance-products-head { display: none; }
+  .relance-product { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .relance-product-name { grid-column: 1 / -1; }
+  .relance-product-bar { grid-column: 1 / -1; }
+}
