@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261019sample33" />
-    <link rel="icon" href="assets/favicon.ico?v=20261019sample33" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261019sample33" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261019sample33" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261019sample33" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261019perso34" />
+    <link rel="icon" href="assets/favicon.ico?v=20261019perso34" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261019perso34" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261019perso34" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261019perso34" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261019sample33" />
+    <link rel="stylesheet" href="style.css?v=20261019perso34" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261019sample33" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261019perso34" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -796,7 +796,18 @@
 
           <div class="quote-layout sample-layout">
             <section class="quote-client-card quote-client-wide">
-              <div class="search-block">
+              <div class="sample-mode-switch">
+                <button class="ghost-button" type="button" id="samplePersonalToggle" aria-pressed="false">Échantillons perso</button>
+                <small id="samplePersonalHint">Pour vous-même : envoi à votre adresse de domicile.</small>
+              </div>
+              <div class="sample-personal-form is-hidden" id="samplePersonalForm">
+                <label>Nom<input type="text" id="samplePersonalName" autocomplete="name" /></label>
+                <label class="is-wide">Adresse de domicile<input type="text" id="samplePersonalAddress" autocomplete="street-address" placeholder="N° et rue" /></label>
+                <label>Code postal<input type="text" id="samplePersonalZip" inputmode="numeric" autocomplete="postal-code" maxlength="10" /></label>
+                <label>Ville<input type="text" id="samplePersonalCity" autocomplete="address-level2" /></label>
+                <label>Téléphone <em>(facultatif)</em><input type="tel" id="samplePersonalPhone" autocomplete="tel" /></label>
+              </div>
+              <div class="search-block" id="sampleClientSearchBlock">
                 <label for="sampleClientSearch">Rechercher le client</label>
                 <input id="sampleClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
                 <div class="suggestions" id="sampleClientSuggestions" role="listbox"></div>
@@ -2512,11 +2523,11 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261019sample33" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261019perso34" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261019sample33" charset="UTF-8"></script>
+    <script src="script.js?v=20261019perso34" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -10014,6 +10014,57 @@ function selectSampleClient(client) {
   recordActivity("Client échantillon sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
 }
 
+// Echantillons perso (19/10/2026) : demande pour le commercial lui-meme,
+// livree a son domicile. L'adresse n'est pas memorisee sur l'appareil.
+let samplePersonalMode = false;
+const samplePersonalFields = ["Name", "Address", "Zip", "City", "Phone"].reduce((map, key) => ({ ...map, [key]: document.querySelector(`#samplePersonal${key}`) }), {});
+
+function buildSamplePersonalClient() {
+  const value = (key) => String(samplePersonalFields[key]?.value || "").trim();
+  if (!value("Address") || !value("Zip") || !value("City")) return null;
+  const name = value("Name") || currentUser?.name || "Commercial";
+  return {
+    code: "",
+    name: `Échantillons perso - ${name}`,
+    sector: (currentUser?.sectors || []).join(" + "),
+    billingAddress: value("Address"),
+    billingZip: value("Zip"),
+    billingCity: value("City"),
+    phone: value("Phone"),
+    personal: true,
+  };
+}
+
+function refreshSamplePersonalClient() {
+  if (!samplePersonalMode) return;
+  selectedSampleClient = buildSamplePersonalClient();
+  sampleStatus.textContent = selectedSampleClient ? "Échantillons perso" : "Adresse à compléter";
+  sampleStatus.classList.toggle("is-ready", Boolean(selectedSampleClient));
+  sampleSendStatus.textContent = "";
+}
+
+function setSamplePersonalMode(enabled) {
+  samplePersonalMode = Boolean(enabled);
+  const toggle = document.querySelector("#samplePersonalToggle");
+  toggle?.setAttribute("aria-pressed", String(samplePersonalMode));
+  toggle?.classList.toggle("is-active", samplePersonalMode);
+  if (toggle) toggle.textContent = samplePersonalMode ? "Revenir à une demande client" : "Échantillons perso";
+  const hint = document.querySelector("#samplePersonalHint");
+  if (hint) hint.textContent = samplePersonalMode ? "Demande pour vous : renseignez l'adresse de livraison à votre domicile." : "Pour vous-même : envoi à votre adresse de domicile.";
+  document.querySelector("#samplePersonalForm")?.classList.toggle("is-hidden", !samplePersonalMode);
+  document.querySelector("#sampleClientSearchBlock")?.classList.toggle("is-hidden", samplePersonalMode);
+  sampleSelectedClient.classList.toggle("is-hidden", samplePersonalMode);
+  sampleClientSuggestions.classList.remove("is-open");
+  if (samplePersonalMode) {
+    if (samplePersonalFields.Name && !samplePersonalFields.Name.value) samplePersonalFields.Name.value = currentUser?.name || "";
+    sampleClientSearch.value = "";
+    refreshSamplePersonalClient();
+    if (!document.body.classList.contains("tablet-mode")) samplePersonalFields.Address?.focus();
+  } else {
+    resetSampleRequest();
+  }
+}
+
 function resetSampleRequest() {
   selectedSampleClient = null;
   sampleStatus.textContent = "Client non sélectionné";
@@ -10109,10 +10160,11 @@ async function sendSampleRequestDraft() {
     })
     .filter((line) => line.ref);
 
+  if (samplePersonalMode) refreshSamplePersonalClient();
   if (!selectedSampleClient) {
-    sampleSendStatus.textContent = "Sélectionnez d’abord le client.";
+    sampleSendStatus.textContent = samplePersonalMode ? "Indiquez votre adresse, code postal et ville de domicile." : "Sélectionnez d’abord le client.";
     sampleSendStatus.classList.add("is-error");
-    sampleClientSearch.focus();
+    (samplePersonalMode ? samplePersonalFields.Address : sampleClientSearch)?.focus();
     return;
   }
 
@@ -10156,7 +10208,9 @@ async function sendSampleRequestDraft() {
         city: selectedSampleClient.billingCity || selectedSampleClient.deliveryCity || "",
       }),
       lines: JSON.stringify(validLines),
-      note: sampleNote.value.trim(),
+      note: selectedSampleClient.personal
+        ? [`Échantillons pour le commercial, à livrer à son domicile${selectedSampleClient.phone ? ` (tél. ${selectedSampleClient.phone})` : ""}.`, sampleNote.value.trim()].filter(Boolean).join("\n")
+        : sampleNote.value.trim(),
     });
     addSampleHistoryItem(selectedSampleClient, validLines, sampleNote.value.trim(), "sent");
     recordActivity("Demande échantillon envoyée", `${selectedSampleClient.name} - ${refs}${more} - envoyé à ${schullerCommercialRequestEmail}`);
@@ -16442,6 +16496,8 @@ quoteLines.addEventListener("click", (event) => {
   removeQuoteLineItem(button.dataset.removeQuoteLine);
 });
 sampleClientSearch.addEventListener("input", (event) => handleSampleClientSearchInput(event.target.value));
+document.querySelector("#samplePersonalToggle")?.addEventListener("click", () => setSamplePersonalMode(!samplePersonalMode));
+document.querySelector("#samplePersonalForm")?.addEventListener("input", refreshSamplePersonalClient);
 addSampleLine.addEventListener("click", addSampleLineItem);
 sendSampleRequest.addEventListener("click", sendSampleRequestDraft);
 sampleHistorySearch?.addEventListener("input", renderSampleHistory);
