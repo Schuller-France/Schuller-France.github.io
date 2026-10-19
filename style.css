@@ -7626,7 +7626,7 @@ body.tablet-mode.tablet-menu-open .tablet-menu-backdrop {
 body.tablet-mode .notes-search,
 body.tablet-mode .search-block,
 body.tablet-mode .prenet-search-block {
-  top: 84px !important;
+  top: auto !important;
 }
 
 body.dark-theme.tablet-mode .tablet-menu-toggle {
@@ -11281,3 +11281,7 @@ body.dark-theme .relance-month-name, body.dark-theme .relance-product-qty strong
   .relance-product-name, .relance-product-level { grid-column: 1 / -1; }
   .relance-month-track b em { font-size: 10px; }
 }
+
+/* Demande echantillon sur tablette (19/10/2026) : commentaire visible, pas de libelle sur la croix */
+body.tablet-mode .sample-table td:nth-child(4) { display: block !important; }
+body.tablet-mode .sample-table td:nth-child(5)::before { content: none !important; display: none !important; }

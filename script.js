@@ -15189,7 +15189,11 @@ function setActiveTab(tabName) {
 
   if (showSample) {
     renderSampleLines();
-    requestAnimationFrame(() => sampleClientSearch?.focus());
+    renderSampleHistory();
+    // Sur tablette/telephone, ne pas ouvrir le clavier a l'arrivee sur l'onglet.
+    if (!document.body.classList.contains("tablet-mode") && !window.matchMedia?.("(pointer: coarse)").matches) {
+      requestAnimationFrame(() => sampleClientSearch?.focus());
+    }
   }
 
   if (showExpenses) {
