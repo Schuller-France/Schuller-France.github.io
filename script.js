@@ -115,6 +115,26 @@ let loginProgressValue = 0;
 let loginProgressTarget = 0;
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
+// Ancien nom du commercial du Secteur 7 : jamais affiche, ni depuis le serveur ni depuis les donnees deja en cache sur l'appareil.
+const LEGACY_SECTOR7_NAME_PATTERN = /Guy[\s.\-_]*Sylvestre|Sylvestre[\s.\-_]*Guy|\bG(?:\.\s*|\s+)Sylvestre\b(?![@.\w])/gi;
+function scrubLegacySectorNames(text) {
+  return String(text).replace(LEGACY_SECTOR7_NAME_PATTERN, "Secteur 7");
+}
+(function scrubLegacySectorNamesInStorage() {
+  [window.localStorage, window.sessionStorage].forEach((store) => {
+    try {
+      for (let i = 0; i < store.length; i += 1) {
+        const key = store.key(i);
+        const value = store.getItem(key);
+        if (!value || !/sylvestre/i.test(value)) continue;
+        const cleaned = scrubLegacySectorNames(value);
+        if (cleaned !== value) store.setItem(key, cleaned);
+      }
+    } catch (error) {
+      // Stockage indisponible (navigation privee) : rien a nettoyer.
+    }
+  });
+})();
 const adminResetKey = "schullerAdminResetAt";
 const savedToursStorageKey = "schullerSavedTours";
 const displayModeStorageKey = "schullerDisplayMode";
@@ -1105,7 +1125,7 @@ async function executePostService(parameters) {
     let result;
     try {
       // Ancien nom de commercial remplace partout par son secteur (05/10/2026), y compris dans l'historique deja enregistre.
-      result = JSON.parse(String(rawText).replace(/Guy Sylvestre/gi, "Secteur 7"));
+      result = JSON.parse(scrubLegacySectorNames(String(rawText)));
     } catch (error) {
       console.warn("Reponse Google non JSON", {
         status: response.status,
