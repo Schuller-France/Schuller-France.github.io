@@ -1,1720 +1,284 @@
-/* Guide produits : trouver le bon manchon / la bonne brosse / le bon adhésif chez le client.
-   Les données ci-dessous sont des informations produit publiques (aucune donnée client ni prix).
+/* Guide produits : trouver le bon manchon, la bonne brosse ou le bon adhésif chez le client.
+   Données : assets/guide-data.js (fiches du site schuller.eu + conseils internes).
    Désignation, UDV et prix sont lus en direct dans le catalogue du CRM à partir des références.
-
-   Structure : famille (Manchons, Brosses, Adhésifs) > catégorie (type de travaux) > filtres + produits.
-   Pour ajouter un produit : copier un bloc de "products" dans la bonne catégorie, renseigner les
-   références et les critères (identifiants des options de "filters"). "ideal" = cases « xx » du
-   tableau : utilisation idéale (badge IDÉAL, le produit remonte en tête). */
+   Filtres : OU à l'intérieur d'un même critère, ET entre les critères ; chaque option affiche
+   le nombre de produits qu'elle donnerait avec les autres filtres déjà choisis. */
 (function () {
   const ICONS = {
     manchons: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="9" width="28" height="14" rx="5" fill="currentColor" opacity=".9"/><path d="M34 16h6v10H24v14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="20" y="38" width="8" height="7" rx="2" fill="currentColor"/></svg>',
     brosses: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="20" y="4" width="8" height="16" rx="3" fill="currentColor"/><rect x="15" y="19" width="18" height="7" rx="2" fill="currentColor" opacity=".75"/><path d="M14 26h20l-2 17H16z" fill="currentColor" opacity=".9"/></svg>',
     adhesifs: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="20" cy="22" r="14" fill="none" stroke="currentColor" stroke-width="7"/><path d="M20 36h22v-7" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg>',
+    filter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    external: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
 
-  const GUIDE = {
-    families: [
-      {
-        id: "manchons",
-        label: "Manchons",
-        subtitle: "Rouleaux de peinture",
-        source: "Tableau « Utilisation des manchons » (01.03.16)",
-        // Une catégorie = un type de travaux, avec ses propres critères et ses manchons.
-        // criteria : cases « x » du tableau ; ideal : cases « xx » (produit le plus recommandé).
-        categories: [
-          {
-            "id": "facade",
-            "label": "Peintures façades",
-            "filters": [
-              {
-                "id": "surface",
-                "label": "Surface",
-                "options": [
-                  {
-                    "id": "irregulier",
-                    "label": "Irrégulier"
-                  },
-                  {
-                    "id": "fort-relief",
-                    "label": "Fort relief"
-                  }
-                ]
-              },
-              {
-                "id": "primaire",
-                "label": "Primaire",
-                "options": [
-                  {
-                    "id": "impression",
-                    "label": "Impression"
-                  }
-                ]
-              },
-              {
-                "id": "peinture",
-                "label": "Peinture",
-                "options": [
-                  {
-                    "id": "film-mince",
-                    "label": "Film mince",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "semi-epais",
-                    "label": "Semi-épais",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "epais",
-                    "label": "Épais",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "pliolite",
-                    "label": "Pliolite",
-                    "phase": "solvant"
-                  }
-                ]
-              },
-              {
-                "id": "viscosite",
-                "label": "Viscosité",
-                "options": [
-                  {
-                    "id": "haute",
-                    "label": "Haute"
-                  },
-                  {
-                    "id": "faible",
-                    "label": "Faible"
-                  }
-                ]
-              },
-              {
-                "id": "finition",
-                "label": "Finition",
-                "options": [
-                  {
-                    "id": "structure",
-                    "label": "Structuré"
-                  },
-                  {
-                    "id": "poche",
-                    "label": "Poché"
-                  },
-                  {
-                    "id": "pommele",
-                    "label": "Pommelé"
-                  }
-                ]
-              }
-            ],
-            "products": [
-              {
-                "name": "Fdg-line · monté sur mousse",
-                "refs": [
-                  "25203",
-                  "25273"
-                ],
-                "photo": "assets/guide/image7.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier",
-                    "fort-relief"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Green-line · monté sur mousse",
-                "refs": [
-                  "25202",
-                  "25272"
-                ],
-                "photo": "assets/guide/image9.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier",
-                    "fort-relief"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Dickmann",
-                "refs": [
-                  "25287"
-                ],
-                "photo": "assets/guide/image10.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier",
-                    "fort-relief"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Topline",
-                "refs": [
-                  "26183",
-                  "26253"
-                ],
-                "photo": "assets/guide/image12.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier",
-                    "fort-relief"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ]
-                }
-              },
-              {
-                "name": "Silverline · monté sur mousse",
-                "refs": [
-                  "25209",
-                  "25279"
-                ],
-                "photo": "assets/guide/image5.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier",
-                    "fort-relief"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Fdg-line",
-                "refs": [
-                  "25183",
-                  "25253"
-                ],
-                "photo": "assets/guide/image6.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Green-line",
-                "refs": [
-                  "25182",
-                  "25252"
-                ],
-                "photo": "assets/guide/image8.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Silverline",
-                "refs": [
-                  "25189",
-                  "25259"
-                ],
-                "photo": "assets/guide/image4.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Microline 17",
-                "refs": [
-                  "26181",
-                  "26251"
-                ],
-                "photo": "assets/guide/image13.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure",
-                    "pommele"
-                  ]
-                }
-              },
-              {
-                "name": "Polyacryl",
-                "refs": [
-                  "25219",
-                  "25289"
-                ],
-                "photo": "assets/guide/image2.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Mouton",
-                "refs": [
-                  "25254"
-                ],
-                "photo": "assets/guide/image3.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "pliolite"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "pliolite"
-                  ]
-                }
-              },
-              {
-                "name": "Vestan",
-                "refs": [
-                  "25180",
-                  "25250"
-                ],
-                "photo": "assets/guide/image1.jpg",
-                "criteria": {
-                  "surface": [
-                    "fort-relief"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "film-mince",
-                    "semi-epais"
-                  ],
-                  "finition": [
-                    "structure"
-                  ]
-                }
-              },
-              {
-                "name": "Texturé 20mm",
-                "refs": [
-                  "98202M"
-                ],
-                "criteria": {
-                  "peinture": [
-                    "epais"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "epais"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "id": "interieur",
-            "label": "Peintures intérieures",
-            "filters": [
-              {
-                "id": "surface",
-                "label": "Surface",
-                "options": [
-                  {
-                    "id": "toile-verre",
-                    "label": "Toile de verre"
-                  },
-                  {
-                    "id": "reguliere",
-                    "label": "Régulière"
-                  },
-                  {
-                    "id": "lisse",
-                    "label": "Lisse"
-                  }
-                ]
-              },
-              {
-                "id": "primaire",
-                "label": "Primaire",
-                "options": [
-                  {
-                    "id": "impression",
-                    "label": "Impression"
-                  }
-                ]
-              },
-              {
-                "id": "peinture",
-                "label": "Peinture",
-                "options": [
-                  {
-                    "id": "mate-eau",
-                    "label": "Mate",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "satinee-eau",
-                    "label": "Satinée",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "mate-solvant",
-                    "label": "Mate",
-                    "phase": "solvant"
-                  },
-                  {
-                    "id": "satinee-solvant",
-                    "label": "Satinée",
-                    "phase": "solvant"
-                  }
-                ]
-              },
-              {
-                "id": "viscosite",
-                "label": "Viscosité",
-                "options": [
-                  {
-                    "id": "haute",
-                    "label": "Haute"
-                  },
-                  {
-                    "id": "faible",
-                    "label": "Faible"
-                  }
-                ]
-              },
-              {
-                "id": "finition",
-                "label": "Finition",
-                "options": [
-                  {
-                    "id": "poche",
-                    "label": "Poché"
-                  },
-                  {
-                    "id": "pommele",
-                    "label": "Pommelé"
-                  },
-                  {
-                    "id": "semi-tendu",
-                    "label": "Semi-tendu"
-                  }
-                ]
-              }
-            ],
-            "products": [
-              {
-                "name": "Goldline",
-                "refs": [
-                  "25176",
-                  "25246"
-                ],
-                "photo": "assets/guide/image18.jpg",
-                "criteria": {
-                  "surface": [
-                    "toile-verre",
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau",
-                    "mate-solvant",
-                    "satinee-solvant"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-solvant"
-                  ]
-                }
-              },
-              {
-                "name": "Topline",
-                "refs": [
-                  "26184",
-                  "26254"
-                ],
-                "photo": "assets/guide/image19.jpg",
-                "criteria": {
-                  "surface": [
-                    "toile-verre",
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau",
-                    "mate-solvant",
-                    "satinee-solvant"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Silverline",
-                "refs": [
-                  "25189",
-                  "25259"
-                ],
-                "photo": "assets/guide/image20.jpg",
-                "criteria": {
-                  "surface": [
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                }
-              },
-              {
-                "name": "Microfibre 14",
-                "refs": [
-                  "25198"
-                ],
-                "photo": "assets/guide/image21.jpg",
-                "criteria": {
-                  "surface": [
-                    "toile-verre",
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Microfibre 10",
-                "refs": [
-                  "25188",
-                  "25258"
-                ],
-                "photo": "assets/guide/image21.jpg",
-                "criteria": {
-                  "surface": [
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "satinee-eau"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "semi-tendu"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "satinee-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Microline 12",
-                "refs": [
-                  "26185",
-                  "26255"
-                ],
-                "photo": "assets/guide/image13.jpg",
-                "criteria": {
-                  "surface": [
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Paintline 7",
-                "refs": [
-                  "26186",
-                  "26256"
-                ],
-                "photo": "assets/guide/image22.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "semi-tendu"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Paintline 13",
-                "refs": [
-                  "25181",
-                  "25251"
-                ],
-                "photo": "assets/guide/image23.jpg",
-                "criteria": {
-                  "surface": [
-                    "reguliere"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "peinture": [
-                    "mate-eau",
-                    "satinee-eau"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                },
-                "ideal": {
-                  "peinture": [
-                    "mate-eau"
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "id": "laque",
-            "label": "Laques & vernis",
-            "filters": [
-              {
-                "id": "surface",
-                "label": "Surface",
-                "options": [
-                  {
-                    "id": "regulier",
-                    "label": "Régulier"
-                  },
-                  {
-                    "id": "lisse",
-                    "label": "Lisse"
-                  }
-                ]
-              },
-              {
-                "id": "primaire",
-                "label": "Primaire",
-                "options": [
-                  {
-                    "id": "impression",
-                    "label": "Impression"
-                  }
-                ]
-              },
-              {
-                "id": "laque",
-                "label": "Laque",
-                "options": [
-                  {
-                    "id": "mat-satine-eau",
-                    "label": "Mat satiné",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "brillant-eau",
-                    "label": "Brillant",
-                    "phase": "eau"
-                  },
-                  {
-                    "id": "mat-satine-solvant",
-                    "label": "Mat satiné",
-                    "phase": "solvant"
-                  },
-                  {
-                    "id": "brillant-solvant",
-                    "label": "Brillant",
-                    "phase": "solvant"
-                  }
-                ]
-              },
-              {
-                "id": "bois",
-                "label": "Traitement bois",
-                "options": [
-                  {
-                    "id": "microporeux",
-                    "label": "Microporeux"
-                  },
-                  {
-                    "id": "lasure",
-                    "label": "Lasure"
-                  },
-                  {
-                    "id": "vernis",
-                    "label": "Vernis"
-                  }
-                ]
-              },
-              {
-                "id": "viscosite",
-                "label": "Viscosité",
-                "options": [
-                  {
-                    "id": "haute",
-                    "label": "Haute"
-                  },
-                  {
-                    "id": "faible",
-                    "label": "Faible"
-                  }
-                ]
-              },
-              {
-                "id": "finition",
-                "label": "Finition",
-                "options": [
-                  {
-                    "id": "pommele",
-                    "label": "Pommelé"
-                  },
-                  {
-                    "id": "semi-tendu",
-                    "label": "Semi-tendu"
-                  },
-                  {
-                    "id": "tendu",
-                    "label": "Tendu"
-                  }
-                ]
-              }
-            ],
-            "products": [
-              {
-                "name": "Microline 17",
-                "refs": [
-                  "26181",
-                  "26251"
-                ],
-                "photo": "assets/guide/image13.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "bois": [
-                    "microporeux",
-                    "vernis"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "semi-tendu"
-                  ]
-                }
-              },
-              {
-                "name": "Silverline",
-                "refs": [
-                  "25189",
-                  "25259"
-                ],
-                "photo": "assets/guide/image4.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "bois": [
-                    "microporeux",
-                    "vernis"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                }
-              },
-              {
-                "name": "Paintline 7",
-                "refs": [
-                  "26186",
-                  "26256"
-                ],
-                "photo": "assets/guide/image22.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier",
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "laque": [
-                    "mat-satine-eau"
-                  ],
-                  "bois": [
-                    "microporeux"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "mat-satine-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Microfibre 6",
-                "refs": [
-                  "25178",
-                  "21660"
-                ],
-                "photo": "assets/guide/image21.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "laque": [
-                    "mat-satine-eau",
-                    "brillant-eau"
-                  ],
-                  "bois": [
-                    "microporeux",
-                    "lasure",
-                    "vernis"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Laqueur Velours",
-                "refs": [
-                  "25185"
-                ],
-                "photo": "assets/guide/image24.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "laque": [
-                    "mat-satine-solvant",
-                    "brillant-solvant"
-                  ],
-                  "bois": [
-                    "microporeux",
-                    "vernis"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-solvant"
-                  ]
-                }
-              },
-              {
-                "name": "Laqueur Mohair",
-                "refs": [
-                  "25195",
-                  "25275"
-                ],
-                "photo": "assets/guide/image25.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "laque": [
-                    "mat-satine-solvant",
-                    "brillant-solvant"
-                  ],
-                  "bois": [
-                    "microporeux"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-solvant"
-                  ]
-                }
-              },
-              {
-                "name": "Laqueur Filt",
-                "refs": [
-                  "25187"
-                ],
-                "photo": "assets/guide/image26.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "laque": [
-                    "mat-satine-eau",
-                    "brillant-eau",
-                    "mat-satine-solvant",
-                    "brillant-solvant"
-                  ],
-                  "bois": [
-                    "vernis"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Mousse Floquée",
-                "refs": [
-                  "98300M"
-                ],
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "laque": [
-                    "mat-satine-eau",
-                    "brillant-eau"
-                  ],
-                  "bois": [
-                    "vernis"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-eau"
-                  ]
-                }
-              },
-              {
-                "name": "Mousse HD",
-                "refs": [
-                  "23182",
-                  "23252"
-                ],
-                "photo": "assets/guide/image28.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "laque": [
-                    "mat-satine-eau",
-                    "brillant-eau"
-                  ],
-                  "bois": [
-                    "vernis"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                },
-                "ideal": {
-                  "laque": [
-                    "brillant-eau"
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "id": "divers",
-            "label": "Divers produits",
-            "filters": [
-              {
-                "id": "surface",
-                "label": "Surface",
-                "options": [
-                  {
-                    "id": "irregulier",
-                    "label": "Irrégulier"
-                  },
-                  {
-                    "id": "regulier",
-                    "label": "Régulier"
-                  },
-                  {
-                    "id": "lisse",
-                    "label": "Lisse"
-                  }
-                ]
-              },
-              {
-                "id": "primaire",
-                "label": "Primaire",
-                "options": [
-                  {
-                    "id": "impression",
-                    "label": "Impression"
-                  }
-                ]
-              },
-              {
-                "id": "application",
-                "label": "Application",
-                "options": [
-                  {
-                    "id": "metaux",
-                    "label": "Traitement des métaux"
-                  },
-                  {
-                    "id": "sols",
-                    "label": "Sols"
-                  },
-                  {
-                    "id": "vitrificateur",
-                    "label": "Vitrificateur"
-                  },
-                  {
-                    "id": "resines",
-                    "label": "Résines"
-                  },
-                  {
-                    "id": "anti-fouling",
-                    "label": "Anti-fouling (marine)"
-                  },
-                  {
-                    "id": "gelcoat",
-                    "label": "Gelcoat (marine)"
-                  }
-                ]
-              },
-              {
-                "id": "viscosite",
-                "label": "Viscosité",
-                "options": [
-                  {
-                    "id": "haute",
-                    "label": "Haute"
-                  },
-                  {
-                    "id": "faible",
-                    "label": "Faible"
-                  }
-                ]
-              },
-              {
-                "id": "finition",
-                "label": "Finition",
-                "options": [
-                  {
-                    "id": "poche",
-                    "label": "Poché"
-                  },
-                  {
-                    "id": "pommele",
-                    "label": "Pommelé"
-                  },
-                  {
-                    "id": "semi-tendu",
-                    "label": "Semi-tendu"
-                  },
-                  {
-                    "id": "tendu",
-                    "label": "Tendu"
-                  }
-                ]
-              }
-            ],
-            "products": [
-              {
-                "name": "Topline",
-                "refs": [
-                  "26183",
-                  "26253"
-                ],
-                "photo": "assets/guide/image12.jpg",
-                "criteria": {
-                  "surface": [
-                    "irregulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "sols"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                }
-              },
-              {
-                "name": "Texturé 20mm",
-                "refs": [
-                  "98202M"
-                ],
-                "criteria": {
-                  "surface": [
-                    "irregulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "sols",
-                    "resines"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                }
-              },
-              {
-                "name": "Paintline 13",
-                "refs": [
-                  "25181",
-                  "25251"
-                ],
-                "photo": "assets/guide/image23.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "anti-fouling",
-                    "gelcoat"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                }
-              },
-              {
-                "name": "Goldline",
-                "refs": [
-                  "25176",
-                  "25246"
-                ],
-                "photo": "assets/guide/image18.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "anti-fouling",
-                    "gelcoat"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                }
-              },
-              {
-                "name": "Topline",
-                "refs": [
-                  "26184",
-                  "26254"
-                ],
-                "photo": "assets/guide/image12.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "sols",
-                    "resines",
-                    "anti-fouling",
-                    "gelcoat"
-                  ],
-                  "finition": [
-                    "poche"
-                  ]
-                }
-              },
-              {
-                "name": "Microline 17",
-                "refs": [
-                  "26181",
-                  "26251"
-                ],
-                "photo": "assets/guide/image13.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "vitrificateur"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "semi-tendu"
-                  ]
-                },
-                "ideal": {
-                  "application": [
-                    "vitrificateur"
-                  ]
-                }
-              },
-              {
-                "name": "Silverline",
-                "refs": [
-                  "25186",
-                  "25256"
-                ],
-                "photo": "assets/guide/image4.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "anti-fouling"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                }
-              },
-              {
-                "name": "Microfibre 10",
-                "refs": [
-                  "25188",
-                  "25258"
-                ],
-                "photo": "assets/guide/image21.jpg",
-                "criteria": {
-                  "surface": [
-                    "regulier",
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "vitrificateur",
-                    "anti-fouling"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "pommele"
-                  ]
-                }
-              },
-              {
-                "name": "Paintline 7",
-                "refs": [
-                  "26186",
-                  "26256"
-                ],
-                "photo": "assets/guide/image22.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux",
-                    "sols",
-                    "resines",
-                    "anti-fouling",
-                    "gelcoat"
-                  ],
-                  "viscosite": [
-                    "haute"
-                  ],
-                  "finition": [
-                    "semi-tendu"
-                  ]
-                },
-                "ideal": {
-                  "application": [
-                    "sols",
-                    "gelcoat"
-                  ]
-                }
-              },
-              {
-                "name": "Microfibre 6",
-                "refs": [
-                  "25178",
-                  "21660"
-                ],
-                "photo": "assets/guide/image21.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux"
-                  ],
-                  "viscosite": [
-                    "faible"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                }
-              },
-              {
-                "name": "Laqueur Velours",
-                "refs": [
-                  "25185"
-                ],
-                "photo": "assets/guide/image24.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "application": [
-                    "metaux"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                }
-              },
-              {
-                "name": "Laqueur Filt",
-                "refs": [
-                  "25187"
-                ],
-                "photo": "assets/guide/image26.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "primaire": [
-                    "impression"
-                  ],
-                  "application": [
-                    "metaux"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                }
-              },
-              {
-                "name": "Mousse HD",
-                "refs": [
-                  "23182",
-                  "23252"
-                ],
-                "photo": "assets/guide/image28.jpg",
-                "criteria": {
-                  "surface": [
-                    "lisse"
-                  ],
-                  "finition": [
-                    "tendu"
-                  ]
-                }
-              }
-            ]
-          }
-        ],
-      },
-      { id: "brosses", label: "Brosses", subtitle: "Pinceaux & brosses", categories: [] },
-      { id: "adhesifs", label: "Adhésifs", subtitle: "Rubans de masquage", categories: [] },
-    ],
+  const DATA = window.PRODUCT_GUIDE_DATA || { families: [] };
+  const state = {
+    family: DATA.families[0]?.id || "manchons",
+    selected: {},
+    search: {},
+    sets: {},
+    sort: "pertinence",
+    collapsed: {},
+    expanded: new Set(),
+    drawer: false,
   };
 
-  const state = { family: "manchons", category: {}, selected: {} };
-
-  const esc = (value) => (typeof escapeHtml === "function" ? escapeHtml(value) : String(value ?? ""));
+  const esc = (value) => (typeof escapeHtml === "function" ? escapeHtml(value) : String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])));
   const money = (value) => {
     try { return formatter.format(Number(value) || 0); } catch (error) { return `${value} €`; }
   };
   const lookup = (ref) => {
     try { return typeof findProduct === "function" ? findProduct(ref) : null; } catch (error) { return null; }
   };
+  const fold = (text) => String(text || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-  function currentFamily() {
-    return GUIDE.families.find((family) => family.id === state.family) || GUIDE.families[0];
-  }
-  function familyCount(family) {
-    return family.categories.reduce((sum, category) => sum + category.products.length, 0);
-  }
-  function activeCategory(family) {
-    return family.categories.find((category) => category.id === state.category[family.id]) || family.categories[0] || null;
-  }
-  function selectedFor(family, category) {
-    const key = `${family.id}:${category?.id || ""}`;
-    if (!state.selected[key]) state.selected[key] = {};
-    return state.selected[key];
-  }
-  function hasSelection(selected) {
-    return Object.values(selected).some((list) => list.length);
-  }
-  function optionLabel(category, filterId, optionId) {
-    const filter = category.filters.find((item) => item.id === filterId);
-    const option = filter?.options.find((item) => item.id === optionId);
-    return option ? option.label + (option.phase ? ` (${option.phase})` : "") : optionId;
+  DATA.families.forEach((family) => {
+    family.products.forEach((product, index) => {
+      product.id = `${family.id}-${index}`;
+      product.haystack = fold([product.name, product.series, product.alias, product.short, ...product.refs.map((r) => r.ref)].join(" "));
+    });
+  });
+
+  const family = () => DATA.families.find((item) => item.id === state.family) || DATA.families[0];
+  const selection = (fam) => (state.selected[fam.id] ||= {});
+  const selectedCount = (fam) => Object.values(selection(fam)).reduce((sum, list) => sum + list.length, 0);
+  const optionLabel = (fam, groupId, optionId) => fam.filters.find((g) => g.id === groupId)?.options.find((o) => o.id === optionId)?.label || optionId;
+
+  function baseList(fam) {
+    const query = fold(state.search[fam.id] || "").trim();
+    return fam.products.filter((product) => (state.sets[fam.id] || !product.set) && (!query || query.split(/\s+/).every((word) => product.haystack.includes(word))));
   }
 
-  function matchingProducts(family, category) {
-    if (!category) return [];
-    const selected = selectedFor(family, category);
-    return category.products
-      .map((product, index) => {
-        let ok = true;
-        let idealHits = 0;
-        Object.entries(selected).forEach(([filterId, options]) => {
-          if (!options.length) return;
-          const values = product.criteria?.[filterId] || [];
-          // Toutes les cases cochées d'un même critère doivent être couvertes par le produit.
-          if (!options.every((option) => values.includes(option))) ok = false;
-          idealHits += options.filter((option) => (product.ideal?.[filterId] || []).includes(option)).length;
-        });
-        return { product, ok, idealHits, index };
-      })
-      .filter((item) => item.ok)
-      .sort((a, b) => b.idealHits - a.idealHits || a.index - b.index);
+  function passes(product, sel, skipGroup) {
+    return Object.entries(sel).every(([groupId, options]) => {
+      if (groupId === skipGroup || !options.length) return true;
+      const values = product.criteria[groupId] || [];
+      return options.some((option) => values.includes(option));
+    });
   }
 
+  function results(fam) {
+    const sel = selection(fam);
+    const list = baseList(fam).filter((product) => passes(product, sel));
+    const score = (product) => Object.entries(sel).reduce((sum, [groupId, options]) => sum + options.filter((o) => (product.criteria[groupId] || []).includes(o)).length, 0);
+    return list
+      .map((product) => ({ product, score: score(product) }))
+      .sort((a, b) => {
+        if (state.sort === "nom") return a.product.name.localeCompare(b.product.name, "fr");
+        if (state.sort === "gamme") return a.product.rank - b.product.rank || a.product.name.localeCompare(b.product.name, "fr");
+        return b.score - a.score || a.product.rank - b.product.rank || a.product.name.localeCompare(b.product.name, "fr");
+      });
+  }
+
+  function optionCount(fam, groupId, optionId) {
+    const sel = selection(fam);
+    return baseList(fam).filter((product) => passes(product, sel, groupId) && (product.criteria[groupId] || []).includes(optionId)).length;
+  }
+
+  // ------------------------------------------------------------------ rendu
   function renderFamilies() {
-    return `<div class="guide-families" role="tablist">${GUIDE.families.map((family, index) => `
-      <button type="button" role="tab" class="guide-family${family.id === state.family ? " is-active" : ""}" data-guide-family="${esc(family.id)}" aria-selected="${family.id === state.family}">
-        <span class="guide-family-icon">${ICONS[family.id] || ""}</span>
-        <span class="guide-family-text"><small>0${index + 1}</small><strong>${esc(family.label)}</strong><em>${esc(family.subtitle || "")}</em></span>
-        ${familyCount(family) ? "" : '<span class="guide-soon">Bientôt</span>'}
+    return `<div class="pg-families" role="tablist" aria-label="Familles de produits">${DATA.families.map((fam) => `
+      <button type="button" role="tab" class="pg-family${fam.id === state.family ? " is-active" : ""}" data-pg-family="${esc(fam.id)}" aria-selected="${fam.id === state.family}">
+        <span class="pg-family-icon">${ICONS[fam.id] || ""}</span>
+        <span class="pg-family-text"><strong>${esc(fam.label)}</strong><small>${esc(fam.subtitle)} · ${fam.products.filter((p) => !p.set).length} produits</small></span>
       </button>`).join("")}</div>`;
   }
 
-  function renderCategories(family) {
-    const active = activeCategory(family);
-    return `<div class="guide-categories">${family.categories.map((category) => `
-      <button type="button" class="guide-category${category === active ? " is-active" : ""}" data-guide-category="${esc(category.id)}">${esc(category.label)}<span>${category.products.length}</span></button>`).join("")}</div>`;
-  }
-
-  // Options eau / solvant : une ligne par phase pour ne pas confondre « Mate » eau et « Mate » solvant.
-  function chipRows(filter) {
-    const phases = [...new Set(filter.options.map((option) => option.phase || ""))];
-    if (phases.length < 2 || phases.includes("")) return [{ phase: "", options: filter.options }];
-    return phases.map((phase) => ({ phase, options: filter.options.filter((option) => option.phase === phase) }));
-  }
-
-  function renderFilters(family, category) {
-    const selected = selectedFor(family, category);
-    const total = Object.values(selected).reduce((sum, list) => sum + list.length, 0);
-    const count = matchingProducts(family, category).length;
-    return `<aside class="guide-filters">
-      <div class="guide-filters-head"><h3>Votre situation</h3>${total ? `<button type="button" class="guide-reset" data-guide-reset>Effacer (${total})</button>` : ""}</div>
-      ${category.filters.map((filter) => `
-        <div class="guide-filter-group">
-          <p>${esc(filter.label)}</p>
-          ${chipRows(filter).map((row) => `<div class="guide-chips">${row.phase ? `<span class="guide-phase is-${esc(row.phase)}"><i></i>${row.phase === "eau" ? "Eau" : "Solvant"}</span>` : ""}${row.options.map((option) => {
-            const on = (selected[filter.id] || []).includes(option.id);
-            return `<button type="button" class="guide-chip${on ? " is-on" : ""}${option.phase ? ` is-${esc(option.phase)}` : ""}" data-guide-filter="${esc(filter.id)}" data-guide-option="${esc(option.id)}" aria-pressed="${on}" title="${esc(option.phase ? `${option.label} - phase ${option.phase === "eau" ? "aqueuse" : "solvant"}` : option.label)}">${esc(option.label)}</button>`;
-          }).join("")}</div>`).join("")}
-        </div>`).join("")}
-      <button type="button" class="guide-see-results" data-guide-see>Voir ${count} résultat${count > 1 ? "s" : ""}</button>
+  function renderFilters(fam) {
+    const sel = selection(fam);
+    const total = selectedCount(fam);
+    const count = results(fam).length;
+    return `<aside class="pg-filters${state.drawer ? " is-open" : ""}" aria-label="Filtres">
+      <div class="pg-filters-head">
+        <h3>Filtres</h3>
+        <div>
+          ${total ? `<button type="button" class="pg-link" data-pg-clear>Tout effacer</button>` : ""}
+          <button type="button" class="pg-icon-btn pg-drawer-close" data-pg-drawer="close" aria-label="Fermer les filtres">${ICONS.close}</button>
+        </div>
+      </div>
+      <div class="pg-filters-body">
+        ${fam.filters.map((group, index) => {
+          const chosen = sel[group.id] || [];
+          const collapsed = state.collapsed[`${fam.id}:${group.id}`] ?? index > 3;
+          return `<section class="pg-group${collapsed ? " is-collapsed" : ""}">
+            <button type="button" class="pg-group-head" data-pg-toggle="${esc(group.id)}" aria-expanded="${!collapsed}">
+              <span class="pg-step">${index + 1}</span>
+              <span class="pg-group-title">${esc(group.label)}</span>
+              ${chosen.length ? `<span class="pg-group-badge">${chosen.length}</span>` : ""}
+              <span class="pg-chevron">${ICONS.chevron}</span>
+            </button>
+            <div class="pg-options">${group.options.map((option) => {
+              const on = chosen.includes(option.id);
+              const n = optionCount(fam, group.id, option.id);
+              const disabled = !on && n === 0;
+              return `<label class="pg-option${on ? " is-on" : ""}${disabled ? " is-disabled" : ""}">
+                <input type="checkbox" data-pg-group="${esc(group.id)}" value="${esc(option.id)}"${on ? " checked" : ""}${disabled ? " disabled" : ""} />
+                <span class="pg-check" aria-hidden="true"></span>
+                <span class="pg-option-label">${esc(option.label)}</span>
+                <span class="pg-option-count">${n}</span>
+              </label>`;
+            }).join("")}</div>
+          </section>`;
+        }).join("")}
+        <label class="pg-switch">
+          <input type="checkbox" data-pg-sets${state.sets[fam.id] ? " checked" : ""} />
+          <span class="pg-switch-track" aria-hidden="true"></span>
+          <span>Inclure les sets &amp; assortiments</span>
+        </label>
+      </div>
+      <div class="pg-filters-foot"><button type="button" class="primary-button" data-pg-drawer="close">Voir ${count} produit${count > 1 ? "s" : ""}</button></div>
     </aside>`;
   }
 
-  function renderProductCard(family, category, item, rank) {
-    const { product, idealHits } = item;
-    const refs = (product.refs || []).map((ref) => {
-      const catalog = lookup(ref);
-      return `<li><b>${esc(ref)}</b><span>${catalog ? esc(catalog.name) : "Référence absente du catalogue"}</span>${catalog ? `<em>${esc(catalog.udv ? `UDV ${catalog.udv} · ` : "")}${money(catalog.price)}</em>` : ""}</li>`;
-    }).join("");
-    const rows = category.filters
-      .filter((filter) => (product.criteria?.[filter.id] || []).length)
-      .map((filter) => `<div><dt>${esc(filter.label)}</dt><dd>${(product.criteria[filter.id] || []).map((id) => {
-        const label = esc(optionLabel(category, filter.id, id));
-        return (product.ideal?.[filter.id] || []).includes(id) ? `<strong class="is-ideal">${label} ★</strong>` : label;
-      }).join(", ")}</dd></div>`)
-      .join("");
-    const best = rank === 0 && hasSelection(selectedFor(family, category));
-    const visual = product.photo
-      ? `<img src="${esc(product.photo)}" alt="${esc(product.name)}" loading="lazy" />`
-      : ICONS[family.id] || "";
-    return `<article class="guide-card${best ? " is-best" : ""}">
-      <div class="guide-card-visual">${visual}${idealHits ? '<span class="guide-ideal">Idéal</span>' : best ? '<span class="guide-ideal is-soft">Conseillé</span>' : ""}</div>
-      <div class="guide-card-body">
+  function renderActive(fam) {
+    const sel = selection(fam);
+    const pills = Object.entries(sel).flatMap(([groupId, options]) => options.map((optionId) => `
+      <button type="button" class="pg-pill" data-pg-remove="${esc(groupId)}:${esc(optionId)}">${esc(optionLabel(fam, groupId, optionId))}${ICONS.close}</button>`));
+    return pills.length ? `<div class="pg-pills">${pills.join("")}</div>` : "";
+  }
+
+  function renderRefs(product) {
+    const expanded = state.expanded.has(product.id);
+    const refs = expanded ? product.refs : product.refs.slice(0, 4);
+    if (!product.refs.length) return '<p class="pg-muted">Références non communiquées sur le site.</p>';
+    return `<table class="pg-refs"><thead><tr><th>Réf.</th><th>Taille</th><th>UDV</th><th>Prix</th></tr></thead><tbody>${refs.map((item) => {
+      const catalog = lookup(item.ref);
+      return `<tr${catalog ? "" : ' class="is-missing" title="Référence absente du catalogue CRM"'}><td><b>${esc(item.ref)}</b></td><td>${esc(item.size || "—")}</td><td>${catalog?.udv ? esc(catalog.udv) : "—"}</td><td>${catalog ? money(catalog.price) : "—"}</td></tr>`;
+    }).join("")}</tbody></table>${product.refs.length > 4 ? `<button type="button" class="pg-link" data-pg-more="${esc(product.id)}">${expanded ? "Réduire" : `Voir les ${product.refs.length} références`}</button>` : ""}`;
+  }
+
+  function renderCard(fam, item, index, items) {
+    const { product, score } = item;
+    const sel = selection(fam);
+    const keyGroups = fam.filters.slice(0, 3);
+    const tags = keyGroups.flatMap((group) => (product.criteria[group.id] || []).map((id) => ({ group: group.id, id, label: optionLabel(fam, group.id, id), hit: (sel[group.id] || []).includes(id) })))
+      .sort((a, b) => Number(b.hit) - Number(a.hit))
+      .slice(0, 6);
+    // « Meilleur choix » seulement si ce produit coche plus de critères que tous les autres.
+    const best = index === 0 && score > 0 && selectedCount(fam) > 0 && (items.length === 1 || score > items[1].score);
+    return `<article class="pg-card${best ? " is-best" : ""}">
+      <div class="pg-card-media">
+        ${product.image ? `<img src="${esc(product.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />` : ""}
+        <span class="pg-card-fallback">${ICONS[fam.id] || ""}</span>
+        ${best ? '<span class="pg-badge">Meilleur choix</span>' : product.set ? '<span class="pg-badge is-soft">Set</span>' : ""}
+      </div>
+      <div class="pg-card-body">
+        <p class="pg-card-series">${esc(product.series)}${product.alias ? ` <span>· aussi « ${esc(product.alias)} »</span>` : ""}</p>
         <h4>${esc(product.name)}</h4>
-        <ul class="guide-refs">${refs}</ul>
-        ${rows ? `<dl class="guide-specs">${rows}</dl>` : ""}
-        ${product.note ? `<p class="guide-note">${esc(product.note)}</p>` : ""}
+        ${product.short ? `<p class="pg-card-short">${esc(product.short)}</p>` : ""}
+        ${product.text && product.text !== product.short ? `<p class="pg-card-text">${esc(product.text)}</p>` : ""}
+        ${tags.length ? `<ul class="pg-tags">${tags.map((tag) => `<li class="${tag.hit ? "is-hit" : ""}">${esc(tag.label)}</li>`).join("")}</ul>` : ""}
+        ${product.specs?.length ? `<dl class="pg-specs">${product.specs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : ""}
+        ${renderRefs(product)}
+        ${product.url ? `<a class="pg-source" href="${esc(product.url)}" target="_blank" rel="noopener">Fiche schuller.eu ${ICONS.external}</a>` : ""}
       </div>
     </article>`;
   }
 
-  function renderResults(family, category) {
-    const items = matchingProducts(family, category);
-    const filtered = hasSelection(selectedFor(family, category));
-    const title = `${filtered ? `${items.length} ${family.label.toLowerCase()} adapté${items.length > 1 ? "s" : ""}` : `Tous les ${family.label.toLowerCase()}`} · ${category.label.toLowerCase()}`;
-    return `<section class="guide-results">
-      <h3>${esc(title)}</h3>
+  function renderResults(fam) {
+    const items = results(fam);
+    const total = selectedCount(fam);
+    return `<section class="pg-results" aria-live="polite">
+      <div class="pg-toolbar">
+        <div class="pg-search">${ICONS.search}<input type="search" data-pg-search placeholder="Nom, série ou référence…" value="${esc(state.search[fam.id] || "")}" /></div>
+        <button type="button" class="pg-filter-btn" data-pg-drawer="open">${ICONS.filter}Filtres${total ? ` <span>${total}</span>` : ""}</button>
+        <label class="pg-sort">Trier
+          <select data-pg-sort>
+            <option value="pertinence"${state.sort === "pertinence" ? " selected" : ""}>Pertinence</option>
+            <option value="gamme"${state.sort === "gamme" ? " selected" : ""}>Gamme</option>
+            <option value="nom"${state.sort === "nom" ? " selected" : ""}>Nom</option>
+          </select>
+        </label>
+      </div>
+      <div class="pg-summary"><strong>${items.length}</strong> produit${items.length > 1 ? "s" : ""} ${total || (state.search[fam.id] || "").trim() ? `correspond${items.length > 1 ? "ent" : ""} à votre recherche` : "disponible" + (items.length > 1 ? "s" : "")}</div>
+      ${renderActive(fam)}
       ${items.length
-        ? `<div class="guide-grid">${items.map((item, index) => renderProductCard(family, category, item, index)).join("")}</div>`
-        : `<div class="guide-empty">Aucun ${family.label.toLowerCase().replace(/s$/, "")} ne coche tous ces critères. Retirez un critère pour élargir la recherche.</div>`}
-      ${family.source ? `<p class="guide-source">Source : ${esc(family.source)} · ★ = utilisation idéale</p>` : ""}
+        ? `<div class="pg-grid">${items.map((item, index) => renderCard(fam, item, index, items)).join("")}</div>`
+        : `<div class="pg-empty"><strong>Aucun produit ne correspond.</strong><span>Retirez un filtre ou cochez « Inclure les sets &amp; assortiments ».</span>${total ? '<button type="button" class="ghost-button compact" data-pg-clear>Effacer les filtres</button>' : ""}</div>`}
+      <p class="pg-footnote">Source : fiches produits schuller.eu et conseils d'utilisation internes · prix et UDV issus du catalogue CRM.</p>
     </section>`;
   }
 
-  function render() {
+  function render(keepFocus) {
     const root = document.querySelector("#guideRoot");
     if (!root) return;
-    const family = currentFamily();
-    const category = activeCategory(family);
-    const body = familyCount(family) && category
-      ? `${renderCategories(family)}<div class="guide-layout">${renderFilters(family, category)}${renderResults(family, category)}</div>`
-      : `<div class="guide-coming"><span>${ICONS[family.id] || ""}</span><h3>${esc(family.label)} : bientôt disponible</h3><p>Le sélecteur ${esc(family.label.toLowerCase())} sera ajouté dès que le tableau des critères sera prêt.</p></div>`;
-    root.innerHTML = `${renderFamilies()}${body}`;
+    if (!DATA.families.length) {
+      root.innerHTML = '<div class="pg-empty">Guide indisponible : données non chargées.</div>';
+      return;
+    }
+    const fam = family();
+    const scrollBody = root.querySelector(".pg-filters-body")?.scrollTop || 0;
+    root.innerHTML = `${renderFamilies()}<div class="pg-layout">${renderFilters(fam)}${renderResults(fam)}</div>${state.drawer ? '<button type="button" class="pg-backdrop" data-pg-drawer="close" aria-label="Fermer"></button>' : ""}`;
+    const body = root.querySelector(".pg-filters-body");
+    if (body) body.scrollTop = scrollBody;
+    if (keepFocus) {
+      const input = root.querySelector("[data-pg-search]");
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    }
   }
 
+  // ------------------------------------------------------------------ événements
   document.addEventListener("click", (event) => {
     const root = document.querySelector("#guideRoot");
     if (!root || !root.contains(event.target)) return;
-    const familyButton = event.target.closest("[data-guide-family]");
-    const categoryButton = event.target.closest("[data-guide-category]");
-    const chip = event.target.closest("[data-guide-option]");
-    const family = currentFamily();
-    const category = activeCategory(family);
-    if (familyButton) {
-      state.family = familyButton.dataset.guideFamily;
-    } else if (categoryButton) {
-      state.category[family.id] = categoryButton.dataset.guideCategory;
-    } else if (chip) {
-      const selected = selectedFor(family, category);
-      const list = selected[chip.dataset.guideFilter] || (selected[chip.dataset.guideFilter] = []);
-      const index = list.indexOf(chip.dataset.guideOption);
-      if (index >= 0) list.splice(index, 1); else list.push(chip.dataset.guideOption);
-    } else if (event.target.closest("[data-guide-see]")) {
-      root.querySelector(".guide-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    } else if (event.target.closest("[data-guide-reset]")) {
-      state.selected[`${family.id}:${category?.id || ""}`] = {};
+    const fam = family();
+    const target = event.target.closest("[data-pg-family],[data-pg-toggle],[data-pg-clear],[data-pg-remove],[data-pg-more],[data-pg-drawer]");
+    if (!target) return;
+    if (target.dataset.pgFamily) {
+      state.family = target.dataset.pgFamily;
+      state.drawer = false;
+    } else if (target.dataset.pgToggle) {
+      const key = `${fam.id}:${target.dataset.pgToggle}`;
+      const index = fam.filters.findIndex((g) => g.id === target.dataset.pgToggle);
+      state.collapsed[key] = !(state.collapsed[key] ?? index > 3);
+    } else if (target.hasAttribute("data-pg-clear")) {
+      state.selected[fam.id] = {};
+      state.search[fam.id] = "";
+    } else if (target.dataset.pgRemove) {
+      const [groupId, optionId] = target.dataset.pgRemove.split(":");
+      const list = selection(fam)[groupId] || [];
+      selection(fam)[groupId] = list.filter((id) => id !== optionId);
+    } else if (target.dataset.pgMore) {
+      const id = target.dataset.pgMore;
+      if (state.expanded.has(id)) state.expanded.delete(id); else state.expanded.add(id);
+    } else if (target.dataset.pgDrawer) {
+      state.drawer = target.dataset.pgDrawer === "open";
+      document.body.classList.toggle("pg-drawer-open", state.drawer);
+    }
+    render();
+  });
+
+  document.addEventListener("change", (event) => {
+    const root = document.querySelector("#guideRoot");
+    if (!root || !root.contains(event.target)) return;
+    const fam = family();
+    const input = event.target;
+    if (input.dataset.pgGroup) {
+      const sel = selection(fam);
+      const list = sel[input.dataset.pgGroup] || (sel[input.dataset.pgGroup] = []);
+      if (input.checked && !list.includes(input.value)) list.push(input.value);
+      if (!input.checked) sel[input.dataset.pgGroup] = list.filter((id) => id !== input.value);
+    } else if (input.hasAttribute("data-pg-sets")) {
+      state.sets[fam.id] = input.checked;
+    } else if (input.hasAttribute("data-pg-sort")) {
+      state.sort = input.value;
     } else {
       return;
     }
     render();
   });
 
-  window.PRODUCT_GUIDE = GUIDE;
-  window.renderProductGuide = render;
+  let searchTimer = null;
+  document.addEventListener("input", (event) => {
+    if (!event.target.matches?.("#guideRoot [data-pg-search]")) return;
+    state.search[family().id] = event.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => render(true), 160);
+  });
+
+  window.renderProductGuide = () => render();
 })();

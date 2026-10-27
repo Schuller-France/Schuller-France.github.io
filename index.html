@@ -9,7 +9,7 @@
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://europe-west1-schuller-crm.cloudfunctions.net; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://www.schuller.eu https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://europe-west1-schuller-crm.cloudfunctions.net; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261027manchons39" />
-    <link rel="icon" href="assets/favicon.ico?v=20261027manchons39" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261027manchons39" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261027manchons39" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261027manchons39" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261027guidev240" />
+    <link rel="icon" href="assets/favicon.ico?v=20261027guidev240" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261027guidev240" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261027guidev240" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261027guidev240" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261027manchons39" />
+    <link rel="stylesheet" href="style.css?v=20261027guidev240" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261027manchons39" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261027guidev240" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -1093,7 +1093,7 @@
         <section class="panel guide-hero" aria-labelledby="guideTitle">
           <p class="step">Conseil d'utilisation</p>
           <h2 id="guideTitle">Quel produit pour ce chantier ?</h2>
-          <p class="guide-intro">Choisissez la famille, puis cochez la situation du client : seuls les produits adaptés restent affichés.</p>
+          <p class="guide-intro">Choisissez une famille, puis décrivez le chantier dans les filtres : seuls les produits adaptés restent affichés, avec leurs références, tailles et prix.</p>
           <div id="guideRoot"></div>
         </section>
       </main>
@@ -2533,12 +2533,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261027manchons39" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261027guidev240" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261027manchons39" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261027manchons39" charset="UTF-8"></script>
+    <script src="script.js?v=20261027guidev240" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261027guidev240" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261027guidev240" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
