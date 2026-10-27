@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261020secteur7v36" />
-    <link rel="icon" href="assets/favicon.ico?v=20261020secteur7v36" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261020secteur7v36" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261020secteur7v36" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261020secteur7v36" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261027manchons39" />
+    <link rel="icon" href="assets/favicon.ico?v=20261027manchons39" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261027manchons39" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261027manchons39" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261027manchons39" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261020secteur7v36" />
+    <link rel="stylesheet" href="style.css?v=20261027manchons39" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261020secteur7v36" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261027manchons39" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -162,6 +162,7 @@
         <button class="tab-button" type="button" id="promotionTab" data-icon="🎯">Promotions</button>
         <button class="tab-button" type="button" id="tarifTab" data-icon="📚">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="relanceTab" data-icon="📞">Relances clients <span class="tab-badge is-hidden" id="relanceBadge">0</span></button>
+        <button class="tab-button" type="button" id="guideTab" data-icon="🧰">Guide produits</button>
         <button class="tab-button" type="button" id="tourTab" data-icon="🗺️">Tournées</button>
         <button class="tab-button" type="button" id="prenetTab" data-icon="💶">Prix nets</button>
         <button class="tab-button" type="button" id="backlogTab" data-icon="⚠️">Reliquats &amp; litiges</button>
@@ -1085,6 +1086,15 @@
             <button class="primary-button" type="submit" id="sendProblemReport">Envoyer le problème</button>
             <p class="tarif-send-status" id="problemStatus" role="status"></p>
           </form>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden guide-shell" id="guideView">
+        <section class="panel guide-hero" aria-labelledby="guideTitle">
+          <p class="step">Conseil d'utilisation</p>
+          <h2 id="guideTitle">Quel produit pour ce chantier ?</h2>
+          <p class="guide-intro">Choisissez la famille, puis cochez la situation du client : seuls les produits adaptés restent affichés.</p>
+          <div id="guideRoot"></div>
         </section>
       </main>
 
@@ -2523,11 +2533,12 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261020secteur7v36" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261027manchons39" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261020secteur7v36" charset="UTF-8"></script>
+    <script src="script.js?v=20261027manchons39" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261027manchons39" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

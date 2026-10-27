@@ -16,6 +16,7 @@ let localStatsData = {};
 let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
 let commercialStatsRowsCache = null;
 let clientArticleStatsLoadPromise = null;
+let clientArticleStatsLoadError = "";
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -456,6 +457,8 @@ const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const tourTab = document.querySelector("#tourTab");
 const relanceTab = document.querySelector("#relanceTab");
+const guideTab = document.querySelector("#guideTab");
+const guideView = document.querySelector("#guideView");
 const relanceView = document.querySelector("#relanceView");
 const backlogTab = document.querySelector("#backlogTab");
 const prenetTab = document.querySelector("#prenetTab");
@@ -1176,7 +1179,10 @@ function applySecureAppData(result) {
     sourceFile: result.prenetData?.sourceFile || "",
   };
   localStatsData = result.stats || {};
-  clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+  // Les stats client/article arrivent par leur propre appel : on ne les efface pas quand getAppData ne les contient pas.
+  if (result.clientArticleStats?.available || !clientArticleStats360?.available) {
+    clientArticleStats360 = result.clientArticleStats || clientArticleStats360 || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+  }
   commercialStatsRowsCache = null;
   tariffConfig = {
     ...tariffConfig,
@@ -4969,6 +4975,7 @@ async function loadClientArticleStatsFromDrive({ throwOnError = false, force = f
     }
   }
   if (statsSourceBadge) statsSourceBadge.textContent = "Chargement Drive…";
+  clientArticleStatsLoadError = "";
   const requestedToken = currentSessionToken;
   clientArticleStatsLoadPromise = (async () => {
     const result = await postService({ action: "getClientArticleStats", token: requestedToken });
@@ -4995,10 +5002,12 @@ async function loadClientArticleStatsFromDrive({ throwOnError = false, force = f
       if (statsSourceBadge) statsSourceBadge.textContent = "Dernières données synchronisées";
       return true;
     }
+    clientArticleStatsLoadError = error?.message || "Chargement impossible.";
     if (throwOnError) throw error;
     return false;
   } finally {
     clientArticleStatsLoadPromise = null;
+    if (statsView && !statsView.classList.contains("is-hidden")) renderCommercialStats();
   }
 }
 
@@ -5831,9 +5840,15 @@ function renderCommercialStats() {
   if (!rows.length) {
     statsArticleBody.innerHTML = `<tr><td colspan="${emptyColspan}" class="dashboard-empty">${
       clientArticleStats360?.available === false
-        ? "Aucune statistique Drive chargée pour le moment."
+        ? (clientArticleStatsLoadPromise
+          ? "Chargement des statistiques depuis le Drive… (jusqu'à 1 minute)"
+          : `${clientArticleStatsLoadError ? `Statistiques non chargées : ${escapeHtml(clientArticleStatsLoadError)}` : "Aucune statistique Drive chargée pour le moment."} <button type="button" class="ghost-button compact" data-stats-retry>Réessayer</button>`)
         : "Aucune ligne ne correspond aux filtres."
     }</td></tr>`;
+    statsArticleBody.querySelector("[data-stats-retry]")?.addEventListener("click", () => {
+      loadClientArticleStatsFromDrive({ force: true });
+      renderCommercialStats();
+    });
     return;
   }
   const paMap = showMargin ? buildAdminPurchasePaMap() : null;
@@ -7705,6 +7720,10 @@ function arrangeTabsForUser(user) {
       appTabs.insertBefore(relanceTab, lastTab.nextSibling);
       lastTab = relanceTab;
     }
+    if (guideTab) {
+      appTabs.insertBefore(guideTab, lastTab.nextSibling);
+      lastTab = guideTab;
+    }
     appTabs.insertBefore(adminPrenetTab, lastTab.nextSibling);
     lastTab = adminPrenetTab;
     appTabs.insertBefore(adminPurchaseTab, lastTab.nextSibling);
@@ -7756,6 +7775,7 @@ function arrangeTabsForUser(user) {
     prospectionTab,
     promotionTab,
     tarifTab,
+    ...(guideTab ? [guideTab] : []),
     tourTab,
     prenetTab,
     backlogTab,
@@ -8229,6 +8249,7 @@ function showApp(user, token = user.token || "") {
   antiErosionTab?.classList.remove("is-hidden");
   tourTab.classList.remove("is-hidden");
   relanceTab?.classList.remove("is-hidden");
+  guideTab?.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   adminCheckingTab.classList.toggle("is-hidden", !isAdmin);
   adminExecutiveExpensesTab?.classList.toggle("is-hidden", !isAdmin);
@@ -15140,6 +15161,7 @@ function setActiveTab(tabName) {
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
   const showRelance = tabName === "relance";
+  const showGuide = tabName === "guide";
   const showBacklog = tabName === "backlog";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
@@ -15170,6 +15192,7 @@ function setActiveTab(tabName) {
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
   relanceTab?.classList.toggle("is-active", showRelance);
+  guideTab?.classList.toggle("is-active", showGuide);
   backlogTab.classList.toggle("is-active", showBacklog);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
@@ -15200,6 +15223,7 @@ function setActiveTab(tabName) {
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
   relanceView?.classList.toggle("is-hidden", !showRelance);
+  guideView?.classList.toggle("is-hidden", !showGuide);
   backlogView.classList.toggle("is-hidden", !showBacklog);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
@@ -15242,6 +15266,7 @@ function setActiveTab(tabName) {
 
   if (showAntiErosion) loadAntiErosion();
   if (showRelance) openRelanceTab();
+  if (showGuide && typeof window.renderProductGuide === "function") window.renderProductGuide();
 
   if (showClient360) {
     loadClientArticleStatsFromDrive();
@@ -15974,6 +15999,7 @@ expensesTab.addEventListener("click", () => setActiveTab("expenses"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
 relanceTab?.addEventListener("click", () => setActiveTab("relance"));
+guideTab?.addEventListener("click", () => setActiveTab("guide"));
 backlogTab.addEventListener("click", () => setActiveTab("backlog"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
