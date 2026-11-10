@@ -6460,7 +6460,7 @@ function renderRelance() {
     if (a.orderedThisMonth !== b.orderedThisMonth) return a.orderedThisMonth ? 1 : -1;
     return b.priority - a.priority;
   });
-  relanceExportState = { rows: visible, sector, status, query: document.querySelector("#relanceSearch")?.value || "", scopedCount: scoped.length, orderedCount: ordered.length };
+  relanceExportState = { rows: visible, scoped, sector, status, query: document.querySelector("#relanceSearch")?.value || "" };
   const statusText = document.querySelector("#relanceStatusText");
   const loading = !monthClientRevenue.loaded || !deliveryOrderHistoryLoaded;
   if (statusText) statusText.textContent = loading ? "Chargement des dernières données…" : `${visible.length} client${visible.length > 1 ? "s" : ""} affiché${visible.length > 1 ? "s" : ""}`;
@@ -6478,204 +6478,319 @@ function renderRelance() {
   }
 }
 
-// Export Excel « tournée » (10/11/2026) : la liste affichée (secteur, filtre, recherche) dans un fichier
-// propre pour organiser les visites : une feuille triée par code postal / ville, une par priorité.
-let relanceExportState = { rows: [], sector: "all", status: "todo", query: "", scopedCount: 0, orderedCount: 0 };
+// Export PDF « tournées » (10/11/2026) : document lisible sur tablette pour suivre le mois et organiser
+// les visites. Tournées proposées : 8 clients max par jour, moins de 100 km entre deux clients,
+// 500 km max de route estimée sur la tournée (distance à vol d'oiseau x 1,28, hors trajet domicile).
+let relanceExportState = { rows: [], scoped: [], sector: "all", status: "todo", query: "" };
+const RELANCE_TOUR = { maxStops: 8, maxLegKm: 100, maxTourKm: 500, roadFactor: 1.28 };
 
-function relanceTopProducts(code, limit = 5) {
+function relanceArticlesFor(code) {
   const block = Object.values(clientArticleStats360?.byClient || {}).find((item) => relanceClientKey(item?.summary?.clientCode) === relanceClientKey(code));
-  return (block?.topArticles || [])
-    .filter((article) => (Number(article.ca2025) || 0) > 0 || (Number(article.ca2026) || 0) > 0)
-    .sort((a, b) => Math.max(Number(b.ca2025) || 0, Number(b.ca2026) || 0) - Math.max(Number(a.ca2025) || 0, Number(a.ca2026) || 0))
-    .slice(0, limit);
+  return (block?.topArticles || []).filter((article) => (Number(article.ca2025) || 0) > 0 || (Number(article.ca2026) || 0) > 0);
 }
 
-function relanceProductsToPropose(code) {
-  // Articles achetés l'an dernier et en net recul (ou plus commandés) cette année : à proposer en visite.
-  const block = Object.values(clientArticleStats360?.byClient || {}).find((item) => relanceClientKey(item?.summary?.clientCode) === relanceClientKey(code));
-  return (block?.topArticles || [])
-    .filter((article) => (Number(article.ca2025) || 0) > 0 && (Number(article.ca2026) || 0) < (Number(article.ca2025) || 0) * 0.7)
+// Produits à reproposer : achetés l'an dernier, en net recul (ou plus commandés) cette année ;
+// à défaut, les produits habituels du client.
+function relanceProductsToPropose(code, limit = 3) {
+  const articles = relanceArticlesFor(code);
+  const recul = articles
+    .filter((a) => (Number(a.ca2025) || 0) > 0 && (Number(a.ca2026) || 0) < (Number(a.ca2025) || 0) * 0.7)
     .sort((a, b) => ((Number(b.ca2025) || 0) - (Number(b.ca2026) || 0)) - ((Number(a.ca2025) || 0) - (Number(a.ca2026) || 0)))
-    .slice(0, 5);
+    .slice(0, limit)
+    .map((a) => ({ code: a.articleCode, name: a.articleName || "", pct: Math.round(((Number(a.ca2026) || 0) / Number(a.ca2025) - 1) * 100), lost: !(Number(a.ca2026) > 0) }));
+  if (recul.length) return { kind: "recul", items: recul };
+  const usual = articles
+    .sort((a, b) => Math.max(Number(b.ca2025) || 0, Number(b.ca2026) || 0) - Math.max(Number(a.ca2025) || 0, Number(a.ca2026) || 0))
+    .slice(0, limit)
+    .map((a) => ({ code: a.articleCode, name: a.articleName || "" }));
+  return { kind: "habituel", items: usual };
 }
 
-function relanceFormatPhone(value) {
-  let digits = String(value || "").replace(/\D/g, "");
-  if (digits.startsWith("33") && digits.length === 11) digits = `0${digits.slice(2)}`;
-  return digits.length === 10 ? digits.replace(/(\d{2})(?=\d)/g, "$1 ").trim() : String(value || "");
+function relanceRoadKm(a, b) {
+  return distanceKmBetweenPoints(a, b) * RELANCE_TOUR.roadFactor;
 }
 
-async function exportRelanceExcel() {
+function relancePathKm(points) {
+  let total = 0;
+  for (let index = 1; index < points.length; index += 1) total += relanceRoadKm(points[index - 1], points[index]);
+  return total;
+}
+
+// Regroupe les clients à relancer en tournées d'une journée, en partant à chaque fois du client le plus
+// prioritaire restant, puis en ajoutant le meilleur compromis priorité / détour, sans casser les règles.
+function buildRelanceTours(rows) {
+  const pool = rows
+    .map((row) => ({ row, point: getClientCoordinates(row.client) }))
+    .filter((item) => item.point)
+    .sort((a, b) => b.row.priority - a.row.priority);
+  const maxPriority = Math.max(1, ...pool.map((item) => item.row.priority || 0));
+  const tours = [];
+  const isolated = [];
+  while (pool.length) {
+    const tour = [pool.shift()];
+    while (tour.length < RELANCE_TOUR.maxStops) {
+      let best = null;
+      pool.forEach((candidate, poolIndex) => {
+        for (let position = 0; position <= tour.length; position += 1) {
+          const path = tour.slice(0, position).concat(candidate, tour.slice(position));
+          const points = path.map((item) => item.point);
+          const legsOk = points.every((point, index) => index === 0 || relanceRoadKm(points[index - 1], point) <= RELANCE_TOUR.maxLegKm);
+          if (!legsOk) continue;
+          const total = relancePathKm(points);
+          if (total > RELANCE_TOUR.maxTourKm) continue;
+          const detour = total - relancePathKm(tour.map((item) => item.point));
+          const score = (0.35 + (candidate.row.priority || 0) / maxPriority) / (1 + detour / 20);
+          if (!best || score > best.score) best = { score, poolIndex, path };
+        }
+      });
+      if (!best) break;
+      pool.splice(best.poolIndex, 1);
+      tour.splice(0, tour.length, ...best.path);
+    }
+    if (tour.length === 1) { isolated.push(tour[0].row); continue; }
+    const points = tour.map((item) => item.point);
+    const legs = points.map((point, index) => (index === 0 ? 0 : relanceRoadKm(points[index - 1], point)));
+    tours.push({
+      stops: tour.map((item, index) => ({ row: item.row, legKm: Math.round(legs[index]) })),
+      km: Math.round(legs.reduce((sum, value) => sum + value, 0)),
+      stake: tour.reduce((sum, item) => sum + (item.row.monthlyAverage || 0), 0),
+      urgent: tour.filter((item) => item.row.level === "urgent").length,
+    });
+  }
+  const noGps = rows.filter((row) => !getClientCoordinates(row.client));
+  tours.sort((a, b) => b.stake - a.stake);
+  return { tours, isolated, noGps };
+}
+
+function relanceTourZone(tour) {
+  const counts = new Map();
+  tour.stops.forEach(({ row }) => {
+    const city = row.client.deliveryCity || row.client.billingCity || "";
+    counts.set(city, (counts.get(city) || 0) + 1);
+  });
+  const deps = [...new Set(tour.stops.map(({ row }) => String(row.client.deliveryZip || row.client.billingZip || "").slice(0, 2)).filter(Boolean))];
+  const main = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  return `${main}${deps.length ? ` (${deps.join(", ")})` : ""}`;
+}
+
+let relancePdfLibPromise = null;
+function loadRelancePdfLib() {
+  if (window.html2pdf) return Promise.resolve();
+  if (!relancePdfLibPromise) {
+    relancePdfLibPromise = new Promise((resolve, reject) => {
+      const tag = document.createElement("script");
+      tag.src = "assets/vendor/html2pdf.bundle.min.js";
+      tag.onload = resolve;
+      tag.onerror = () => { relancePdfLibPromise = null; reject(new Error("Module PDF indisponible. Vérifiez la connexion puis réessayez.")); };
+      document.head.appendChild(tag);
+    });
+  }
+  return relancePdfLibPromise;
+}
+
+function buildRelancePdfHtml(state) {
+  const esc = escapeHtml;
+  const rows = state.rows || [];
+  const scoped = state.scoped || rows;
+  const todoRows = rows.filter((row) => !row.orderedThisMonth);
+  const ordered = scoped.filter((row) => row.orderedThisMonth);
+  const todoAll = scoped.filter((row) => !row.orderedThisMonth);
+  const urgentAll = todoAll.filter((row) => row.level === "urgent");
+  const stake = todoAll.reduce((sum, row) => sum + (row.monthlyAverage || 0), 0);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayPct = Math.round((now.getDate() / daysInMonth) * 100);
+  const share = scoped.length ? Math.round((ordered.length / scoped.length) * 100) : 0;
+  const monthName = now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const isAdmin = currentUser?.role === "admin";
+  const sectorLabel = isAdmin
+    ? (state.sector === "all" ? "Tous les secteurs" : (typeof directionCommercialLabel === "function" ? directionCommercialLabel(state.sector) : state.sector))
+    : ((currentUser?.sectors || []).join(" + ") || currentUser?.name || "Mon secteur");
+  const { tours, isolated, noGps } = buildRelanceTours(todoRows);
+  const levelText = (row) => ({ urgent: "Urgent", relance: "À relancer", watch: "À surveiller", ok: "Commandé" }[row.level] || "");
+  const city = (row) => `${row.client.deliveryCity || row.client.billingCity || ""} ${row.client.deliveryZip || row.client.billingZip ? `(${row.client.deliveryZip || row.client.billingZip})` : ""}`.trim();
+  const daysText = (row) => (row.last ? `${row.days} j` : "—");
+  const monthBar = (row) => {
+    const pct = row.monthlyAverage > 0 ? Math.min(100, Math.round((row.monthRevenue / row.monthlyAverage) * 100)) : 0;
+    return `<div class="rp-bar"><i style="width:${pct}%"></i></div><div class="rp-bar-txt">${esc(relanceCurrency(row.monthRevenue))} / ${esc(relanceCurrency(row.monthlyAverage))}</div>`;
+  };
+  const trend = (row) => {
+    if (!(row.ca2025 > 0)) return "";
+    const pct = Math.round((row.ca2026 / row.ca2025 - 1) * 100);
+    return `<span class="rp-trend ${pct < 0 ? "is-down" : "is-up"}">${pct > 0 ? "+" : ""}${pct} % sur l'année</span>`;
+  };
+  const propose = (row) => {
+    const { kind, items } = relanceProductsToPropose(row.client.code);
+    if (!items.length) return "";
+    return `<div class="rp-prod ${kind === "recul" ? "is-recul" : ""}"><b>${kind === "recul" ? "À reproposer" : "Habituel"} :</b> ${items.map((item) => `${esc(item.code)} ${esc(item.name)}${kind === "recul" ? ` <em>${item.lost ? "plus commandé" : `${item.pct} %`}</em>` : ""}`).join(" · ")}</div>`;
+  };
+  const stopCard = (row, index, legKm) => `
+    <div class="rp-stop is-${row.level}">
+      <div class="rp-num">${index}</div>
+      <div class="rp-main">
+        <div class="rp-line1"><span class="rp-pill is-${row.level}">${esc(levelText(row))}</span><strong>${esc(row.client.name || "")}</strong><span class="rp-city">${esc(city(row))}</span>${legKm ? `<span class="rp-leg">+${legKm} km</span>` : ""}</div>
+        <div class="rp-line2">
+          <div class="rp-fact"><span>Sans commande</span><strong>${esc(daysText(row))}</strong></div>
+          <div class="rp-fact rp-fact-wide"><span>CA ce mois / habituel</span>${monthBar(row)}</div>
+          <div class="rp-fact"><span>CA ${now.getFullYear()}</span><strong>${esc(relanceCurrency(row.ca2026))}</strong>${trend(row)}</div>
+        </div>
+        ${propose(row)}
+      </div>
+    </div>`;
+  const toursHtml = tours.length ? tours.map((tour, index) => `
+    <section class="rp-tour">
+      <div class="rp-tour-head">
+        <div><span class="rp-tour-tag">Tournée ${index + 1}</span><h3>${esc(relanceTourZone(tour))}</h3></div>
+        <div class="rp-tour-kpis"><span><b>${tour.stops.length}</b> clients</span><span><b>≈ ${tour.km} km</b> entre clients</span><span><b>${esc(relanceCurrency(tour.stake))}</b> CA mensuel en jeu</span>${tour.urgent ? `<span class="is-urgent"><b>${tour.urgent}</b> urgent${tour.urgent > 1 ? "s" : ""}</span>` : ""}</div>
+      </div>
+      ${tour.stops.map((stop, stopIndex) => stopCard(stop.row, stopIndex + 1, stop.legKm)).join("")}
+    </section>`).join("") : `<p class="rp-empty">Pas assez de clients proches les uns des autres pour proposer une tournée.</p>`;
+  const extraRows = isolated.concat(noGps);
+  const extraHtml = extraRows.length ? `
+    <section class="rp-block">
+      <h2>Clients hors tournée</h2>
+      <p class="rp-sub">Trop éloignés des autres clients à relancer (plus de ${RELANCE_TOUR.maxLegKm} km) ou sans localisation : à relancer par téléphone ou à ajouter à une tournée existante.</p>
+      ${extraRows.sort((a, b) => b.priority - a.priority).map((row, index) => stopCard(row, index + 1, 0)).join("")}
+    </section>` : "";
+  const summaryRows = rows.slice().sort((a, b) => (a.orderedThisMonth === b.orderedThisMonth ? 0 : a.orderedThisMonth ? 1 : -1) || b.priority - a.priority);
+  const tableHtml = `
+    <section class="rp-block">
+      <h2>Tous les clients par priorité</h2>
+      <table class="rp-table">
+        <thead><tr><th>Priorité</th><th>Client</th><th>Ville</th><th>Sans cde</th><th>CA mois / habituel</th><th>Année</th></tr></thead>
+        <tbody>${summaryRows.map((row) => `<tr><td><span class="rp-pill is-${row.level}">${esc(levelText(row))}</span></td><td><b>${esc(row.client.name || "")}</b></td><td>${esc(city(row))}</td><td>${esc(daysText(row))}</td><td>${monthBar(row)}</td><td>${trend(row) || "—"}</td></tr>`).join("")}</tbody>
+      </table>
+    </section>`;
+  return `
+  <div class="rp-doc">
+    <style>
+      .rp-doc { width: 190mm; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.35; background: #fff; }
+      .rp-doc * { box-sizing: border-box; }
+      .rp-head { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; border-bottom: 3px solid #e30613; }
+      .rp-head h1 { margin: 2px 0 4px; font-size: 24px; }
+      .rp-kicker { color: #e30613; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .rp-head img { height: 46px; }
+      .rp-meta { color: #6b7280; font-size: 12px; }
+      .rp-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+      .rp-kpi { padding: 10px; border: 1px solid #e5e7eb; border-radius: 10px; }
+      .rp-kpi span { display: block; color: #6b7280; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+      .rp-kpi strong { display: block; margin-top: 3px; font-size: 22px; }
+      .rp-kpi small { color: #6b7280; font-size: 10px; }
+      .rp-kpi.is-red { background: #16181d; color: #fff; border-color: #16181d; }
+      .rp-kpi.is-red span, .rp-kpi.is-red small { color: #d1d5db; }
+      .rp-month { padding: 10px 12px; border-radius: 10px; background: #f6f7f8; margin-bottom: 14px; }
+      .rp-month-track { position: relative; height: 16px; margin: 8px 0 4px; border-radius: 99px; background: #e5e7eb; }
+      .rp-month-track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: ${share >= dayPct ? "#0f7a3d" : "#f59e0b"}; }
+      .rp-month-track b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #e30613; }
+      .rp-rules { color: #6b7280; font-size: 10.5px; margin: 0 0 10px; }
+      .rp-block h2, .rp-tours-title { margin: 6px 0 4px; font-size: 18px; }
+      .rp-sub { margin: 0 0 8px; color: #6b7280; font-size: 11px; }
+      .rp-break { page-break-before: always; break-before: page; }
+      .rp-tour { margin: 0 0 14px; }
+      .rp-tour-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; padding: 8px 12px; border-radius: 10px 10px 0 0; background: #16181d; color: #fff; page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; }
+      .rp-tour-head h3 { margin: 2px 0 0; font-size: 16px; }
+      .rp-tour-tag { color: #fca5a5; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+      .rp-tour-kpis { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; font-size: 11px; color: #d1d5db; }
+      .rp-tour-kpis b { color: #fff; }
+      .rp-tour-kpis .is-urgent b { color: #fca5a5; }
+      .rp-stop { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid #e5e7eb; border-top: 0; border-left: 5px solid #d1d5db; page-break-inside: avoid; break-inside: avoid; }
+      .rp-stop.is-urgent { border-left-color: #e30613; }
+      .rp-stop.is-relance { border-left-color: #f59e0b; }
+      .rp-stop.is-watch { border-left-color: #eab308; }
+      .rp-num { flex: 0 0 26px; height: 26px; border-radius: 50%; background: #111827; color: #fff; font-weight: 700; text-align: center; line-height: 26px; font-size: 13px; }
+      .rp-main { flex: 1; min-width: 0; }
+      .rp-line1 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+      .rp-line1 strong { font-size: 14px; }
+      .rp-city { color: #4b5563; }
+      .rp-leg { margin-left: auto; padding: 1px 7px; border-radius: 99px; background: #eef2ff; color: #3730a3; font-size: 10.5px; font-weight: 700; }
+      .rp-pill { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+      .rp-pill.is-urgent { background: #fde7e9; color: #b8000d; }
+      .rp-pill.is-relance { background: #fff4e0; color: #a15c00; }
+      .rp-pill.is-watch { background: #fffbea; color: #8a6d00; }
+      .rp-pill.is-ok { background: #e9f7ef; color: #0f7a3d; }
+      .rp-line2 { display: flex; gap: 14px; margin-top: 5px; }
+      .rp-fact span { display: block; color: #9ca3af; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+      .rp-fact strong { font-size: 13px; }
+      .rp-fact-wide { flex: 1; max-width: 230px; }
+      .rp-bar { height: 8px; margin-top: 3px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
+      .rp-bar i { display: block; height: 100%; background: #e30613; }
+      .rp-bar-txt { margin-top: 2px; font-size: 11px; font-weight: 700; }
+      .rp-trend { display: block; font-size: 10.5px; font-weight: 700; text-transform: none !important; color: inherit; }
+      .rp-block { margin-top: 14px; }
+      .rp-block h2 { page-break-after: avoid; break-after: avoid; }
+      .rp-trend.is-down { color: #b8000d; }
+      .rp-trend.is-up { color: #0f7a3d; }
+      .rp-prod { margin-top: 5px; padding: 4px 8px; border-radius: 6px; background: #f6f7f8; font-size: 11px; }
+      .rp-prod.is-recul { background: #fdf1f2; }
+      .rp-prod em { color: #b8000d; font-style: normal; font-weight: 700; }
+      .rp-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .rp-table th { padding: 6px 5px; background: #16181d; color: #fff; text-align: left; font-size: 10px; text-transform: uppercase; }
+      .rp-table td { padding: 5px; border-bottom: 1px solid #eef0f2; vertical-align: middle; }
+      .rp-table tr { page-break-inside: avoid; break-inside: avoid; }
+      .rp-table .rp-bar { width: 110px; }
+      .rp-empty { color: #6b7280; }
+    </style>
+    <div class="rp-head">
+      <div>
+        <div class="rp-kicker">Relances du mois · ${esc(monthName)}</div>
+        <h1>${esc(sectorLabel)}</h1>
+        <div class="rp-meta">Édité le ${esc(now.toLocaleDateString("fr-FR"))} · ${esc(currentUser?.name || "")}</div>
+      </div>
+      <img src="assets/schuller-logo.png" alt="" />
+    </div>
+    <div class="rp-kpis">
+      <div class="rp-kpi"><span>Clients actifs</span><strong>${scoped.length}</strong><small>dans le portefeuille</small></div>
+      <div class="rp-kpi"><span>Ont commandé</span><strong>${ordered.length}</strong><small>${share} % des clients</small></div>
+      <div class="rp-kpi"><span>À relancer</span><strong>${todoAll.length}</strong><small>dont ${urgentAll.length} urgent${urgentAll.length > 1 ? "s" : ""} (+60 j)</small></div>
+      <div class="rp-kpi is-red"><span>CA à aller chercher</span><strong>${esc(relanceCurrency(stake))}</strong><small>CA mensuel habituel</small></div>
+    </div>
+    <div class="rp-month">
+      <strong>Où j'en suis :</strong> ${share} % des clients ont commandé · ${dayPct} % du mois écoulé · ${daysInMonth - now.getDate()} jour(s) restants
+      <div class="rp-month-track"><i style="width:${Math.max(share, 2)}%"></i><b style="left:${dayPct}%"></b></div>
+      <span class="rp-meta">${share >= dayPct ? "Bon rythme : continuez." : `En retard : environ ${Math.max(0, Math.ceil((dayPct / 100) * scoped.length) - ordered.length)} client(s) de plus devraient déjà avoir commandé.`}</span>
+    </div>
+    <h2 class="rp-tours-title">Tournées proposées</h2>
+    <p class="rp-rules">Jusqu'à ${RELANCE_TOUR.maxStops} clients par jour, moins de ${RELANCE_TOUR.maxLegKm} km entre deux clients, ${RELANCE_TOUR.maxTourKm} km maximum entre le premier et le dernier client (distances routières estimées, hors trajet depuis le domicile). Tournées classées par CA en jeu ; dans chaque tournée, les clients sont dans l'ordre de passage.</p>
+    ${toursHtml}
+    ${extraHtml}
+    ${tableHtml}
+  </div>`;
+}
+
+async function exportRelancePdf() {
   const status = document.querySelector("#relanceExportStatus");
   const button = document.querySelector("#relanceExport");
-  const rows = relanceExportState.rows || [];
-  if (!rows.length) {
+  if (!(relanceExportState.rows || []).length) {
     if (status) status.textContent = "Aucun client dans la liste affichée : changez le filtre ou le secteur.";
     return;
   }
-  if (button) { button.disabled = true; button.textContent = "Préparation…"; }
+  if (button) { button.disabled = true; button.textContent = "Création du PDF…"; }
   if (status) status.textContent = "";
   try {
     if (!clientArticleStats360?.available) await loadClientArticleStatsFromDrive().catch(() => {});
-    const ExcelJS = await loadExcelJs();
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "Schuller Eh'Klar CRM";
-    workbook.created = new Date();
-    const red = "FFE30613";
-    const dark = "FF16181D";
-    const grey = "FF6B7280";
-    const isAdmin = currentUser?.role === "admin";
-    const sector = relanceExportState.sector;
-    const sectorLabel = isAdmin
-      ? (sector === "all" ? "Tous les secteurs" : (typeof directionCommercialLabel === "function" ? directionCommercialLabel(sector) : sector))
-      : ((currentUser?.sectors || []).join(" + ") || currentUser?.name || "Mon secteur");
-    const statusLabel = { todo: "À relancer (pas de commande ce mois)", urgent: "Urgents (plus de 60 jours)", ordered: "Ont commandé ce mois", all: "Tous les clients actifs" }[relanceExportState.status] || "";
-    const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-    let logo = null;
-    try { logo = await fetch("assets/schuller-logo.png").then((response) => response.arrayBuffer()); } catch (error) { logo = null; }
-
-    const year = new Date().getFullYear();
-    const columns = [
-      { key: "n", header: "N°", width: 5 },
-      { key: "level", header: "Priorité", width: 13 },
-      { key: "cp", header: "CP", width: 8 },
-      { key: "city", header: "Ville", width: 20 },
-      { key: "name", header: "Client", width: 30 },
-      { key: "code", header: "Code client", width: 12 },
-      { key: "address", header: "Adresse de livraison", width: 32 },
-      { key: "phone", header: "Téléphone", width: 15 },
-      { key: "email", header: "E-mail", width: 26 },
-      { key: "lastDate", header: "Dernière commande", width: 13 },
-      { key: "days", header: "Jours sans commande", width: 11 },
-      { key: "lastAmount", header: "Montant dernière cde", width: 13 },
-      { key: "month", header: "CA ce mois", width: 12 },
-      { key: "usual", header: "CA mensuel habituel", width: 13 },
-      { key: "ca2026", header: `CA ${year} cumulé`, width: 13 },
-      { key: "ca2025", header: `CA ${year - 1}`, width: 13 },
-      { key: "trend", header: `Évolution vs ${year - 1}`, width: 11 },
-      { key: "products", header: "Produits habituels (top 5)", width: 42 },
-      { key: "propose", header: "À reproposer (en recul)", width: 42 },
-      { key: "contact", header: "Dernier contact", width: 30 },
-      { key: "map", header: "Itinéraire", width: 12 },
-      { key: "visit", header: "Date de visite", width: 12 },
-      { key: "notes", header: "Notes de visite", width: 36 },
-    ];
-    const levelColors = { urgent: ["FFFDE7E9", "FFB8000D"], relance: ["FFFFF4E0", "FFA15C00"], watch: ["FFFFFBEA", "FF8A6D00"], ok: ["FFE9F7EF", "FF0F7A3D"] };
-    const lines = rows.map((row) => {
-      const client = row.client;
-      const address = [client.deliveryAddress || client.billingAddress].filter(Boolean).join(" ");
-      const cp = String(client.deliveryZip || client.billingZip || "");
-      const city = client.deliveryCity || client.billingCity || "";
-      const products = relanceTopProducts(client.code).map((a) => `${a.articleCode} ${a.articleName || ""}`.trim()).join("\n");
-      const propose = relanceProductsToPropose(client.code).map((a) => `${a.articleCode} ${a.articleName || ""} (${relanceCurrency(a.ca2026)} / ${relanceCurrency(a.ca2025)})`).join("\n");
-      const lat = Number(client.latitude);
-      const lng = Number(client.longitude);
-      const mapUrl = Number.isFinite(lat) && Number.isFinite(lng) && lat && lng
-        ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([address, cp, city].filter(Boolean).join(" "))}`;
-      const contact = row.lastNote ? `${relanceFormatDate(row.lastNote.time)} : ${String(row.lastNote.text || "").replace(/\s+/g, " ").slice(0, 140)}` : "";
-      return {
-        row, level: relanceLevelLabel(row), levelKey: row.level, cp, city, name: client.name || "", code: client.code || "", address,
-        phone: relanceFormatPhone(client.phone), email: client.email || "",
-        lastDate: row.last ? new Date(row.last.time) : null, days: row.last ? row.days : null, lastAmount: row.last?.amount || null,
-        month: row.monthRevenue || 0, usual: Math.round(row.monthlyAverage || 0), ca2026: row.ca2026 || 0, ca2025: row.ca2025 || 0,
-        trend: row.ca2025 > 0 ? (row.ca2026 - row.ca2025) / row.ca2025 : null,
-        products, propose, contact, mapUrl,
-      };
-    });
-
-    const addSheet = (title, sorted, subtitle) => {
-      const sheet = workbook.addWorksheet(title, {
-        views: [{ state: "frozen", ySplit: 6, xSplit: 5 }],
-        pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } },
-      });
-      sheet.columns = columns.map((col) => ({ key: col.key, width: col.width }));
-      if (logo) {
-        const imageId = workbook.addImage({ buffer: logo, extension: "png" });
-        sheet.addImage(imageId, { tl: { col: 0.1, row: 0.2 }, ext: { width: 70, height: 50 } });
-      }
-      sheet.mergeCells("C1:I1");
-      sheet.getCell("C1").value = `Tournée de relance · ${sectorLabel}`;
-      sheet.getCell("C1").font = { bold: true, size: 18, color: { argb: dark } };
-      sheet.mergeCells("C2:I2");
-      sheet.getCell("C2").value = `${statusLabel}${relanceExportState.query ? ` · recherche « ${relanceExportState.query} »` : ""} · ${subtitle}`;
-      sheet.getCell("C2").font = { size: 10, color: { argb: grey } };
-      const stake = rows.filter((row) => !row.orderedThisMonth).reduce((sum, row) => sum + (row.monthlyAverage || 0), 0);
-      sheet.mergeCells("C3:I3");
-      sheet.getCell("C3").value = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} · ${rows.length} client${rows.length > 1 ? "s" : ""} · ${rows.filter((r) => r.level === "urgent").length} urgent(s) · CA mensuel habituel en jeu : ${relanceCurrency(stake)} · exporté le ${new Date().toLocaleDateString("fr-FR")} par ${currentUser?.name || ""}`;
-      sheet.getCell("C3").font = { size: 10, bold: true, color: { argb: red } };
-      sheet.getRow(1).height = 26;
-      const header = sheet.getRow(6);
-      header.values = columns.map((col) => col.header);
-      header.height = 32;
-      header.eachCell((cell) => {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: dark } };
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
-        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-      });
-      let previousCity = null;
-      sorted.forEach((line, index) => {
-        const excelRow = sheet.addRow({
-          n: index + 1, level: line.level, cp: line.cp, city: line.city, name: line.name, code: line.code, address: line.address,
-          phone: line.phone, email: line.email, lastDate: line.lastDate, days: line.days, lastAmount: line.lastAmount,
-          month: line.month, usual: line.usual, ca2026: line.ca2026, ca2025: line.ca2025, trend: line.trend,
-          products: line.products, propose: line.propose, contact: line.contact,
-          map: { text: "Ouvrir", hyperlink: line.mapUrl }, visit: null, notes: "",
-        });
-        const lineCount = Math.max(1, line.products.split("\n").length, line.propose.split("\n").length);
-        excelRow.height = Math.min(90, 16 + (lineCount - 1) * 13);
-        excelRow.eachCell({ includeEmpty: true }, (cell) => {
-          cell.alignment = { vertical: "top", wrapText: true };
-          cell.font = { size: 10 };
-          cell.border = { bottom: { style: "thin", color: { argb: "FFE5E7EB" } } };
-          if (index % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
-        });
-        const [bg, fg] = levelColors[line.levelKey] || levelColors.watch;
-        const levelCell = excelRow.getCell("level");
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
-        levelCell.font = { bold: true, size: 10, color: { argb: fg } };
-        excelRow.getCell("name").font = { bold: true, size: 10 };
-        excelRow.getCell("cp").numFmt = "@";
-        excelRow.getCell("lastDate").numFmt = "dd/mm/yyyy";
-        ["lastAmount", "month", "usual", "ca2026", "ca2025"].forEach((key) => { excelRow.getCell(key).numFmt = '#,##0 "€"'; });
-        excelRow.getCell("trend").numFmt = "+0%;-0%;0%";
-        if (line.trend != null) excelRow.getCell("trend").font = { size: 10, bold: true, color: { argb: line.trend < 0 ? "FFB8000D" : "FF0F7A3D" } };
-        excelRow.getCell("days").alignment = { vertical: "top", horizontal: "center" };
-        excelRow.getCell("map").font = { size: 10, color: { argb: "FF1D4ED8" }, underline: true };
-        excelRow.getCell("propose").font = { size: 10, color: { argb: "FFB8000D" } };
-        excelRow.getCell("visit").numFmt = "dd/mm/yyyy";
-        if (subtitle.startsWith("classé par code postal") && previousCity !== null && previousCity !== `${line.cp}`.slice(0, 2)) {
-          excelRow.eachCell({ includeEmpty: true }, (cell) => { cell.border = { ...cell.border, top: { style: "medium", color: { argb: "FF9CA3AF" } } }; });
-        }
-        previousCity = `${line.cp}`.slice(0, 2);
-      });
-      sheet.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6 + sorted.length, column: columns.length } };
-      sheet.headerFooter.oddFooter = `&L${sectorLabel} · ${monthName}&RPage &P / &N`;
-      sheet.pageSetup.printTitlesRow = "6:6";
-      return sheet;
-    };
-
-    const byPlace = lines.slice().sort((a, b) => a.cp.localeCompare(b.cp, "fr", { numeric: true }) || a.city.localeCompare(b.city, "fr") || b.row.priority - a.row.priority);
-    const byPriority = lines.slice().sort((a, b) => (a.row.orderedThisMonth === b.row.orderedThisMonth ? 0 : a.row.orderedThisMonth ? 1 : -1) || b.row.priority - a.row.priority);
-    addSheet("Tournée (par ville)", byPlace, "classé par code postal puis ville pour regrouper les visites");
-    addSheet("Par priorité", byPriority, "classé par priorité (urgence × CA habituel)");
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const safeSector = String(sectorLabel).replace(/[\\/:*?"<>|]+/g, "-");
-    link.href = url;
-    link.download = `Tournée relances - ${safeSector} - ${todayInputDate()}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    if (status) status.textContent = `Fichier exporté : ${rows.length} client${rows.length > 1 ? "s" : ""}.`;
+    await loadRelancePdfLib();
+    const holder = document.createElement("div");
+    holder.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
+    holder.innerHTML = buildRelancePdfHtml(relanceExportState);
+    document.body.appendChild(holder);
+    const sectorName = currentUser?.role === "admin" && relanceExportState.sector !== "all" ? relanceExportState.sector : (currentUser?.role === "admin" ? "Tous secteurs" : (currentUser?.sectors || []).join(" + "));
+    try {
+      await window.html2pdf().set({
+        margin: [10, 10, 12, 10],
+        filename: `Tournées relances - ${String(sectorName || "secteur").replace(/[\\/:*?"<>|]+/g, "-")} - ${todayInputDate()}.pdf`,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"], avoid: [".rp-stop", ".rp-tour-head", ".rp-kpis", ".rp-month", ".rp-block h2", ".rp-sub", "tr"] },
+      }).from(holder.firstElementChild).save();
+    } finally {
+      holder.remove();
+    }
+    if (status) status.textContent = "PDF téléchargé.";
   } catch (error) {
     if (status) status.textContent = error.message || "Export impossible.";
   } finally {
-    if (button) { button.disabled = false; button.textContent = "Exporter pour tournée"; }
+    if (button) { button.disabled = false; button.textContent = "Exporter les tournées (PDF)"; }
   }
 }
 
@@ -6817,7 +6932,7 @@ document.querySelector("#relanceList")?.addEventListener("click", (event) => {
 ["#relanceSearch", "#relanceStatus", "#relanceSort", "#relanceSector"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener(selector === "#relanceSearch" ? "input" : "change", renderRelance);
 });
-document.querySelector("#relanceExport")?.addEventListener("click", exportRelanceExcel);
+document.querySelector("#relanceExport")?.addEventListener("click", exportRelancePdf);
 document.querySelector("#relanceRefresh")?.addEventListener("click", () => {
   const button = document.querySelector("#relanceRefresh");
   if (button) button.disabled = true;
