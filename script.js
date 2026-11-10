@@ -6774,6 +6774,7 @@ function buildRelancePdfHtml(state) {
 // n'est jamais coupé ; l'en-tête d'une tournée reste avec son premier client.
 const RELANCE_PDF_PAGE_PX = 955;
 function paginateRelancePdf(holder) {
+  const document = holder.ownerDocument;
   const doc = holder.querySelector(".rp-doc");
   const style = doc.querySelector("style");
   if (style) holder.insertBefore(style, doc);
@@ -6866,34 +6867,56 @@ async function exportRelancePdf() {
   if (status) status.textContent = "";
   try {
     if (!clientArticleStats360?.available) await loadClientArticleStatsFromDrive().catch(() => {});
-    await loadRelancePdfLib();
-    const holder = document.createElement("div");
-    holder.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
-    const scrollBefore = { x: window.scrollX, y: window.scrollY };
-    window.scrollTo(0, 0);
-    holder.innerHTML = buildRelancePdfHtml(relanceExportState);
-    document.body.appendChild(holder);
+    // Rendu dans une page isolée (iframe) : le PDF ne recopie pas tout le CRM à chaque page,
+    // ce qui le rend rapide aussi sous Firefox et sur tablette.
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = "position:fixed;left:-10000px;top:0;width:820px;height:1200px;border:0;visibility:hidden;";
+    const html = buildRelancePdfHtml(relanceExportState);
+    const base = new URL(".", location.href).href;
+    frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base href="${base}"></head><body style="margin:0;background:#fff"><div id="rpHolder">${html}</div><script src="assets/vendor/html2pdf.bundle.min.js"><\/script></body></html>`;
+    const loaded = new Promise((resolve, reject) => {
+      frame.onload = resolve;
+      setTimeout(() => reject(new Error("Le module PDF met trop de temps à se charger.")), 20000);
+    });
+    document.body.appendChild(frame);
     const sectorName = currentUser?.role === "admin" && relanceExportState.sector !== "all" ? relanceExportState.sector : (currentUser?.role === "admin" ? "Tous secteurs" : (currentUser?.sectors || []).join(" + "));
     try {
-      if (holder.querySelector(".rp-doc img")) await Promise.race([new Promise((resolve) => { const img = holder.querySelector(".rp-doc img"); if (img.complete) resolve(); else { img.onload = resolve; img.onerror = resolve; } }), new Promise((resolve) => setTimeout(resolve, 2000))]);
+      await loaded;
+      const win = frame.contentWindow;
+      const holder = win.document.getElementById("rpHolder");
+      for (let tries = 0; !win.html2pdf && tries < 100; tries += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+      if (!win.html2pdf) throw new Error("Module PDF indisponible. Vérifiez la connexion puis réessayez.");
+      const logo = holder.querySelector(".rp-doc img");
+      if (logo && !logo.complete) await Promise.race([new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; }), new Promise((resolve) => setTimeout(resolve, 2000))]);
       const pages = paginateRelancePdf(holder);
+      if (button) button.textContent = `Création du PDF (${pages.length} pages)…`;
       const options = {
         margin: [10, 10, 12, 10],
-        filename: `Tournées relances - ${String(sectorName || "secteur").replace(/[\\/:*?"<>|]+/g, "-")} - ${todayInputDate()}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0 },
+        filename: `Tournees relances - ${String(sectorName || "secteur").replace(/[\\/:*?"<>|]+/g, "-")} - ${todayInputDate()}.pdf`,
+        image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0, logging: false },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: [] },
       };
-      // Une page A4 = un rendu séparé : aucune coupure, même pour 20 pages (limite de taille des images du navigateur).
-      let worker = window.html2pdf().set(options).from(pages[0]).toPdf();
+      // Une page A4 = un rendu séparé : aucune coupure, même pour 20 pages.
+      // Options recréées dans la page isolée (sinon html2pdf rejette les tableaux venant de la page principale).
+      let worker = win.html2pdf().set(win.JSON.parse(JSON.stringify(options))).from(pages[0]).toPdf();
       pages.slice(1).forEach((page) => {
         worker = worker.get("pdf").then((pdf) => { pdf.addPage(); }).from(page).toContainer().toCanvas().toPdf();
       });
-      await worker.save();
+      // Téléchargement depuis la page principale (le nom du fichier est perdu si l'iframe télécharge elle-même).
+      const blob = await worker.outputPdf("blob");
+      const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = options.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } finally {
-      holder.remove();
-      window.scrollTo(scrollBefore.x, scrollBefore.y);
+      setTimeout(() => frame.remove(), 3000);
     }
     if (status) status.textContent = "PDF téléchargé.";
   } catch (error) {
