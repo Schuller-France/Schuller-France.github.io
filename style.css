@@ -11506,3 +11506,9 @@ body.dark-theme .pg-option:hover { background: #262b32; }
 body.dark-theme .pg-check { background: #1f2329; border-color: #4b5563; }
 body.dark-theme .pg-tags li, body.dark-theme .pg-step { background: #2b3038; color: #d1d5db; }
 body.dark-theme .pg-group { border-color: #2b3038; }
+
+/* Relances : bouton d'export tournée (10/11/2026) */
+.relance-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.relance-export-status { margin: 0; color: #0f7a3d; font-size: 13px; font-weight: 700; }
+.relance-export-status:empty { display: none; }
+@media (max-width: 640px) { .relance-hero-actions { width: 100%; } .relance-hero-actions .primary-button { flex: 1 1 auto; } }
