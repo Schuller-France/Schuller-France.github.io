@@ -6398,7 +6398,7 @@ function renderRelance() {
   const sectorField = document.querySelector("#relanceSectorField");
   const sectorSelect = document.querySelector("#relanceSector");
   sectorField?.classList.toggle("is-hidden", !isAdmin);
-  const rows = buildRelanceRows().filter((row) => row.active);
+  const rows = buildRelanceRows().filter((row) => row.active && !isInternalRelanceClient(row.client));
   if (isAdmin && sectorSelect) {
     const current = sectorSelect.value || "all";
     const sectors = [...new Set(rows.map((row) => row.client.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
@@ -6486,7 +6486,10 @@ const RELANCE_TOUR = { maxStops: 8, maxLegKm: 100, maxTourKm: 500, roadFactor: 1
 
 function relanceArticlesFor(code) {
   const block = Object.values(clientArticleStats360?.byClient || {}).find((item) => relanceClientKey(item?.summary?.clientCode) === relanceClientKey(code));
-  return (block?.topArticles || []).filter((article) => (Number(article.ca2025) || 0) > 0 || (Number(article.ca2026) || 0) > 0);
+  return (block?.topArticles || [])
+    .filter((article) => (Number(article.ca2025) || 0) > 0 || (Number(article.ca2026) || 0) > 0)
+    // Lignes de facturation (FACTURE, REMISE, PORT...) : pas des produits à reproposer.
+    .filter((article) => /\d/.test(String(article.articleCode || "")) && !/^(facture|remise|port|frais|avoir)\b/i.test(String(article.articleName || "")));
 }
 
 // Produits à reproposer : achetés l'an dernier, en net recul (ou plus commandés) cette année ;
@@ -6588,10 +6591,15 @@ function loadRelancePdfLib() {
   return relancePdfLibPromise;
 }
 
+// Le compte interne Schuller (factures, avoirs...) n'est pas un client à relancer.
+function isInternalRelanceClient(client) {
+  return /schuller/i.test(String(client?.name || ""));
+}
+
 function buildRelancePdfHtml(state) {
   const esc = escapeHtml;
-  const rows = state.rows || [];
-  const scoped = state.scoped || rows;
+  const rows = (state.rows || []).filter((row) => !isInternalRelanceClient(row.client));
+  const scoped = (state.scoped || state.rows || []).filter((row) => !isInternalRelanceClient(row.client));
   const todoRows = rows.filter((row) => !row.orderedThisMonth);
   const ordered = scoped.filter((row) => row.orderedThisMonth);
   const todoAll = scoped.filter((row) => !row.orderedThisMonth);
@@ -6664,7 +6672,7 @@ function buildRelancePdfHtml(state) {
   return `
   <div class="rp-doc">
     <style>
-      .rp-doc { width: 190mm; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.35; background: #fff; }
+      .rp-doc { width: 680px; margin: 0; padding: 0 4px; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.35; background: #fff; }
       .rp-doc * { box-sizing: border-box; }
       .rp-head { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; border-bottom: 3px solid #e30613; }
       .rp-head h1 { margin: 2px 0 4px; font-size: 24px; }
@@ -6687,6 +6695,11 @@ function buildRelancePdfHtml(state) {
       .rp-sub { margin: 0 0 8px; color: #6b7280; font-size: 11px; }
       .rp-break { page-break-before: always; break-before: page; }
       .rp-tour { margin: 0 0 14px; }
+      .rp-tour.rp-unit { margin-bottom: 0; }
+      .rp-tour.rp-last { margin-bottom: 14px; }
+      .rp-page { padding-bottom: 2px; }
+      .rp-page > .rp-tour.rp-cont:first-child .rp-stop { border-top: 1px solid #e5e7eb; }
+      .rp-block.rp-cont { margin-top: 0; }
       .rp-tour-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; padding: 8px 12px; border-radius: 10px 10px 0 0; background: #16181d; color: #fff; page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; }
       .rp-tour-head h3 { margin: 2px 0 0; font-size: 16px; }
       .rp-tour-tag { color: #fca5a5; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
@@ -6757,6 +6770,91 @@ function buildRelancePdfHtml(state) {
   </div>`;
 }
 
+// Découpe le document en pages A4 complètes : un client, une ligne de tableau ou un en-tête de tournée
+// n'est jamais coupé ; l'en-tête d'une tournée reste avec son premier client.
+const RELANCE_PDF_PAGE_PX = 955;
+function paginateRelancePdf(holder) {
+  const doc = holder.querySelector(".rp-doc");
+  const style = doc.querySelector("style");
+  if (style) holder.insertBefore(style, doc);
+  const sources = [...doc.children];
+  doc.remove();
+  const pages = [];
+  let page = null;
+  const newPage = () => {
+    page = document.createElement("div");
+    page.className = "rp-doc rp-page";
+    holder.appendChild(page);
+    pages.push(page);
+  };
+  const fits = () => page.offsetHeight <= RELANCE_PDF_PAGE_PX;
+  let keepPrev = null;
+  const add = (node, keepWithNext = false) => {
+    if (!page) newPage();
+    page.appendChild(node);
+    if (!fits() && page.childElementCount > 1) {
+      page.removeChild(node);
+      const carry = keepPrev && keepPrev.parentNode === page && page.childElementCount > 1 ? keepPrev : null;
+      if (carry) page.removeChild(carry);
+      newPage();
+      if (carry) page.appendChild(carry);
+      page.appendChild(node);
+    }
+    keepPrev = keepWithNext ? node : null;
+  };
+  const wrap = (className, children) => {
+    const el = document.createElement("section");
+    el.className = className;
+    children.forEach((child) => el.appendChild(child));
+    return el;
+  };
+  for (let index = 0; index < sources.length; index += 1) {
+    const child = sources[index];
+    if (child.matches("h2.rp-tours-title")) {
+      const rules = sources[index + 1]?.matches("p.rp-rules") ? sources[(index += 1)] : null;
+      add(wrap("rp-titlebox", rules ? [child, rules] : [child]), true);
+    } else if (child.matches("section.rp-tour")) {
+      const head = child.querySelector(".rp-tour-head");
+      const stops = [...child.querySelectorAll(".rp-stop")];
+      add(wrap("rp-tour rp-unit", [head, stops[0]].filter(Boolean)));
+      stops.slice(1).forEach((stop, stopIndex) => add(wrap(`rp-tour rp-unit rp-cont${stopIndex === stops.length - 2 ? " rp-last" : ""}`, [stop])));
+    } else if (child.matches("section.rp-block") && child.querySelector("table")) {
+      const title = child.querySelector("h2");
+      const table = child.querySelector("table");
+      const thead = table.querySelector("thead");
+      const rows = [...table.querySelectorAll("tbody tr")];
+      const newTable = () => {
+        const t = document.createElement("table");
+        t.className = "rp-table";
+        t.appendChild(thead.cloneNode(true));
+        t.appendChild(document.createElement("tbody"));
+        return t;
+      };
+      let current = newTable();
+      add(wrap("rp-block rp-unit", [title, current]));
+      rows.forEach((row, rowIndex) => {
+        current.tBodies[0].appendChild(row);
+        if (!fits() && (rowIndex > 0 || current.tBodies[0].rows.length > 1)) {
+          current.tBodies[0].removeChild(row);
+          newPage();
+          current = newTable();
+          current.tBodies[0].appendChild(row);
+          page.appendChild(wrap("rp-block rp-unit", [current]));
+        }
+      });
+    } else if (child.matches("section.rp-block")) {
+      const title = child.querySelector("h2");
+      const sub = child.querySelector(".rp-sub");
+      const stops = [...child.querySelectorAll(".rp-stop")];
+      add(wrap("rp-block rp-unit", [title, sub, stops[0]].filter(Boolean)));
+      stops.slice(1).forEach((stop) => add(wrap("rp-block rp-unit rp-cont", [stop])));
+    } else {
+      add(child);
+    }
+  }
+  return pages;
+}
+
 async function exportRelancePdf() {
   const status = document.querySelector("#relanceExportStatus");
   const button = document.querySelector("#relanceExport");
@@ -6771,20 +6869,31 @@ async function exportRelancePdf() {
     await loadRelancePdfLib();
     const holder = document.createElement("div");
     holder.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
+    const scrollBefore = { x: window.scrollX, y: window.scrollY };
+    window.scrollTo(0, 0);
     holder.innerHTML = buildRelancePdfHtml(relanceExportState);
     document.body.appendChild(holder);
     const sectorName = currentUser?.role === "admin" && relanceExportState.sector !== "all" ? relanceExportState.sector : (currentUser?.role === "admin" ? "Tous secteurs" : (currentUser?.sectors || []).join(" + "));
     try {
-      await window.html2pdf().set({
+      if (holder.querySelector(".rp-doc img")) await Promise.race([new Promise((resolve) => { const img = holder.querySelector(".rp-doc img"); if (img.complete) resolve(); else { img.onload = resolve; img.onerror = resolve; } }), new Promise((resolve) => setTimeout(resolve, 2000))]);
+      const pages = paginateRelancePdf(holder);
+      const options = {
         margin: [10, 10, 12, 10],
         filename: `Tournées relances - ${String(sectorName || "secteur").replace(/[\\/:*?"<>|]+/g, "-")} - ${todayInputDate()}.pdf`,
         image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"], avoid: [".rp-stop", ".rp-tour-head", ".rp-kpis", ".rp-month", ".rp-block h2", ".rp-sub", "tr"] },
-      }).from(holder.firstElementChild).save();
+        pagebreak: { mode: [] },
+      };
+      // Une page A4 = un rendu séparé : aucune coupure, même pour 20 pages (limite de taille des images du navigateur).
+      let worker = window.html2pdf().set(options).from(pages[0]).toPdf();
+      pages.slice(1).forEach((page) => {
+        worker = worker.get("pdf").then((pdf) => { pdf.addPage(); }).from(page).toContainer().toCanvas().toPdf();
+      });
+      await worker.save();
     } finally {
       holder.remove();
+      window.scrollTo(scrollBefore.x, scrollBefore.y);
     }
     if (status) status.textContent = "PDF téléchargé.";
   } catch (error) {
