@@ -11604,3 +11604,5 @@ body.dark-theme .pg-group { border-color: #2b3038; }
 body.dark-theme .tp-tour, body.dark-theme .tp-map-card { background: #1f2329; border-color: #343a43; }
 body.dark-theme .tp-stop { background: #181b20; border-color: #2b3038; }
 body.dark-theme .tp-tour-head, body.dark-theme .tp-stop-facts small { color: #e5e7eb; }
+.tp-home-line { padding: 6px 10px; border-radius: 10px; background: #eef2ff; color: #3730a3; font-size: 13px; font-weight: 800; }
+.tp-home-marker { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 2px solid #3730a3; border-radius: 50%; background: #fff; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.3); box-sizing: border-box; }
