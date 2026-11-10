@@ -1021,7 +1021,7 @@ const FIREBASE_ACTIONS = new Set([
   "createAntiErosionRequest", "updateAntiErosionRequest", "saveOffrePrixDraft", "deletePriceOffer", "sendOffrePrix", "saveExpenseDraftSummary",
   "deleteExpenseReport", "sendExpenseReport", "sendExecutiveExpenseReport",
   "getExecutiveExpenses", "saveExecutiveExpense", "deleteExecutiveExpense",
-  "getClientNotes", "saveClientNotes",
+  "getClientNotes", "saveClientNotes", "getSavedTours", "saveSavedTour",
 ]);
 
 // Imports lourds (achat, rupture, stock) : envoyes directement a Apps Script comme avant
@@ -6521,12 +6521,12 @@ function relancePathKm(points) {
 
 // Regroupe les clients à relancer en tournées d'une journée, en partant à chaque fois du client le plus
 // prioritaire restant, puis en ajoutant le meilleur compromis priorité / détour, sans casser les règles.
-function buildRelanceTours(rows) {
+function buildRelanceTours(rows, weightOf = (row) => row.priority || 0) {
   const pool = rows
     .map((row) => ({ row, point: getClientCoordinates(row.client) }))
     .filter((item) => item.point)
-    .sort((a, b) => b.row.priority - a.row.priority);
-  const maxPriority = Math.max(1, ...pool.map((item) => item.row.priority || 0));
+    .sort((a, b) => weightOf(b.row) - weightOf(a.row) || String(a.row.client.code || "").localeCompare(String(b.row.client.code || "")));
+  const maxPriority = Math.max(1, ...pool.map((item) => weightOf(item.row)));
   const tours = [];
   const isolated = [];
   while (pool.length) {
@@ -6542,7 +6542,7 @@ function buildRelanceTours(rows) {
           const total = relancePathKm(points);
           if (total > RELANCE_TOUR.maxTourKm) continue;
           const detour = total - relancePathKm(tour.map((item) => item.point));
-          const score = (0.35 + (candidate.row.priority || 0) / maxPriority) / (1 + detour / 20);
+          const score = (0.35 + weightOf(candidate.row) / maxPriority) / (1 + detour / 20);
           if (!best || score > best.score) best = { score, poolIndex, path };
         }
       });
@@ -6857,8 +6857,10 @@ function paginateRelancePdf(holder) {
 }
 
 async function exportRelancePdf() {
-  const status = document.querySelector("#relanceExportStatus");
-  const button = document.querySelector("#relanceExport");
+  const fromTours = !document.querySelector("#tourView")?.classList.contains("is-hidden");
+  const status = document.querySelector(fromTours ? "#tpStatus" : "#relanceExportStatus");
+  const button = document.querySelector(fromTours ? "#tpPdf" : "#relanceExport");
+  const buttonLabel = button?.textContent || "PDF";
   if (!(relanceExportState.rows || []).length) {
     if (status) status.textContent = "Aucun client dans la liste affichée : changez le filtre ou le secteur.";
     return;
@@ -6922,7 +6924,7 @@ async function exportRelancePdf() {
   } catch (error) {
     if (status) status.textContent = error.message || "Export impossible.";
   } finally {
-    if (button) { button.disabled = false; button.textContent = "Exporter les tournées (PDF)"; }
+    if (button) { button.disabled = false; button.textContent = buttonLabel; }
   }
 }
 
@@ -7070,6 +7072,352 @@ document.querySelector("#relanceRefresh")?.addEventListener("click", () => {
   if (button) button.disabled = true;
   Promise.allSettled([loadDeliveryOrderHistory(true), loadDashboardStatsFromDrive({ force: true })])
     .finally(() => { if (button) button.disabled = false; renderRelance(); });
+});
+
+// ===== Onglet Tournées v2 (10/11/2026) =====================================================
+// Les tournées sont proposées à partir de TOUS les clients actifs du secteur (groupes géographiques
+// stables d'un mois à l'autre), puis chaque client affiche en direct où il en est ce mois-ci :
+// commandé ou non, CA du mois / habituel, produits à reproposer. Les tournées enregistrées sont
+// partagées par secteur (admin + commercial) et se mettent à jour à chaque ouverture de l'onglet.
+const tourPlan = { sector: "", mode: "proposed", openKey: "", saved: [], savedLoaded: false, savedLocal: false, dataPromise: null, cache: null, map: null, layer: null };
+const TOUR_PLAN_COLORS = ["#e30613", "#2563eb", "#0f766e", "#9333ea", "#ea580c", "#0891b2", "#be185d", "#4d7c0f", "#b45309", "#1e40af"];
+const tourPlanLocalKey = "schullerTourPlansV2";
+
+function tourPlanSectors() {
+  const sectors = new Set();
+  (relancePortfolio() || []).forEach((client) => { if (client.sector) sectors.add(client.sector); });
+  return [...sectors].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+}
+
+function tourPlanRows() {
+  const isAdmin = currentUser?.role === "admin";
+  const rows = buildRelanceRows().filter((row) => row.active && !isInternalRelanceClient(row.client));
+  if (!isAdmin) return rows;
+  return rows.filter((row) => row.client.sector === tourPlan.sector);
+}
+
+function tourPlanSectorKey() {
+  return currentUser?.role === "admin" ? tourPlan.sector : ((currentUser?.sectors || [])[0] || "");
+}
+
+function tourPlanStatus(row) {
+  if (row.orderedThisMonth) return { key: "ok", label: "Commandé ce mois" };
+  return { key: row.level, label: relanceLevelLabel(row) };
+}
+
+function tourPlanBuildTour(rows, meta) {
+  const points = rows.map((row) => getClientCoordinates(row.client));
+  const legs = points.map((point, index) => (index === 0 || !point || !points[index - 1] ? 0 : Math.round(relanceRoadKm(points[index - 1], point))));
+  const todo = rows.filter((row) => !row.orderedThisMonth);
+  return {
+    ...meta,
+    stops: rows.map((row, index) => ({ row, legKm: legs[index] })),
+    km: legs.reduce((sum, value) => sum + value, 0),
+    todo: todo.length,
+    ordered: rows.length - todo.length,
+    urgent: todo.filter((row) => row.level === "urgent").length,
+    stake: todo.reduce((sum, row) => sum + (row.monthlyAverage || 0), 0),
+  };
+}
+
+function tourPlanCompute() {
+  const rows = tourPlanRows();
+  const stableWeight = (row) => Math.round(row.monthlyAverage || (row.ca2025 || 0) / 12 || 0);
+  const { tours, isolated, noGps } = buildRelanceTours(rows, stableWeight);
+  const proposed = tours.map((tour) => {
+    const zone = relanceTourZone(tour);
+    return tourPlanBuildTour(tour.stops.map((stop) => stop.row), { key: `p:${tour.stops.map((stop) => stop.row.client.code).sort().join(",")}`, name: zone, zone, kind: "proposed" });
+  }).sort((a, b) => b.stake - a.stake || b.todo - a.todo);
+  proposed.forEach((tour, index) => { tour.label = `Tournée ${index + 1}`; tour.color = TOUR_PLAN_COLORS[index % TOUR_PLAN_COLORS.length]; });
+  const byCode = new Map(buildRelanceRows().filter((row) => !isInternalRelanceClient(row.client)).map((row) => [String(row.client.code), row]));
+  const sectorKey = tourPlanSectorKey();
+  const saved = tourPlan.saved
+    .filter((tour) => currentUser?.role !== "admin" || !tour.sector || tour.sector === tourPlan.sector)
+    .map((tour, index) => {
+      const tourRows = tour.codes.map((code) => byCode.get(String(code))).filter(Boolean);
+      const built = tourPlanBuildTour(tourRows, { key: `s:${tour.id}`, id: tour.id, name: tour.name, kind: "saved", missing: tour.codes.length - tourRows.length, sector: tour.sector || sectorKey });
+      built.label = tour.name;
+      built.color = TOUR_PLAN_COLORS[index % TOUR_PLAN_COLORS.length];
+      return built;
+    });
+  const extra = isolated.concat(noGps);
+  return { rows, proposed, saved, extra };
+}
+
+function tourPlanMonthBar(row) {
+  const pct = row.monthlyAverage > 0 ? Math.min(100, Math.round((row.monthRevenue / row.monthlyAverage) * 100)) : (row.monthRevenue > 0 ? 100 : 0);
+  return `<div class="tp-bar"><i style="width:${pct}%"></i></div><small>${escapeHtml(relanceCurrency(row.monthRevenue))} / ${escapeHtml(relanceCurrency(row.monthlyAverage))}</small>`;
+}
+
+function tourPlanStopHtml(stop, index) {
+  const row = stop.row;
+  const client = row.client;
+  const status = tourPlanStatus(row);
+  const trend = row.ca2025 > 0 ? Math.round((row.ca2026 / row.ca2025 - 1) * 100) : null;
+  const products = row.orderedThisMonth ? { items: [] } : relanceProductsToPropose(client.code);
+  const city = `${client.deliveryCity || client.billingCity || ""}${client.deliveryZip || client.billingZip ? ` (${client.deliveryZip || client.billingZip})` : ""}`;
+  return `
+    <article class="tp-stop is-${status.key}">
+      <span class="tp-stop-num">${status.key === "ok" ? "✓" : index + 1}</span>
+      <div class="tp-stop-main">
+        <div class="tp-stop-head">
+          <strong>${escapeHtml(client.name || "")}</strong>
+          ${stop.legKm ? `<span class="tp-leg">+${stop.legKm} km</span>` : ""}
+        </div>
+        <div class="tp-stop-sub"><span class="tp-pill is-${status.key}">${escapeHtml(status.label)}</span><span>${escapeHtml(city)}</span>${row.last ? `<span>· ${row.days} j sans commande</span>` : ""}</div>
+        <div class="tp-stop-facts">
+          <div><span>CA ce mois / habituel</span>${tourPlanMonthBar(row)}</div>
+          <div><span>CA ${new Date().getFullYear()}</span><b>${escapeHtml(relanceCurrency(row.ca2026))}</b>${trend != null ? `<em class="${trend < 0 ? "is-down" : "is-up"}">${trend > 0 ? "+" : ""}${trend} % vs ${new Date().getFullYear() - 1}</em>` : ""}</div>
+        </div>
+        ${products.items.length ? `<div class="tp-products ${products.kind === "recul" ? "is-recul" : ""}"><b>${products.kind === "recul" ? "À reproposer" : "Habituel"}</b>${products.items.map((item) => `<span>${escapeHtml(item.code)} ${escapeHtml(item.name)}${products.kind === "recul" ? ` <em>${item.lost ? "plus commandé" : `${item.pct} %`}</em>` : ""}</span>`).join("")}</div>` : ""}
+        <div class="tp-stop-actions">
+          <button class="ghost-button compact" type="button" data-tp-waze="${escapeHtml(client.code || "")}">Waze</button>
+          <button class="ghost-button compact" type="button" data-tp-plans="${escapeHtml(client.code || "")}">Plans</button>
+          <button class="ghost-button compact" type="button" data-tp-client="${escapeHtml(client.code || "")}">Fiche client</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function tourPlanCardHtml(tour) {
+  const open = tourPlan.openKey === tour.key;
+  const pct = tour.stops.length ? Math.round((tour.ordered / tour.stops.length) * 100) : 0;
+  return `
+    <section class="tp-tour${open ? " is-open" : ""}" style="--tp-color:${tour.color}">
+      <button class="tp-tour-head" type="button" data-tp-open="${escapeHtml(tour.key)}" aria-expanded="${open}">
+        <span class="tp-tour-dot"></span>
+        <span class="tp-tour-title"><small>${escapeHtml(tour.kind === "saved" ? "Tournée enregistrée" : tour.label)}</small><strong>${escapeHtml(tour.name)}</strong></span>
+        <span class="tp-tour-kpis">
+          <span><b>${tour.stops.length}</b> clients</span>
+          <span><b>≈ ${tour.km} km</b></span>
+          ${tour.todo ? `<span class="is-todo"><b>${tour.todo}</b> à relancer${tour.urgent ? ` · ${tour.urgent} urgent${tour.urgent > 1 ? "s" : ""}` : ""}</span>` : `<span class="is-ok">Tous ont commandé</span>`}
+          <span><b>${escapeHtml(relanceCurrency(tour.stake))}</b> en jeu</span>
+        </span>
+        <span class="tp-tour-progress" title="${tour.ordered} client(s) sur ${tour.stops.length} ont commandé ce mois"><i style="width:${pct}%"></i></span>
+      </button>
+      ${open ? `
+        <div class="tp-tour-body">
+          <div class="tp-tour-actions">
+            <button class="primary-button compact" type="button" data-tp-gmaps="${escapeHtml(tour.key)}">Itinéraire Google Maps</button>
+            <button class="ghost-button compact" type="button" data-tp-waze-first="${escapeHtml(tour.key)}">Waze 1er client</button>
+            ${tour.kind === "proposed"
+              ? `<label class="tp-save"><input type="text" value="${escapeHtml(tour.zone)}" data-tp-name="${escapeHtml(tour.key)}" aria-label="Nom de la tournée" /><button class="ghost-button compact" type="button" data-tp-save="${escapeHtml(tour.key)}">Enregistrer</button></label>`
+              : `<button class="ghost-button compact tp-danger" type="button" data-tp-delete="${escapeHtml(tour.id)}">Supprimer</button>`}
+          </div>
+          ${tour.missing ? `<p class="tp-note">${tour.missing} client(s) de cette tournée ne sont plus dans le portefeuille.</p>` : ""}
+          ${tour.stops.map((stop, index) => tourPlanStopHtml(stop, index)).join("")}
+        </div>` : ""}
+    </section>`;
+}
+
+function tourPlanEnsureMap() {
+  const el = document.querySelector("#tpMap");
+  if (!el || !window.L) return false;
+  if (tourPlan.map) return true;
+  tourPlan.map = L.map(el, { scrollWheelZoom: true }).setView([46.7, 2.4], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "&copy; OpenStreetMap" }).addTo(tourPlan.map);
+  tourPlan.layer = L.layerGroup().addTo(tourPlan.map);
+  return true;
+}
+
+function tourPlanRenderMap(tours) {
+  if (!tourPlanEnsureMap()) return;
+  tourPlan.layer.clearLayers();
+  const openTour = tours.find((tour) => tour.key === tourPlan.openKey);
+  const shown = openTour ? [openTour] : tours;
+  const bounds = [];
+  shown.forEach((tour) => {
+    const line = [];
+    tour.stops.forEach((stop, index) => {
+      const point = getClientCoordinates(stop.row.client);
+      if (!point) return;
+      line.push([point.lat, point.lng]);
+      bounds.push([point.lat, point.lng]);
+      const status = tourPlanStatus(stop.row);
+      const icon = L.divIcon({
+        className: "tp-marker-wrap",
+        html: `<span class="tp-marker is-${status.key}" style="--tp-color:${tour.color}">${openTour ? (status.key === "ok" ? "✓" : index + 1) : ""}</span>`,
+        iconSize: openTour ? [28, 28] : [14, 14],
+        iconAnchor: openTour ? [14, 14] : [7, 7],
+      });
+      L.marker([point.lat, point.lng], { icon })
+        .bindTooltip(`${escapeHtml(stop.row.client.name || "")} · ${escapeHtml(status.label)}`, { direction: "top" })
+        .on("click", () => { if (!openTour) { tourPlan.openKey = tour.key; renderTourPlan(); } })
+        .addTo(tourPlan.layer);
+    });
+    if (line.length > 1) L.polyline(line, { color: tour.color, weight: openTour ? 4 : 3, opacity: openTour ? 0.85 : 0.55, dashArray: openTour ? null : "6 6" }).addTo(tourPlan.layer);
+  });
+  setTimeout(() => {
+    tourPlan.map.invalidateSize();
+    if (bounds.length === 1) tourPlan.map.setView(bounds[0], 12);
+    else if (bounds.length > 1) tourPlan.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+  }, 60);
+}
+
+function renderTourPlan() {
+  const root = document.querySelector("#tpList");
+  if (!root || !currentUser) return;
+  const isAdmin = currentUser.role === "admin";
+  const sectorSelect = document.querySelector("#tpSector");
+  document.querySelector("#tpSectorField")?.classList.toggle("is-hidden", !isAdmin);
+  if (isAdmin && sectorSelect) {
+    const sectors = tourPlanSectors();
+    if (!sectors.includes(tourPlan.sector)) tourPlan.sector = sectors[0] || "";
+    sectorSelect.innerHTML = sectors.map((sector) => `<option value="${escapeHtml(sector)}"${sector === tourPlan.sector ? " selected" : ""}>${escapeHtml(typeof directionCommercialLabel === "function" ? directionCommercialLabel(sector) : sector)}</option>`).join("");
+  }
+  const loading = !monthClientRevenue.loaded || !deliveryOrderHistoryLoaded || !clientArticleStats360?.available;
+  const data = tourPlanCompute();
+  tourPlan.cache = data;
+  const list = tourPlan.mode === "saved" ? data.saved : data.proposed;
+  document.querySelector("#tpModeProposed")?.classList.toggle("is-active", tourPlan.mode === "proposed");
+  document.querySelector("#tpModeSaved")?.classList.toggle("is-active", tourPlan.mode === "saved");
+  const proposedCount = document.querySelector("#tpProposedCount");
+  if (proposedCount) proposedCount.textContent = String(data.proposed.length);
+  const savedCount = document.querySelector("#tpSavedCount");
+  if (savedCount) savedCount.textContent = String(data.saved.length);
+  const todo = data.rows.filter((row) => !row.orderedThisMonth);
+  const summary = document.querySelector("#tpSummary");
+  if (summary) summary.innerHTML = `
+    <span><b>${data.rows.length}</b> clients actifs</span>
+    <span><b>${data.rows.length - todo.length}</b> ont commandé ce mois</span>
+    <span class="is-todo"><b>${todo.length}</b> à relancer</span>
+    <span><b>${escapeHtml(relanceCurrency(todo.reduce((sum, row) => sum + (row.monthlyAverage || 0), 0)))}</b> CA en jeu</span>
+    ${loading ? '<span class="tp-loading">Mise à jour des chiffres…</span>' : ""}`;
+  if (!list.some((tour) => tour.key === tourPlan.openKey)) tourPlan.openKey = "";
+  root.innerHTML = list.length
+    ? list.map(tourPlanCardHtml).join("") + (tourPlan.mode === "proposed" && data.extra.length ? `<p class="tp-note">${data.extra.length} client(s) hors tournée : trop éloignés des autres (plus de ${RELANCE_TOUR.maxLegKm} km) ou sans localisation.</p>` : "")
+    : `<div class="dashboard-empty">${tourPlan.mode === "saved" ? "Aucune tournée enregistrée pour ce secteur. Ouvrez une tournée proposée et cliquez sur « Enregistrer »." : "Pas de client localisé dans ce secteur."}</div>`;
+  if (tourPlan.mode === "saved" && tourPlan.savedLocal) root.insertAdjacentHTML("afterbegin", '<p class="tp-note">Tournées enregistrées sur cet appareil uniquement (serveur non joignable).</p>');
+  tourPlanRenderMap(list);
+}
+
+async function loadTourPlanSaved() {
+  try {
+    const result = await postService({ action: "getSavedTours" });
+    tourPlan.saved = Array.isArray(result.tours) ? result.tours : [];
+    tourPlan.savedLocal = false;
+  } catch (error) {
+    try { tourPlan.saved = JSON.parse(localStorage.getItem(tourPlanLocalKey) || "[]"); } catch (storageError) { tourPlan.saved = []; }
+    tourPlan.savedLocal = true;
+  }
+  tourPlan.savedLoaded = true;
+}
+
+async function saveTourPlan(tour, removeId) {
+  const status = document.querySelector("#tpStatus");
+  try {
+    const result = await postService({ action: "saveSavedTour", ...(tour ? { tour: JSON.stringify(tour) } : {}), ...(removeId ? { removeId } : {}) });
+    tourPlan.saved = Array.isArray(result.tours) ? result.tours : tourPlan.saved;
+    tourPlan.savedLocal = false;
+    if (status) status.textContent = tour ? `Tournée « ${tour.name} » enregistrée.` : "Tournée supprimée.";
+  } catch (error) {
+    let list = tourPlan.saved.filter((item) => item.id !== removeId);
+    if (tour) list = list.filter((item) => item.id !== tour.id).concat({ ...tour, updatedAt: Date.now() });
+    tourPlan.saved = list;
+    tourPlan.savedLocal = true;
+    try { localStorage.setItem(tourPlanLocalKey, JSON.stringify(list)); } catch (storageError) { /* stockage indisponible */ }
+    if (status) status.textContent = tour ? `Tournée « ${tour.name} » enregistrée sur cet appareil.` : "Tournée supprimée.";
+  }
+  renderTourPlan();
+}
+
+function openTourPlanTab(sector) {
+  if (sector && sector !== "all") tourPlan.sector = sector;
+  renderTourPlan();
+  if (!tourPlan.dataPromise) {
+    tourPlan.dataPromise = Promise.allSettled([
+      deliveryOrderHistoryLoaded ? Promise.resolve() : loadDeliveryOrderHistory(),
+      clientArticleStats360?.available ? Promise.resolve() : loadClientArticleStatsFromDrive(),
+      monthClientRevenue.loaded ? Promise.resolve() : loadDashboardStatsFromDrive(),
+      tourPlan.savedLoaded ? Promise.resolve() : loadTourPlanSaved(),
+    ]).finally(() => { tourPlan.dataPromise = null; renderTourPlan(); });
+  }
+}
+
+function tourPlanFindTour(key) {
+  const data = tourPlan.cache || tourPlanCompute();
+  return data.proposed.concat(data.saved).find((tour) => tour.key === key) || null;
+}
+
+function tourPlanClient(code) {
+  return (allClients || []).find((client) => String(client.code) === String(code)) || null;
+}
+
+function tourPlanOpenUrl(url) {
+  window.open(url, "_blank", "noopener");
+}
+
+document.querySelector("#tpList")?.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-tp-open],[data-tp-gmaps],[data-tp-waze-first],[data-tp-save],[data-tp-delete],[data-tp-waze],[data-tp-plans],[data-tp-client]");
+  if (!target) return;
+  const d = target.dataset;
+  if (d.tpOpen) {
+    tourPlan.openKey = tourPlan.openKey === d.tpOpen ? "" : d.tpOpen;
+    renderTourPlan();
+    if (tourPlan.openKey) requestAnimationFrame(() => target.closest(".tp-tour")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    return;
+  }
+  if (d.tpGmaps) {
+    const tour = tourPlanFindTour(d.tpGmaps);
+    // Ordre de passage conservé ; Google Maps accepte jusqu'à 9 étapes + la destination.
+    const addresses = (tour?.stops || []).filter((stop) => !stop.row.orderedThisMonth).map((stop) => getClientRouteAddress(stop.row.client)).filter(Boolean).slice(0, 10);
+    const all = addresses.length ? addresses : (tour?.stops || []).map((stop) => getClientRouteAddress(stop.row.client)).filter(Boolean).slice(0, 10);
+    if (!all.length) return;
+    const destination = all[all.length - 1];
+    const waypoints = all.slice(0, -1).join("|");
+    recordActivity("Tournée Google Maps ouverte", `${tour.name} - ${all.length} client(s)`);
+    tourPlanOpenUrl(`https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`);
+    return;
+  }
+  if (d.tpWazeFirst) {
+    const tour = tourPlanFindTour(d.tpWazeFirst);
+    const stop = (tour?.stops || []).find((item) => !item.row.orderedThisMonth) || tour?.stops[0];
+    if (stop) openClientWazeByCode(stop.row.client.code);
+    return;
+  }
+  if (d.tpSave) {
+    const tour = tourPlanFindTour(d.tpSave);
+    if (!tour) return;
+    const input = document.querySelector(`[data-tp-name="${CSS.escape(d.tpSave)}"]`);
+    const name = (input?.value || tour.zone || "Tournée").trim();
+    saveTourPlan({ id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, sector: tourPlanSectorKey(), codes: tour.stops.map((stop) => stop.row.client.code) });
+    tourPlan.mode = "saved";
+    return;
+  }
+  if (d.tpDelete) {
+    const tour = tourPlan.saved.find((item) => item.id === d.tpDelete);
+    if (tour && confirm(`Supprimer la tournée « ${tour.name} » ?`)) saveTourPlan(null, d.tpDelete);
+    return;
+  }
+  if (d.tpWaze) { openClientWazeByCode(d.tpWaze); return; }
+  if (d.tpPlans) {
+    const client = tourPlanClient(d.tpPlans);
+    const address = client ? getClientRouteAddress(client) : "";
+    if (address) tourPlanOpenUrl(`https://maps.apple.com/?daddr=${encodeURIComponent(address)}&dirflg=d`);
+    return;
+  }
+  if (d.tpClient) openDirectionClient(d.tpClient);
+});
+document.querySelector("#tpSector")?.addEventListener("change", (event) => { tourPlan.sector = event.target.value; tourPlan.openKey = ""; renderTourPlan(); });
+document.querySelector("#tpModeProposed")?.addEventListener("click", () => { tourPlan.mode = "proposed"; tourPlan.openKey = ""; renderTourPlan(); });
+document.querySelector("#tpModeSaved")?.addEventListener("click", () => { tourPlan.mode = "saved"; tourPlan.openKey = ""; renderTourPlan(); });
+document.querySelector("#tpRefresh")?.addEventListener("click", () => {
+  const button = document.querySelector("#tpRefresh");
+  if (button) button.disabled = true;
+  Promise.allSettled([loadDeliveryOrderHistory(true), loadDashboardStatsFromDrive({ force: true }), loadTourPlanSaved()])
+    .finally(() => { if (button) button.disabled = false; renderTourPlan(); });
+});
+document.querySelector("#tpPdf")?.addEventListener("click", () => {
+  const rows = tourPlanRows();
+  relanceExportState = { rows: rows.filter((row) => !row.orderedThisMonth), scoped: rows, sector: currentUser?.role === "admin" ? tourPlan.sector : "all", status: "todo", query: "" };
+  exportRelancePdf();
+});
+document.querySelector("#relanceToTours")?.addEventListener("click", () => {
+  const sector = document.querySelector("#relanceSector")?.value || "";
+  tourPlan.mode = "proposed";
+  tourPlan.openKey = "";
+  setActiveTab("tour");
+  openTourPlanTab(sector);
 });
 
 function openDirectionClient(codeOrName) {
@@ -15768,11 +16116,8 @@ function setActiveTab(tabName) {
   }
 
   if (showTour) {
-    renderTourPlanner();
-    requestAnimationFrame(() => {
-      tourMapInstance?.invalidateSize();
-      tourSearch.focus();
-    });
+    openTourPlanTab();
+    requestAnimationFrame(() => tourPlan.map?.invalidateSize());
   }
 
   if (showBacklog) {

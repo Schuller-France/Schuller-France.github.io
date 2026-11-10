@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261110tourneespdf45" />
-    <link rel="icon" href="assets/favicon.ico?v=20261110tourneespdf45" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261110tourneespdf45" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261110tourneespdf45" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261110tourneespdf45" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261110tourneesv2-46" />
+    <link rel="icon" href="assets/favicon.ico?v=20261110tourneesv2-46" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261110tourneesv2-46" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261110tourneesv2-46" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261110tourneesv2-46" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261110tourneespdf45" />
+    <link rel="stylesheet" href="style.css?v=20261110tourneesv2-46" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261110tourneespdf45" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261110tourneesv2-46" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -1107,7 +1107,7 @@
               <p class="relance-intro" id="relanceIntro">Les clients de votre portefeuille qui n'ont pas encore commandé ce mois-ci, du plus important au moins important.</p>
             </div>
             <div class="relance-hero-actions">
-              <button class="primary-button" type="button" id="relanceExport" title="PDF lisible sur tablette : avancement du mois, tournées proposées et produits à reproposer, pour la liste affichée">Exporter les tournées (PDF)</button>
+              <button class="primary-button" type="button" id="relanceToTours" title="Ouvre l'onglet Tournées sur ce secteur : tournées proposées, carte et itinéraires">Voir les tournées</button>
               <button class="ghost-button" type="button" id="relanceRefresh">Actualiser</button>
             </div>
           </div>
@@ -1151,6 +1151,33 @@
       </main>
 
       <main class="app-shell is-hidden tour-shell" id="tourView">
+        <section class="panel tp-panel" aria-labelledby="tpTitle">
+          <div class="tp-header">
+            <div>
+              <p class="step">Préparation terrain</p>
+              <h2 id="tpTitle">Tournées</h2>
+              <p class="tp-intro">Des tournées d'une journée (8 clients max, moins de 100 km entre deux clients, 500 km max), toujours à jour : qui a commandé ce mois, qui relancer et quoi lui reproposer.</p>
+            </div>
+            <div class="tp-header-actions">
+              <label class="is-hidden" id="tpSectorField"><span>Secteur</span><select id="tpSector"></select></label>
+              <button class="ghost-button" type="button" id="tpRefresh">Actualiser</button>
+              <button class="ghost-button" type="button" id="tpPdf">PDF</button>
+            </div>
+          </div>
+          <div class="tp-summary" id="tpSummary"></div>
+          <p class="relance-export-status" id="tpStatus" role="status"></p>
+          <div class="tp-modes" role="tablist">
+            <button type="button" class="tp-mode is-active" id="tpModeProposed">Tournées proposées <span id="tpProposedCount">0</span></button>
+            <button type="button" class="tp-mode" id="tpModeSaved">Mes tournées enregistrées <span id="tpSavedCount">0</span></button>
+          </div>
+          <div class="tp-layout">
+            <div class="tp-list" id="tpList"></div>
+            <div class="tp-map-card"><div class="tp-map" id="tpMap" aria-label="Carte des tournées"></div>
+              <div class="tp-legend"><span><i class="is-urgent"></i>Urgent</span><span><i class="is-relance"></i>À relancer</span><span><i class="is-watch"></i>À surveiller</span><span><i class="is-ok"></i>Commandé ce mois</span></div>
+            </div>
+          </div>
+        </section>
+        <div class="tour-legacy" hidden>
         <section class="panel tour-panel" aria-labelledby="tourTitle">
           <div class="panel-heading">
             <div>
@@ -1227,6 +1254,7 @@
             </aside>
           </div>
         </section>
+        </div>
       </main>
 
       <main class="app-shell is-hidden" id="backlogView">
@@ -2537,13 +2565,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261110tourneespdf45" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261110tourneesv2-46" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261110tourneespdf45" charset="UTF-8"></script>
-    <script src="assets/guide-data.js?v=20261110tourneespdf45" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261110tourneespdf45" charset="UTF-8"></script>
+    <script src="script.js?v=20261110tourneesv2-46" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261110tourneesv2-46" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261110tourneesv2-46" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
