@@ -6526,7 +6526,50 @@ function relancePathKm(points) {
 // Avec un domicile (home) : chaque tournée part du domicile et y revient, et les 500 km incluent
 // l'aller et le retour. Les clients trop loin pour un aller-retour dans la journée sont regroupés
 // à part en « déplacements avec nuit sur place » (mêmes règles, sans le domicile).
-function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = null) {
+// Répartit une tournée sur le nombre de jours utile (8 clients et ~500 km max par jour, sans dépasser
+// la durée choisie), en journées équilibrées ; chaque soir, nuit sur place près du dernier client du jour.
+function relanceDayPlan(legs, backKm, maxDays) {
+  // Découpe la tournée en jours consécutifs : 8 clients max par jour, en minimisant le km du jour le plus chargé.
+  const count = legs.length;
+  const cap = RELANCE_TOUR.maxStops;
+  const days = Math.max(1, Math.min(maxDays, count));
+  const prefix = [0];
+  legs.forEach((value) => prefix.push(prefix[prefix.length - 1] + value));
+  const segKm = (a, b) => prefix[b] - prefix[a] + (b === count ? backKm || 0 : 0);
+  const solve = (d) => {
+    // best[k][i] = coût max minimal pour couvrir les i premiers arrêts en k jours
+    const best = Array.from({ length: d + 1 }, () => new Array(count + 1).fill(Infinity));
+    const from = Array.from({ length: d + 1 }, () => new Array(count + 1).fill(-1));
+    best[0][0] = 0;
+    for (let k = 1; k <= d; k += 1) {
+      for (let i = 1; i <= count; i += 1) {
+        for (let a = Math.max(0, i - cap); a < i; a += 1) {
+          if (best[k - 1][a] === Infinity) continue;
+          const value = Math.max(best[k - 1][a], segKm(a, i));
+          if (value < best[k][i]) { best[k][i] = value; from[k][i] = a; }
+        }
+      }
+    }
+    if (best[d][count] === Infinity) return null;
+    const plan = [];
+    let i = count;
+    for (let k = d; k >= 1; k -= 1) { const a = from[k][i]; plan.unshift({ start: a, end: i }); i = a; }
+    return { max: best[d][count], plan };
+  };
+  let chosen = null;
+  for (let d = Math.max(1, Math.ceil(count / cap)); d <= days; d += 1) {
+    const result = solve(d);
+    if (!result) continue;
+    chosen = result;
+    if (result.max <= RELANCE_TOUR.maxTourKm) break;
+  }
+  if (!chosen) chosen = { plan: [{ start: 0, end: count }] };
+  return chosen.plan.map((day) => ({ ...day, km: Math.round(segKm(day.start, day.end)) }));
+}
+
+function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = null, days = 1) {
+  const maxStops = RELANCE_TOUR.maxStops * days;
+  const maxKm = RELANCE_TOUR.maxTourKm * days;
   const all = rows
     .map((row) => ({ row, point: getClientCoordinates(row.client) }))
     .filter((item) => item.point)
@@ -6539,7 +6582,7 @@ function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = n
   const build = (pool, withHome) => {
     while (pool.length) {
       const tour = [pool.shift()];
-      while (tour.length < RELANCE_TOUR.maxStops) {
+      while (tour.length < maxStops) {
         let best = null;
         const baseKm = routeKm(tour, withHome);
         pool.forEach((candidate, poolIndex) => {
@@ -6549,7 +6592,7 @@ function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = n
             const legsOk = points.every((point, index) => index === 0 || relanceRoadKm(points[index - 1], point) <= RELANCE_TOUR.maxLegKm);
             if (!legsOk) continue;
             const total = routeKm(path, withHome);
-            if (total > RELANCE_TOUR.maxTourKm) continue;
+            if (total > maxKm) continue;
             const detour = total - baseKm;
             const score = (0.35 + weightOf(candidate.row) / maxPriority) / (1 + detour / 20);
             if (!best || score > best.score) best = { score, poolIndex, path };
@@ -6567,6 +6610,7 @@ function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = n
         stops: tour.map((item, index) => ({ row: item.row, legKm: Math.round(legs[index]) })),
         km: Math.round(legs.reduce((sum, value) => sum + value, 0) + backKm),
         backKm: Math.round(backKm),
+        dayPlan: relanceDayPlan(legs, backKm, days),
         fromHome: withHome,
         overnight: Boolean(homePoint) && !withHome,
         stake: tour.reduce((sum, item) => sum + (item.row.monthlyAverage || 0), 0),
@@ -6575,7 +6619,7 @@ function buildRelanceTours(rows, weightOf = (row) => row.priority || 0, home = n
     }
   };
   if (homePoint) {
-    const dayTrip = all.filter((item) => 2 * relanceRoadKm(homePoint, item.point) <= RELANCE_TOUR.maxTourKm);
+    const dayTrip = all.filter((item) => 2 * relanceRoadKm(homePoint, item.point) <= maxKm);
     const far = all.filter((item) => !dayTrip.includes(item));
     build(dayTrip, true);
     build(far, false);
@@ -6637,7 +6681,8 @@ function buildRelancePdfHtml(state) {
     ? (state.sector === "all" ? "Tous les secteurs" : (typeof directionCommercialLabel === "function" ? directionCommercialLabel(state.sector) : state.sector))
     : ((currentUser?.sectors || []).join(" + ") || currentUser?.name || "Mon secteur");
   const pdfHome = typeof tourPlan !== "undefined" ? (currentUser?.role === "admin" ? (tourPlan.homes || {})[state.sector] : (currentUser?.sectors || []).map((sector) => (tourPlan.homes || {})[sector]).find(Boolean)) : null;
-  const { tours, isolated, noGps } = buildRelanceTours(todoRows, undefined, pdfHome || null);
+  const pdfDays = typeof tourPlan !== "undefined" ? (tourPlan.days || 3) : 3;
+  const { tours, isolated, noGps } = buildRelanceTours(todoRows, undefined, pdfHome || null, pdfDays);
   const levelText = (row) => ({ urgent: "Urgent", relance: "À relancer", watch: "À surveiller", ok: "Commandé" }[row.level] || "");
   const city = (row) => `${row.client.deliveryCity || row.client.billingCity || ""} ${row.client.deliveryZip || row.client.billingZip ? `(${row.client.deliveryZip || row.client.billingZip})` : ""}`.trim();
   const daysText = (row) => (row.last ? `${row.days} j` : "—");
@@ -6674,7 +6719,10 @@ function buildRelancePdfHtml(state) {
         <div><span class="rp-tour-tag">Tournée ${index + 1}</span><h3>${esc(relanceTourZone(tour))}</h3></div>
         <div class="rp-tour-kpis"><span><b>${tour.stops.length}</b> clients</span><span><b>≈ ${tour.km} km</b> ${tour.fromHome ? "aller-retour domicile" : tour.overnight ? "sur place (nuit)" : "entre clients"}</span><span><b>${esc(relanceCurrency(tour.stake))}</b> CA mensuel en jeu</span>${tour.urgent ? `<span class="is-urgent"><b>${tour.urgent}</b> urgent${tour.urgent > 1 ? "s" : ""}</span>` : ""}</div>
       </div>
-      ${tour.stops.map((stop, stopIndex) => stopCard(stop.row, stopIndex + 1, stop.legKm)).join("")}
+      ${(tour.dayPlan || [{ start: 0, end: tour.stops.length }]).map((day, dayIndex, plan) => `
+        ${plan.length > 1 ? `<div class="rp-day"><b>Jour ${dayIndex + 1}</b> · ${day.end - day.start} clients · ≈ ${day.km} km</div>` : ""}
+        ${tour.stops.slice(day.start, day.end).map((stop, offset) => stopCard(stop.row, day.start + offset + 1, stop.legKm)).join("")}
+        ${dayIndex < plan.length - 1 ? `<div class="rp-night">Nuit sur place vers ${esc(tour.stops[day.end - 1].row.client.deliveryCity || tour.stops[day.end - 1].row.client.billingCity || "")}</div>` : ""}`).join("")}
     </section>`).join("") : `<p class="rp-empty">Pas assez de clients proches les uns des autres pour proposer une tournée.</p>`;
   const extraRows = isolated.concat(noGps);
   const extraHtml = extraRows.length ? `
@@ -6765,6 +6813,8 @@ function buildRelancePdfHtml(state) {
       .rp-table tr { page-break-inside: avoid; break-inside: avoid; }
       .rp-table .rp-bar { width: 110px; }
       .rp-empty { color: #6b7280; }
+      .rp-day { padding: 6px 12px; background: #eef2ff; color: #3730a3; font-size: 12px; border: 1px solid #e5e7eb; border-top: 0; page-break-after: avoid; break-after: avoid; }
+      .rp-night { padding: 5px 12px; background: #f6f7f8; color: #4b5563; font-size: 11.5px; font-style: italic; border: 1px solid #e5e7eb; border-top: 0; }
     </style>
     <div class="rp-head">
       <div>
@@ -6786,7 +6836,7 @@ function buildRelancePdfHtml(state) {
       <span class="rp-meta">${share >= dayPct ? "Bon rythme : continuez." : `En retard : environ ${Math.max(0, Math.ceil((dayPct / 100) * scoped.length) - ordered.length)} client(s) de plus devraient déjà avoir commandé.`}</span>
     </div>
     <h2 class="rp-tours-title">Tournées proposées</h2>
-    <p class="rp-rules">Jusqu'à ${RELANCE_TOUR.maxStops} clients par jour, moins de ${RELANCE_TOUR.maxLegKm} km entre deux clients, ${RELANCE_TOUR.maxTourKm} km maximum par tournée${pdfHome ? `, départ et retour au domicile (${esc(pdfHome.city || "")}) ; les clients trop loin pour un aller-retour dans la journée sont regroupés en déplacements avec nuit sur place` : " (hors trajet depuis le domicile)"} (distances routières estimées). Tournées classées par CA en jeu ; dans chaque tournée, les clients sont dans l'ordre de passage.</p>
+    <p class="rp-rules">Tournées sur ${pdfDays} jour${pdfDays > 1 ? "s" : ""} maximum : jusqu'à ${RELANCE_TOUR.maxStops} clients par jour, moins de ${RELANCE_TOUR.maxLegKm} km entre deux clients, ${RELANCE_TOUR.maxTourKm} km maximum par jour${pdfHome ? `, départ et retour au domicile (${esc(pdfHome.city || "")}) ; les clients trop loin pour un aller-retour dans la journée sont regroupés en déplacements avec nuit sur place` : " (hors trajet depuis le domicile)"} (distances routières estimées). Tournées classées par CA en jeu ; dans chaque tournée, les clients sont dans l'ordre de passage.</p>
     ${toursHtml}
     ${extraHtml}
     ${tableHtml}
@@ -6839,9 +6889,11 @@ function paginateRelancePdf(holder) {
       add(wrap("rp-titlebox", rules ? [child, rules] : [child]), true);
     } else if (child.matches("section.rp-tour")) {
       const head = child.querySelector(".rp-tour-head");
-      const stops = [...child.querySelectorAll(".rp-stop")];
-      add(wrap("rp-tour rp-unit", [head, stops[0]].filter(Boolean)));
-      stops.slice(1).forEach((stop, stopIndex) => add(wrap(`rp-tour rp-unit rp-cont${stopIndex === stops.length - 2 ? " rp-last" : ""}`, [stop])));
+      const items = [...child.children].filter((item) => item !== head);
+      const firstCount = items[0]?.classList.contains("rp-day") ? 2 : 1;
+      add(wrap("rp-tour rp-unit", [head, ...items.slice(0, firstCount)].filter(Boolean)));
+      const rest = items.slice(firstCount);
+      rest.forEach((item, itemIndex) => add(wrap(`rp-tour rp-unit rp-cont${itemIndex === rest.length - 1 ? " rp-last" : ""}`, [item]), item.classList.contains("rp-day")));
     } else if (child.matches("section.rp-block") && child.querySelector("table")) {
       const title = child.querySelector("h2");
       const table = child.querySelector("table");
@@ -7102,7 +7154,7 @@ document.querySelector("#relanceRefresh")?.addEventListener("click", () => {
 // stables d'un mois à l'autre), puis chaque client affiche en direct où il en est ce mois-ci :
 // commandé ou non, CA du mois / habituel, produits à reproposer. Les tournées enregistrées sont
 // partagées par secteur (admin + commercial) et se mettent à jour à chaque ouverture de l'onglet.
-const tourPlan = { sector: "", mode: "proposed", openKey: "", saved: [], homes: {}, savedLoaded: false, savedLocal: false, dataPromise: null, cache: null, map: null, layer: null };
+const tourPlan = { sector: "", mode: "proposed", days: 3, openKey: "", saved: [], homes: {}, savedLoaded: false, savedLocal: false, dataPromise: null, cache: null, map: null, layer: null };
 const TOUR_PLAN_COLORS = ["#e30613", "#2563eb", "#0f766e", "#9333ea", "#ea580c", "#0891b2", "#be185d", "#4d7c0f", "#b45309", "#1e40af"];
 const tourPlanLocalKey = "schullerTourPlansV2";
 
@@ -7134,7 +7186,7 @@ function tourPlanStatus(row) {
   return { key: row.level, label: relanceLevelLabel(row) };
 }
 
-function tourPlanBuildTour(rows, meta, fromHome = null) {
+function tourPlanBuildTour(rows, meta, fromHome = null, days = 1) {
   const home = fromHome ? { lat: Number(fromHome.lat), lng: Number(fromHome.lng) } : null;
   const points = rows.map((row) => getClientCoordinates(row.client));
   const legs = points.map((point, index) => {
@@ -7145,10 +7197,12 @@ function tourPlanBuildTour(rows, meta, fromHome = null) {
   const lastPoint = [...points].reverse().find(Boolean);
   const backKm = home && lastPoint ? Math.round(relanceRoadKm(lastPoint, home)) : 0;
   const todo = rows.filter((row) => !row.orderedThisMonth);
+  const dayPlan = relanceDayPlan(legs, backKm, days);
   return {
     ...meta,
     fromHome: Boolean(home),
     backKm,
+    dayPlan,
     stops: rows.map((row, index) => ({ row, legKm: legs[index] })),
     km: legs.reduce((sum, value) => sum + value, 0) + backKm,
     todo: todo.length,
@@ -7162,15 +7216,17 @@ function tourPlanCompute() {
   const rows = tourPlanRows();
   const stableWeight = (row) => Math.round(row.monthlyAverage || (row.ca2025 || 0) / 12 || 0);
   const home = tourPlanHome();
-  const { tours, isolated, noGps } = buildRelanceTours(rows, stableWeight, home);
+  const days = tourPlan.days || 3;
+  const { tours, isolated, noGps } = buildRelanceTours(rows, stableWeight, home, days);
   const proposed = tours.map((tour) => {
     const zone = relanceTourZone(tour);
-    return tourPlanBuildTour(tour.stops.map((stop) => stop.row), { key: `p:${tour.stops.map((stop) => stop.row.client.code).sort().join(",")}`, name: zone, zone, kind: "proposed", overnight: tour.overnight }, tour.fromHome ? home : null);
+    return tourPlanBuildTour(tour.stops.map((stop) => stop.row), { key: `p${days}:${tour.stops.map((stop) => stop.row.client.code).sort().join(",")}`, name: zone, zone, kind: "proposed", overnight: tour.overnight, days }, tour.fromHome ? home : null, days);
   }).sort((a, b) => Number(a.overnight) - Number(b.overnight) || b.stake - a.stake || b.todo - a.todo);
   let dayIndex = 0;
   let tripIndex = 0;
   proposed.forEach((tour, index) => {
-    tour.label = tour.overnight ? `Déplacement ${(tripIndex += 1)} · nuit sur place` : `Tournée ${(dayIndex += 1)}`;
+    const nbDays = tour.dayPlan.length;
+    tour.label = tour.overnight ? `Déplacement ${(tripIndex += 1)} · nuits sur place` : `Tournée ${(dayIndex += 1)} · ${nbDays} jour${nbDays > 1 ? "s" : ""}`;
     tour.color = TOUR_PLAN_COLORS[index % TOUR_PLAN_COLORS.length];
   });
   const byCode = new Map(buildRelanceRows().filter((row) => !isInternalRelanceClient(row.client)).map((row) => [String(row.client.code), row]));
@@ -7179,7 +7235,7 @@ function tourPlanCompute() {
     .filter((tour) => currentUser?.role !== "admin" || !tour.sector || tour.sector === tourPlan.sector)
     .map((tour, index) => {
       const tourRows = tour.codes.map((code) => byCode.get(String(code))).filter(Boolean);
-      const built = tourPlanBuildTour(tourRows, { key: `s:${tour.id}`, id: tour.id, name: tour.name, kind: "saved", missing: tour.codes.length - tourRows.length, sector: tour.sector || sectorKey }, (tour.fromHome !== false && home && tourRows.every((row) => { const point = getClientCoordinates(row.client); return !point || 2 * relanceRoadKm(home, point) <= RELANCE_TOUR.maxTourKm; })) ? home : null);
+      const built = tourPlanBuildTour(tourRows, { key: `s:${tour.id}`, id: tour.id, name: tour.name, kind: "saved", missing: tour.codes.length - tourRows.length, sector: tour.sector || sectorKey, days: Number(tour.days) || 1 }, (tour.fromHome !== false && home && tourRows.every((row) => { const point = getClientCoordinates(row.client); return !point || 2 * relanceRoadKm(home, point) <= RELANCE_TOUR.maxTourKm * (Number(tour.days) || 1); })) ? home : null, Number(tour.days) || 1);
       built.label = tour.name;
       built.color = TOUR_PLAN_COLORS[index % TOUR_PLAN_COLORS.length];
       return built;
@@ -7233,7 +7289,7 @@ function tourPlanCardHtml(tour) {
         <span class="tp-tour-title"><small>${escapeHtml(tour.kind === "saved" ? "Tournée enregistrée" : tour.label)}</small><strong>${escapeHtml(tour.name)}</strong></span>
         <span class="tp-tour-kpis">
           <span><b>${tour.stops.length}</b> clients</span>
-          <span><b>≈ ${tour.km} km</b>${tour.fromHome ? " aller-retour" : tour.overnight ? " sur place" : ""}</span>
+          <span><b>≈ ${tour.km} km</b>${tour.fromHome ? " aller-retour" : tour.overnight ? " sur place" : ""}${tour.dayPlan.length > 1 ? ` · <b>${tour.dayPlan.length} jours</b>` : ""}</span>
           ${tour.todo ? `<span class="is-todo"><b>${tour.todo}</b> à relancer${tour.urgent ? ` · ${tour.urgent} urgent${tour.urgent > 1 ? "s" : ""}` : ""}</span>` : `<span class="is-ok">Tous ont commandé</span>`}
           <span><b>${escapeHtml(relanceCurrency(tour.stake))}</b> en jeu</span>
         </span>
@@ -7244,13 +7300,17 @@ function tourPlanCardHtml(tour) {
           <div class="tp-tour-actions">
             <button class="primary-button compact" type="button" data-tp-gmaps="${escapeHtml(tour.key)}">Itinéraire Google Maps</button>
             <button class="ghost-button compact" type="button" data-tp-waze-first="${escapeHtml(tour.key)}">Waze 1er client</button>
+            <div class="tp-day-routes" hidden></div>
             ${tour.kind === "proposed"
               ? `<label class="tp-save"><input type="text" value="${escapeHtml(tour.zone)}" data-tp-name="${escapeHtml(tour.key)}" aria-label="Nom de la tournée" /><button class="ghost-button compact" type="button" data-tp-save="${escapeHtml(tour.key)}">Enregistrer</button></label>`
               : `<button class="ghost-button compact tp-danger" type="button" data-tp-delete="${escapeHtml(tour.id)}">Supprimer</button>`}
           </div>
           ${tour.missing ? `<p class="tp-note">${tour.missing} client(s) de cette tournée ne sont plus dans le portefeuille.</p>` : ""}
           ${tour.fromHome && tourPlan.cache?.home ? `<div class="tp-home-line">🏠 Départ du domicile (${escapeHtml(tourPlan.cache.home.city || "")})</div>` : ""}
-          ${tour.stops.map((stop, index) => tourPlanStopHtml({ ...stop, fromHome: tour.fromHome }, index)).join("")}
+          ${tour.dayPlan.map((day, dayIndex) => `
+            ${tour.dayPlan.length > 1 ? `<div class="tp-day-line"><b>Jour ${dayIndex + 1}</b><span>${day.end - day.start} client${day.end - day.start > 1 ? "s" : ""} · ≈ ${day.km} km</span></div>` : ""}
+            ${tour.stops.slice(day.start, day.end).map((stop, offset) => tourPlanStopHtml({ ...stop, fromHome: tour.fromHome }, day.start + offset)).join("")}
+            ${dayIndex < tour.dayPlan.length - 1 ? `<div class="tp-night-line">🛏️ Nuit sur place, vers ${escapeHtml(tour.stops[day.end - 1].row.client.deliveryCity || tour.stops[day.end - 1].row.client.billingCity || "")}</div>` : ""}`).join("")}
           ${tour.fromHome && tourPlan.cache?.home ? `<div class="tp-home-line">🏠 Retour au domicile · ${tour.backKm} km</div>` : ""}
         </div>` : ""}
     </section>`;
@@ -7404,6 +7464,23 @@ function tourPlanOpenUrl(url) {
 }
 
 document.querySelector("#tpList")?.addEventListener("click", (event) => {
+  const dayRoute = event.target.closest("[data-tp-gmaps-day]");
+  if (dayRoute) {
+    const [key, dayIndex] = dayRoute.dataset.tpGmapsDay.split("|");
+    const tour = tourPlanFindTour(key);
+    const day = tour?.dayPlan[Number(dayIndex)];
+    if (!day) return;
+    const home = tour.fromHome ? tourPlan.cache?.home : null;
+    const addressOf = (stop) => getClientRouteAddress(stop.row.client);
+    const stops = tour.stops.slice(day.start, day.end).map(addressOf).filter(Boolean);
+    const first = Number(dayIndex) === 0;
+    const last = Number(dayIndex) === tour.dayPlan.length - 1;
+    const origin = first ? home?.address : addressOf(tour.stops[day.start - 1] || tour.stops[day.start]);
+    const destination = last && home?.address ? home.address : stops[stops.length - 1];
+    const waypoints = (last && home?.address ? stops : stops.slice(0, -1)).slice(0, 9).join("|");
+    tourPlanOpenUrl(`https://www.google.com/maps/dir/?api=1&travelmode=driving${origin ? `&origin=${encodeURIComponent(origin)}` : ""}&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`);
+    return;
+  }
   const target = event.target.closest("[data-tp-open],[data-tp-gmaps],[data-tp-waze-first],[data-tp-save],[data-tp-delete],[data-tp-waze],[data-tp-plans],[data-tp-client]");
   if (!target) return;
   const d = target.dataset;
@@ -7421,6 +7498,13 @@ document.querySelector("#tpList")?.addEventListener("click", (event) => {
     if (!all.length) return;
     const home = tour.fromHome ? tourPlan.cache?.home : null;
     recordActivity("Tournée Google Maps ouverte", `${tour.name} - ${all.length} client(s)`);
+    if (tour.dayPlan.length > 1) {
+      // Tournée sur plusieurs jours : un itinéraire par jour (Google Maps accepte 9 étapes par lien).
+      const dayButtons = tour.dayPlan.map((day, index) => `<button class="ghost-button compact" type="button" data-tp-gmaps-day="${escapeHtml(tour.key)}|${index}">Jour ${index + 1}</button>`).join("");
+      const holder = target.closest(".tp-tour")?.querySelector(".tp-day-routes");
+      if (holder) { holder.innerHTML = `<span>Itinéraire du :</span>${dayButtons}`; holder.hidden = false; }
+      return;
+    }
     if (home?.address) {
       // Départ et retour au domicile, les clients en étapes (9 étapes max dans un lien Google Maps).
       const stops = all.slice(0, 9).join("|");
@@ -7443,7 +7527,7 @@ document.querySelector("#tpList")?.addEventListener("click", (event) => {
     if (!tour) return;
     const input = document.querySelector(`[data-tp-name="${CSS.escape(d.tpSave)}"]`);
     const name = (input?.value || tour.zone || "Tournée").trim();
-    saveTourPlan({ id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, sector: tourPlanSectorKey(), fromHome: tour.fromHome, codes: tour.stops.map((stop) => stop.row.client.code) });
+    saveTourPlan({ id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, sector: tourPlanSectorKey(), fromHome: tour.fromHome, days: tour.dayPlan.length, codes: tour.stops.map((stop) => stop.row.client.code) });
     tourPlan.mode = "saved";
     return;
   }
@@ -7461,6 +7545,7 @@ document.querySelector("#tpList")?.addEventListener("click", (event) => {
   }
   if (d.tpClient) openDirectionClient(d.tpClient);
 });
+document.querySelector("#tpDays")?.addEventListener("change", (event) => { tourPlan.days = Number(event.target.value) || 3; tourPlan.openKey = ""; renderTourPlan(); });
 document.querySelector("#tpSector")?.addEventListener("change", (event) => { tourPlan.sector = event.target.value; tourPlan.openKey = ""; renderTourPlan(); });
 document.querySelector("#tpModeProposed")?.addEventListener("click", () => { tourPlan.mode = "proposed"; tourPlan.openKey = ""; renderTourPlan(); });
 document.querySelector("#tpModeSaved")?.addEventListener("click", () => { tourPlan.mode = "saved"; tourPlan.openKey = ""; renderTourPlan(); });

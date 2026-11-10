@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261110tourneesdomicile47" />
-    <link rel="icon" href="assets/favicon.ico?v=20261110tourneesdomicile47" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261110tourneesdomicile47" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261110tourneesdomicile47" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261110tourneesdomicile47" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261110tournees3j48" />
+    <link rel="icon" href="assets/favicon.ico?v=20261110tournees3j48" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261110tournees3j48" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261110tournees3j48" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261110tournees3j48" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261110tourneesdomicile47" />
+    <link rel="stylesheet" href="style.css?v=20261110tournees3j48" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261110tourneesdomicile47" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261110tournees3j48" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -1156,10 +1156,11 @@
             <div>
               <p class="step">Préparation terrain</p>
               <h2 id="tpTitle">Tournées</h2>
-              <p class="tp-intro">Des tournées d'une journée au départ du domicile (8 clients max, moins de 100 km entre deux clients, 500 km aller-retour max), toujours à jour : qui a commandé ce mois, qui relancer et quoi lui reproposer.</p>
+              <p class="tp-intro">Des tournées de 1 à 3 jours au départ du domicile (8 clients et environ 500 km max par jour, moins de 100 km entre deux clients, nuits sur place entre les jours), toujours à jour : qui a commandé ce mois, qui relancer et quoi lui reproposer.</p>
             </div>
             <div class="tp-header-actions">
               <label class="is-hidden" id="tpSectorField"><span>Secteur</span><select id="tpSector"></select></label>
+              <label><span>Durée</span><select id="tpDays"><option value="1">1 jour</option><option value="2">2 jours</option><option value="3" selected>3 jours</option></select></label>
               <button class="ghost-button" type="button" id="tpRefresh">Actualiser</button>
               <button class="ghost-button" type="button" id="tpPdf">PDF</button>
             </div>
@@ -2565,13 +2566,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261110tourneesdomicile47" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261110tournees3j48" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261110tourneesdomicile47" charset="UTF-8"></script>
-    <script src="assets/guide-data.js?v=20261110tourneesdomicile47" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261110tourneesdomicile47" charset="UTF-8"></script>
+    <script src="script.js?v=20261110tournees3j48" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261110tournees3j48" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261110tournees3j48" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

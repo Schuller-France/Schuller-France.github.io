@@ -11606,3 +11606,8 @@ body.dark-theme .tp-stop { background: #181b20; border-color: #2b3038; }
 body.dark-theme .tp-tour-head, body.dark-theme .tp-stop-facts small { color: #e5e7eb; }
 .tp-home-line { padding: 6px 10px; border-radius: 10px; background: #eef2ff; color: #3730a3; font-size: 13px; font-weight: 800; }
 .tp-home-marker { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 2px solid #3730a3; border-radius: 50%; background: #fff; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.3); box-sizing: border-box; }
+.tp-day-line { display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; padding: 7px 10px; border-radius: 10px; background: #111827; color: #fff; font-size: 13px; }
+.tp-day-line span { color: #d1d5db; }
+.tp-night-line { padding: 6px 10px; border-radius: 10px; background: #f3f4f6; color: #4b5563; font-size: 13px; font-style: italic; }
+.tp-day-routes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; font-size: 13px; font-weight: 700; color: #4b5563; }
+.tp-day-routes[hidden] { display: none; }
