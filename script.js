@@ -70,6 +70,7 @@ let lines = [];
 let currentOrderDraftId = null;
 let quoteLineItems = [];
 let selectedOffrePrixClient = null;
+let offrePrixCustomerMode = "client";
 let offrePrixAutoEmail = "";
 let offrePrixLineItems = [];
 let offrePrixImporting = false;
@@ -512,6 +513,15 @@ const adminOffrePrixView = document.querySelector("#adminOffrePrixView");
 const offrePrixClientSearch = document.querySelector("#offrePrixClientSearch");
 const offrePrixClientSuggestions = document.querySelector("#offrePrixClientSuggestions");
 const offrePrixSelectedClient = document.querySelector("#offrePrixSelectedClient");
+const offrePrixClientLookup = document.querySelector("#offrePrixClientLookup");
+const offrePrixProspectForm = document.querySelector("#offrePrixProspectForm");
+const offrePrixProspectCompany = document.querySelector("#offrePrixProspectCompany");
+const offrePrixProspectContact = document.querySelector("#offrePrixProspectContact");
+const offrePrixProspectPhone = document.querySelector("#offrePrixProspectPhone");
+const offrePrixProspectEmail = document.querySelector("#offrePrixProspectEmail");
+const offrePrixProspectAddress = document.querySelector("#offrePrixProspectAddress");
+const offrePrixProspectZip = document.querySelector("#offrePrixProspectZip");
+const offrePrixProspectCity = document.querySelector("#offrePrixProspectCity");
 const offrePrixLines = document.querySelector("#offrePrixLines");
 const offrePrixAddLine = document.querySelector("#offrePrixAddLine");
 const offrePrixClearLines = document.querySelector("#offrePrixClearLines");
@@ -9761,6 +9771,8 @@ function renderOffrePrixClientSuggestions(query) {
 }
 
 function selectOffrePrixClient(client) {
+  offrePrixCustomerMode = "client";
+  renderOffrePrixCustomerMode();
   selectedOffrePrixClient = client;
   if (offrePrixClientSearch) offrePrixClientSearch.value = client.name;
   offrePrixClientSuggestions?.classList.remove("is-open");
@@ -9795,35 +9807,74 @@ function clearOffrePrixClient() {
   offrePrixAutoEmail = "";
   if (offrePrixClientSearch) {
     offrePrixClientSearch.value = "";
-    offrePrixClientSearch.focus();
   }
-  if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment. Saisissez un nom de prospect ci-dessus pour une offre hors base clients.</span>";
+  [offrePrixProspectCompany, offrePrixProspectContact, offrePrixProspectPhone, offrePrixProspectEmail, offrePrixProspectAddress, offrePrixProspectZip, offrePrixProspectCity].forEach((field) => {
+    if (field) field.value = "";
+  });
+  if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = offrePrixCustomerMode === "prospect"
+    ? "<span>Renseignez au minimum le nom de l’entreprise ou du prospect.</span>"
+    : "<span>Aucun client choisi pour le moment.</span>";
+  (offrePrixCustomerMode === "prospect" ? offrePrixProspectCompany : offrePrixClientSearch)?.focus();
 }
 
-// Met a jour la carte "client selectionne" (case de droite) en direct pendant la saisie,
-// quand aucun client de la base n'a ete choisi dans la liste de suggestions : le nom tape
-// devient un prospect hors base, utilise tel quel pour generer l'offre (voir getOffrePrixEffectiveClient).
-function renderOffrePrixProspectPreview() {
-  if (selectedOffrePrixClient || !offrePrixSelectedClient) return;
-  const typed = String(offrePrixClientSearch?.value || "").trim();
-  if (!typed) {
-    offrePrixSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment. Saisissez un nom de prospect ci-dessus pour une offre hors base clients.</span>";
+function renderOffrePrixCustomerMode() {
+  document.querySelectorAll("[data-offre-prix-customer-mode]").forEach((button) => {
+    const active = button.dataset.offrePrixCustomerMode === offrePrixCustomerMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  offrePrixClientLookup?.classList.toggle("is-hidden", offrePrixCustomerMode === "prospect");
+  offrePrixProspectForm?.classList.toggle("is-hidden", offrePrixCustomerMode !== "prospect");
+  offrePrixClientSuggestions?.classList.remove("is-open");
+}
+
+function setOffrePrixCustomerMode(mode) {
+  offrePrixCustomerMode = mode === "prospect" ? "prospect" : "client";
+  renderOffrePrixCustomerMode();
+  clearOffrePrixClient();
+  if (offrePrixStatus) offrePrixStatus.textContent = "";
+}
+
+function updateOffrePrixProspectClient() {
+  if (offrePrixCustomerMode !== "prospect") return;
+  const name = offrePrixProspectCompany?.value.trim() || "";
+  if (!name) {
+    selectedOffrePrixClient = null;
+    if (offrePrixSelectedClient) offrePrixSelectedClient.innerHTML = "<span>Renseignez au minimum le nom de l’entreprise ou du prospect.</span>";
     return;
   }
+  const previousAutoEmail = offrePrixAutoEmail;
+  selectedOffrePrixClient = {
+    name,
+    code: "PROSPECT",
+    sector: "Prospect",
+    billingAddress: offrePrixProspectAddress?.value.trim() || "",
+    billingZip: offrePrixProspectZip?.value.trim() || "",
+    billingCity: offrePrixProspectCity?.value.trim() || "",
+    contact: offrePrixProspectContact?.value.trim() || "",
+    phone: offrePrixProspectPhone?.value.trim() || "",
+    email: offrePrixProspectEmail?.value.trim() || "",
+    isProspect: true,
+  };
   offrePrixSelectedClient.innerHTML = `
-    <button class="selected-client-clear" type="button" data-role="offre-prix-clear-client" aria-label="Effacer le nom saisi">&times; Effacer</button>
-    <strong>${escapeHtml(typed)}</strong>
-    <span>Prospect hors base clients - ce nom sera utilis&eacute; tel quel sur l'offre.</span>
+    <button class="selected-client-clear" type="button" data-role="offre-prix-clear-client" aria-label="Effacer le prospect">&times; Effacer</button>
+    <strong>${escapeHtml(name)}</strong>
+    <span><b>Prospect hors base clients</b></span>
+    ${selectedOffrePrixClient.contact ? `<span>Contact : ${escapeHtml(selectedOffrePrixClient.contact)}</span>` : ""}
+    ${selectedOffrePrixClient.phone ? `<span>Tél. : ${escapeHtml(selectedOffrePrixClient.phone)}</span>` : ""}
+    ${selectedOffrePrixClient.email ? `<span>E-mail : ${escapeHtml(selectedOffrePrixClient.email)}</span>` : ""}
+    ${selectedOffrePrixClient.billingAddress ? `<span>${escapeHtml(selectedOffrePrixClient.billingAddress)}</span>` : ""}
+    ${selectedOffrePrixClient.billingZip || selectedOffrePrixClient.billingCity ? `<span>${escapeHtml(`${selectedOffrePrixClient.billingZip} ${selectedOffrePrixClient.billingCity}`.trim())}</span>` : ""}
   `;
+  if (offrePrixEmail && (!offrePrixEmail.value.trim() || offrePrixEmail.value.trim() === previousAutoEmail)) {
+    offrePrixEmail.value = selectedOffrePrixClient.email;
+    offrePrixAutoEmail = selectedOffrePrixClient.email;
+  }
+  if (offrePrixStatus) offrePrixStatus.textContent = selectedOffrePrixClient.email ? "" : "Saisissez l’adresse e-mail du prospect avant l’envoi.";
 }
 
-// Client "effectif" pour une offre de prix : le client selectionne dans la base,
-// ou a defaut un pseudo-client construit a partir du texte tape (prospect hors base).
 function getOffrePrixEffectiveClient() {
-  if (selectedOffrePrixClient) return selectedOffrePrixClient;
-  const typed = String(offrePrixClientSearch?.value || "").trim();
-  if (!typed) return null;
-  return { name: typed, code: "", sector: "Prospect", billingAddress: "", billingZip: "", billingCity: "" };
+  return selectedOffrePrixClient;
 }
 
 function addOffrePrixLine() {
@@ -10346,8 +10397,8 @@ async function exportOffrePrixExcel() {
     const validLabel = /^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? validUntil.split("-").reverse().join("/") : "-";
     const address = formatAdminPrenetClientAddress(client || {}) || "";
     const infoRows = [
-      ["Client", client?.name || "-", "Date", new Date().toLocaleDateString("fr-FR")],
-      ["Code client", client?.code || "-", "Valable jusqu'au", validLabel],
+      [client?.isProspect ? "Prospect" : "Client", client?.name || "-", "Date", new Date().toLocaleDateString("fr-FR")],
+      [client?.isProspect ? "Type" : "Code client", client?.isProspect ? "Prospect hors base clients" : (client?.code || "-"), "Valable jusqu'au", validLabel],
       ["Adresse", address || "-", "Références", rows.length],
     ];
     infoRows.forEach((info, index) => {
@@ -10524,7 +10575,7 @@ body.exporting .bar{display:none}body.exporting{background:#fff}body.exporting .
 </style></head><body>
 <div class="bar"><button type="button" id="pdfBtn" onclick="savePdf(this)">Télécharger le PDF</button><button type="button" class="ghost" onclick="window.print()">Imprimer</button><button type="button" class="ghost" onclick="window.close()">Fermer</button></div>
 <div class="page"><div class="top"><div class="brand"><img src="${escapeHtml(logoUrl)}" alt="Schuller Eh'Klar"><div><h1>Offre de prix</h1><p>Schuller Eh'Klar France<br>4 rue Jean Marie Lehn, 67560 Rosheim<br>france@schuller.eu</p></div></div><div class="date">Document généré le<strong>${escapeHtml(today)}</strong></div></div>
-<div class="cards"><div class="card"><div class="label">Client</div><h2>${escapeHtml(client.name || "-")}</h2><p>Code client : ${escapeHtml(client.code || "-")}<br>${addressHtml}</p></div>
+<div class="cards"><div class="card"><div class="label">${client.isProspect ? "Prospect" : "Client"}</div><h2>${escapeHtml(client.name || "-")}</h2><p>${client.isProspect ? "Prospect hors base clients" : `Code client : ${escapeHtml(client.code || "-")}`}<br>${addressHtml}</p></div>
 <div class="card"><div class="label">Offre</div><h2>${rows.length} référence${rows.length > 1 ? "s" : ""}</h2><p>Total net HT : <strong>${money(total)}</strong><br><strong>Offre valable jusqu'au ${escapeHtml(validLabel)}.</strong></p></div></div>
 <div class="summary"><span class="pill dark">Schuller Eh'Klar</span><span class="pill">Offre de prix personnalisée</span></div>
 <table><thead><tr><th>Référence</th><th>Désignation</th><th class="num">Qté</th><th class="price">Prix net HT</th><th class="price">Montant HT</th></tr></thead><tbody>${tableRows}
@@ -10585,6 +10636,7 @@ function previewOffrePrix() {
     name: effectiveClient.name || "",
     code: effectiveClient.code || "",
     address: formatAdminPrenetClientAddress(effectiveClient),
+    isProspect: Boolean(effectiveClient.isProspect),
   }, rows, validUntil);
   const previewWindow = window.open("", "_blank");
   if (!previewWindow) {
@@ -10616,6 +10668,8 @@ function cancelOffrePrixEdit(resetStatus = true) {
 function loadPriceOfferIntoForm(id) {
   const offer = priceOffers.find((item) => item.id === id);
   if (!offer) return;
+  offrePrixCustomerMode = offer.clientCode === "PROSPECT" || offer.sector === "Prospect" ? "prospect" : "client";
+  renderOffrePrixCustomerMode();
   editingOfferId = offer.id;
   offrePrixIdGenerated = false;
   selectedOffrePrixClient = {
@@ -10624,7 +10678,13 @@ function loadPriceOfferIntoForm(id) {
     sector: offer.sector || "",
     billingAddress: offer.address || "",
     address: offer.address || "",
+    isProspect: offrePrixCustomerMode === "prospect",
   };
+  if (selectedOffrePrixClient.isProspect) {
+    if (offrePrixProspectCompany) offrePrixProspectCompany.value = selectedOffrePrixClient.name;
+    if (offrePrixProspectAddress) offrePrixProspectAddress.value = selectedOffrePrixClient.billingAddress;
+    if (offrePrixProspectEmail) offrePrixProspectEmail.value = offer.recipient || "";
+  }
   if (offrePrixClientSearch) offrePrixClientSearch.value = selectedOffrePrixClient.name;
   offrePrixClientSuggestions?.classList.remove("is-open");
   if (offrePrixSelectedClient) {
@@ -10682,6 +10742,10 @@ async function saveOffrePrixDraft() {
         code: effectiveClient.code || "",
         sector: effectiveClient.sector || "",
         address: formatAdminPrenetClientAddress(effectiveClient),
+        type: effectiveClient.isProspect ? "prospect" : "client",
+        contact: effectiveClient.contact || "",
+        phone: effectiveClient.phone || "",
+        email: effectiveClient.email || "",
       }),
       rows: JSON.stringify(rows),
       validUntil,
@@ -10739,6 +10803,10 @@ async function sendOffrePrixEmail() {
         code: effectiveClient.code || "",
         sector: effectiveClient.sector || "",
         address: formatAdminPrenetClientAddress(effectiveClient),
+        type: effectiveClient.isProspect ? "prospect" : "client",
+        contact: effectiveClient.contact || "",
+        phone: effectiveClient.phone || "",
+        email: effectiveClient.email || "",
       }),
       rows: JSON.stringify(rows),
       validUntil,
@@ -17089,14 +17157,15 @@ saveAdminOrderDraftButton?.addEventListener("click", saveAdminOrderAsDraft);
 adminOrderClearHistory?.addEventListener("click", clearCurrentUserAdminOrders);
 offrePrixClientSearch?.addEventListener("input", () => {
   const value = offrePrixClientSearch.value;
-  // Toute frappe qui s'ecarte du client precedemment selectionne invalide cette selection :
-  // le champ redevient une saisie libre (prospect hors base) tant qu'un nouveau choix n'est pas fait dans la liste.
   if (selectedOffrePrixClient && value.trim() !== selectedOffrePrixClient.name) {
     selectedOffrePrixClient = null;
   }
   renderOffrePrixClientSuggestions(value);
-  renderOffrePrixProspectPreview();
 });
+document.querySelectorAll("[data-offre-prix-customer-mode]").forEach((button) => {
+  button.addEventListener("click", () => setOffrePrixCustomerMode(button.dataset.offrePrixCustomerMode));
+});
+offrePrixProspectForm?.addEventListener("input", updateOffrePrixProspectClient);
 offrePrixSelectedClient?.addEventListener("click", (event) => {
   if (event.target.closest("[data-role='offre-prix-clear-client']")) clearOffrePrixClient();
 });
