@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261120devisprospect1" />
-    <link rel="icon" href="assets/favicon.ico?v=20261120devisprospect1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261120devisprospect1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261120devisprospect1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261120devisprospect1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261120offreprospect1" />
+    <link rel="icon" href="assets/favicon.ico?v=20261120offreprospect1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261120offreprospect1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261120offreprospect1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261120offreprospect1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261120devisprospect1" />
+    <link rel="stylesheet" href="style.css?v=20261120offreprospect1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261120devisprospect1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261120offreprospect1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -2341,7 +2341,7 @@
           <div>
             <p class="step">Devis client</p>
             <h2>Offre de prix</h2>
-            <p>Choisissez un client, ajoutez vos r&eacute;f&eacute;rences, quantit&eacute;s et prix, puis pr&eacute;visualisez ou envoyez une offre de prix personnalis&eacute;e.</p>
+            <p>Choisissez un client existant ou saisissez un nouveau prospect, ajoutez vos r&eacute;f&eacute;rences, quantit&eacute;s et prix, puis pr&eacute;visualisez ou envoyez l'offre.</p>
           </div>
         </section>
 
@@ -2355,10 +2355,25 @@
 
           <div class="quote-layout">
             <section class="quote-client-card quote-client-wide">
-              <div class="search-block offre-prix-search-block">
-                <label for="offrePrixClientSearch">Rechercher le client</label>
-                <input id="offrePrixClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
-                <div class="suggestions" id="offrePrixClientSuggestions" role="listbox"></div>
+              <div class="quote-customer-entry">
+                <div class="quote-customer-mode" role="group" aria-label="Type de destinataire de l'offre">
+                  <button class="is-active" type="button" data-offre-prix-customer-mode="client" aria-pressed="true">Client existant</button>
+                  <button type="button" data-offre-prix-customer-mode="prospect" aria-pressed="false">Nouveau prospect</button>
+                </div>
+                <div class="search-block offre-prix-search-block" id="offrePrixClientLookup">
+                  <label for="offrePrixClientSearch">Rechercher le client</label>
+                  <input id="offrePrixClientSearch" type="search" autocomplete="off" placeholder="Nom, ville ou code client..." />
+                  <div class="suggestions" id="offrePrixClientSuggestions" role="listbox"></div>
+                </div>
+                <div class="quote-prospect-form is-hidden" id="offrePrixProspectForm">
+                  <label class="quote-prospect-company">Entreprise / nom du prospect <strong>*</strong><input id="offrePrixProspectCompany" type="text" autocomplete="organization" placeholder="Ex. Peinture Martin" /></label>
+                  <label>Contact<input id="offrePrixProspectContact" type="text" autocomplete="name" placeholder="Prénom et nom" /></label>
+                  <label>Téléphone<input id="offrePrixProspectPhone" type="tel" autocomplete="tel" placeholder="06 00 00 00 00" /></label>
+                  <label>E-mail destinataire<input id="offrePrixProspectEmail" type="email" autocomplete="email" placeholder="contact@entreprise.fr" /></label>
+                  <label class="quote-prospect-address">Adresse<input id="offrePrixProspectAddress" type="text" autocomplete="street-address" placeholder="Rue, numéro..." /></label>
+                  <label>Code postal<input id="offrePrixProspectZip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="67000" /></label>
+                  <label>Ville<input id="offrePrixProspectCity" type="text" autocomplete="address-level2" placeholder="Ville" /></label>
+                </div>
               </div>
               <article class="selected-client" id="offrePrixSelectedClient" aria-live="polite">
                 <span>Aucun client choisi pour le moment.</span>
@@ -2581,13 +2596,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261120devisprospect1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261120offreprospect1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261120devisprospect1" charset="UTF-8"></script>
-    <script src="assets/guide-data.js?v=20261120devisprospect1" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261120devisprospect1" charset="UTF-8"></script>
+    <script src="script.js?v=20261120offreprospect1" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261120offreprospect1" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261120offreprospect1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
