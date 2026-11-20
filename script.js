@@ -29,6 +29,7 @@ let selectedClient360 = null;
 let selectedStatsClient = null;
 let selectedStatsClients = [];
 let selectedQuoteClient = null;
+let quoteCustomerMode = "client";
 let selectedSampleClient = null;
 let selectedPrenetClient = null;
 let selectedAdminPrenetClient = null;
@@ -725,6 +726,15 @@ const quoteClientSearch = document.querySelector("#quoteClientSearch");
 const quoteClientSuggestions = document.querySelector("#quoteClientSuggestions");
 const quoteSelectedClient = document.querySelector("#quoteSelectedClient");
 const quoteStatus = document.querySelector("#quoteStatus");
+const quoteClientLookup = document.querySelector("#quoteClientLookup");
+const quoteProspectForm = document.querySelector("#quoteProspectForm");
+const quoteProspectCompany = document.querySelector("#quoteProspectCompany");
+const quoteProspectContact = document.querySelector("#quoteProspectContact");
+const quoteProspectPhone = document.querySelector("#quoteProspectPhone");
+const quoteProspectEmail = document.querySelector("#quoteProspectEmail");
+const quoteProspectAddress = document.querySelector("#quoteProspectAddress");
+const quoteProspectZip = document.querySelector("#quoteProspectZip");
+const quoteProspectCity = document.querySelector("#quoteProspectCity");
 const quoteLines = document.querySelector("#quoteLines");
 const quoteNote = document.querySelector("#quoteNote");
 const addQuoteLine = document.querySelector("#addQuoteLine");
@@ -9629,6 +9639,7 @@ function renderQuoteClientSuggestions(query) {
 }
 
 function selectQuoteClient(client) {
+  quoteCustomerMode = "client";
   selectedQuoteClient = client;
   quoteClientSearch.value = client.name;
   quoteClientSuggestions.classList.remove("is-open");
@@ -9647,9 +9658,66 @@ function selectQuoteClient(client) {
 
 function resetQuoteRequest() {
   selectedQuoteClient = null;
-  quoteStatus.textContent = "Client non sélectionné";
+  quoteStatus.textContent = quoteCustomerMode === "prospect" ? "Prospect à renseigner" : "Client non sélectionné";
   quoteStatus.classList.remove("is-ready");
-  quoteSelectedClient.innerHTML = "<span>Aucun client choisi pour le moment.</span>";
+  quoteSelectedClient.innerHTML = quoteCustomerMode === "prospect"
+    ? "<span>Renseignez au minimum le nom de l’entreprise ou du prospect.</span>"
+    : "<span>Aucun client choisi pour le moment.</span>";
+  quoteSendStatus.textContent = "";
+  quoteSendStatus.className = "tarif-send-status";
+}
+
+function setQuoteCustomerMode(mode) {
+  quoteCustomerMode = mode === "prospect" ? "prospect" : "client";
+  document.querySelectorAll("[data-quote-customer-mode]").forEach((button) => {
+    const active = button.dataset.quoteCustomerMode === quoteCustomerMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  quoteClientLookup?.classList.toggle("is-hidden", quoteCustomerMode === "prospect");
+  quoteProspectForm?.classList.toggle("is-hidden", quoteCustomerMode !== "prospect");
+  quoteClientSuggestions?.classList.remove("is-open");
+  if (quoteCustomerMode === "prospect") quoteClientSearch.value = "";
+  resetQuoteRequest();
+  if (quoteCustomerMode === "prospect") {
+    updateQuoteProspectClient();
+    quoteProspectCompany?.focus();
+  } else {
+    quoteClientSearch?.focus();
+  }
+}
+
+function updateQuoteProspectClient() {
+  if (quoteCustomerMode !== "prospect") return;
+  const name = quoteProspectCompany?.value.trim() || "";
+  if (!name) {
+    resetQuoteRequest();
+    return;
+  }
+  const sectors = Array.isArray(currentUser?.sectors) ? currentUser.sectors.join(" + ") : "";
+  selectedQuoteClient = {
+    code: "PROSPECT",
+    name,
+    sector: sectors,
+    billingAddress: quoteProspectAddress?.value.trim() || "",
+    billingZip: quoteProspectZip?.value.trim() || "",
+    billingCity: quoteProspectCity?.value.trim() || "",
+    contact: quoteProspectContact?.value.trim() || "",
+    phone: quoteProspectPhone?.value.trim() || "",
+    email: quoteProspectEmail?.value.trim() || "",
+    isProspect: true,
+  };
+  quoteStatus.textContent = "Prospect renseigné";
+  quoteStatus.classList.add("is-ready");
+  quoteSelectedClient.innerHTML = `
+    <strong>${escapeHtml(name)}</strong>
+    <span><b>Prospect hors base clients</b></span>
+    ${selectedQuoteClient.contact ? `<span>Contact : ${escapeHtml(selectedQuoteClient.contact)}</span>` : ""}
+    ${selectedQuoteClient.phone ? `<span>Tél. : ${escapeHtml(selectedQuoteClient.phone)}</span>` : ""}
+    ${selectedQuoteClient.email ? `<span>E-mail : ${escapeHtml(selectedQuoteClient.email)}</span>` : ""}
+    ${selectedQuoteClient.billingAddress ? `<span>${escapeHtml(selectedQuoteClient.billingAddress)}</span>` : ""}
+    ${selectedQuoteClient.billingZip || selectedQuoteClient.billingCity ? `<span>${escapeHtml(`${selectedQuoteClient.billingZip} ${selectedQuoteClient.billingCity}`.trim())}</span>` : ""}
+  `;
   quoteSendStatus.textContent = "";
   quoteSendStatus.className = "tarif-send-status";
 }
@@ -10898,6 +10966,10 @@ function addSampleHistoryItem(client, lines, note, status = "sent") {
     clientCode: client.code || "",
     clientName: client.name || "",
     sector: client.sector || "",
+    clientType: client.isProspect ? "prospect" : "client",
+    contact: client.contact || "",
+    phone: client.phone || "",
+    email: client.email || "",
     note: note || "",
     lines: lines.map((line) => ({
       ref: line.ref || "",
@@ -10920,6 +10992,10 @@ function renderSampleHistory() {
       item.clientName,
       item.clientCode,
       item.sector,
+      item.clientType,
+      item.contact,
+      item.phone,
+      item.email,
       item.note,
       ...(item.lines || []).flatMap((line) => [line.ref, line.designation, line.qty, line.comment]),
     ].join(" ")).includes(query);
@@ -12432,7 +12508,7 @@ function renderQuoteHistory() {
           <article class="quote-history-item">
             <div class="quote-history-main">
               <span class="quote-status-pill ${quoteStatusClass(item.status)}">${escapeHtml(quoteStatusLabel(item.status))}</span>
-              <strong>${escapeHtml(item.clientName || "Client")}</strong>
+              <strong>${escapeHtml(item.clientName || "Client")}${item.clientType === "prospect" ? ' <span class="quote-history-prospect">Prospect</span>' : ""}</strong>
               <small>${escapeHtml(item.date || "")} · ${escapeHtml(item.clientCode || "")} · ${escapeHtml(item.sector || "")}</small>
               <p>${escapeHtml(refs || "Aucune référence")}</p>
               ${item.note ? `<small class="quote-history-note">${escapeHtml(item.note)}</small>` : ""}
@@ -12467,9 +12543,11 @@ async function sendQuoteRequestDraft() {
     .filter((line) => line.ref);
 
   if (!selectedQuoteClient) {
-    quoteSendStatus.textContent = "Sélectionnez d’abord le client.";
+    quoteSendStatus.textContent = quoteCustomerMode === "prospect"
+      ? "Saisissez au minimum le nom du prospect."
+      : "Sélectionnez d’abord le client.";
     quoteSendStatus.classList.add("is-error");
-    quoteClientSearch.focus();
+    (quoteCustomerMode === "prospect" ? quoteProspectCompany : quoteClientSearch)?.focus();
     return;
   }
 
@@ -12482,9 +12560,18 @@ async function sendQuoteRequestDraft() {
 
   const refs = validLines.slice(0, 6).map((line) => `${line.ref} x${line.qty}`).join(", ");
   const more = validLines.length > 6 ? ` + ${validLines.length - 6} autre(s)` : "";
+  const prospectDetails = selectedQuoteClient.isProspect
+    ? [
+        "PROSPECT HORS BASE CLIENTS",
+        selectedQuoteClient.contact ? `Contact : ${selectedQuoteClient.contact}` : "",
+        selectedQuoteClient.phone ? `Téléphone : ${selectedQuoteClient.phone}` : "",
+        selectedQuoteClient.email ? `E-mail : ${selectedQuoteClient.email}` : "",
+      ].filter(Boolean).join("\n")
+    : "";
+  const requestNote = [prospectDetails, quoteNote.value.trim()].filter(Boolean).join("\n\n");
   if (isTrainingAccount()) {
     showTrainingStatus(quoteSendStatus, "Mode formation : demande de devis validée, aucun e-mail réel envoyé.");
-    addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
+    addQuoteHistoryItem(selectedQuoteClient, validLines, requestNote);
     markTutorialTabDone("quote");
     return;
   }
@@ -12510,12 +12597,16 @@ async function sendQuoteRequestDraft() {
         address: selectedQuoteClient.billingAddress || selectedQuoteClient.deliveryAddress || "",
         zip: selectedQuoteClient.billingZip || selectedQuoteClient.deliveryZip || "",
         city: selectedQuoteClient.billingCity || selectedQuoteClient.deliveryCity || "",
+        type: selectedQuoteClient.isProspect ? "prospect" : "client",
+        contact: selectedQuoteClient.contact || "",
+        phone: selectedQuoteClient.phone || "",
+        email: selectedQuoteClient.email || "",
       }),
       lines: JSON.stringify(validLines),
-      note: quoteNote.value.trim(),
+      note: requestNote,
     });
     recordActivity("Demande de devis envoyée", `${selectedQuoteClient.name} - ${refs}${more} - envoyé à ${schullerCommercialRequestEmail}`);
-    addQuoteHistoryItem(selectedQuoteClient, validLines, quoteNote.value.trim());
+    addQuoteHistoryItem(selectedQuoteClient, validLines, requestNote);
     quoteSendStatus.textContent = `Demande envoyée à ${schullerCommercialRequestEmail} avec le fichier Excel.`;
     quoteSendStatus.classList.add("is-success");
   } catch (error) {
@@ -16792,6 +16883,7 @@ function handleClient360SearchInput(value) {
 }
 
 function handleQuoteClientSearchInput(value) {
+  if (quoteCustomerMode !== "client") return;
   if (selectedQuoteClient && normalize(value) !== normalize(selectedQuoteClient.name)) {
     resetQuoteRequest();
   }
@@ -17456,6 +17548,10 @@ client360Summary?.addEventListener("click", (event) => {
   openClientWazeByCode(wazeButton.dataset.client360Waze);
 });
 quoteClientSearch.addEventListener("input", (event) => handleQuoteClientSearchInput(event.target.value));
+document.querySelectorAll("[data-quote-customer-mode]").forEach((button) => {
+  button.addEventListener("click", () => setQuoteCustomerMode(button.dataset.quoteCustomerMode));
+});
+quoteProspectForm?.addEventListener("input", updateQuoteProspectClient);
 addQuoteLine.addEventListener("click", addQuoteLineItem);
 sendQuoteRequest.addEventListener("click", sendQuoteRequestDraft);
 quoteHistorySearch?.addEventListener("input", renderQuoteHistory);
