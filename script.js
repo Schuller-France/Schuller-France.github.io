@@ -642,6 +642,7 @@ const adminPrenetSend = document.querySelector("#adminPrenetSend");
 const adminPrenetSendStatus = document.querySelector("#adminPrenetSendStatus");
 const adminPrenetBody = document.querySelector("#adminPrenetBody");
 const adminPrenetCount = document.querySelector("#adminPrenetCount");
+const adminPrenetRefresh = document.querySelector("#adminPrenetRefresh");
 const adminPurchaseCount = document.querySelector("#adminPurchaseCount");
 const adminPurchaseCountHausse = document.querySelector("#adminPurchaseCountHausse");
 const adminPurchaseCountBaisse = document.querySelector("#adminPurchaseCountBaisse");
@@ -1212,6 +1213,28 @@ function applySecureAppData(result) {
   secureDataLoaded = true;
   populateProductRefs();
   renderPromotions();
+}
+
+async function refreshPrenetDataFromDrive() {
+  if (!currentSessionToken || currentUser?.role !== "admin" || !adminPrenetRefresh) return;
+  adminPrenetRefresh.disabled = true;
+  adminPrenetRefresh.textContent = "Actualisation…";
+  setAdminPrenetStatus("Lecture du dernier fichier Export_prix_net dans Drive…", "");
+  try {
+    const result = await postService({ action: "getAppData", token: currentSessionToken, forcePrenet: "1" });
+    applySecureAppData(result);
+    saveSecureDataCache(currentUser.id || "", result);
+    selectedAdminPrenetClient = null;
+    selectedAdminPrenetRefs = [];
+    renderAdminPrenets();
+    const clientCount = prenetClients.length;
+    setAdminPrenetStatus(`✓ Prix nets actualisés : ${clientCount} client${clientCount > 1 ? "s" : ""} · ${prenetDataMeta.sourceFile || "fichier Drive"} · ${prenetDataMeta.updatedAt || "à l’instant"}`, "success");
+  } catch (error) {
+    setAdminPrenetStatus(error.message || "Actualisation des prix nets impossible.", "error");
+  } finally {
+    adminPrenetRefresh.disabled = false;
+    adminPrenetRefresh.textContent = "Actualiser les prix nets";
+  }
 }
 
 function secureDataCacheKey(userId) {
@@ -17556,6 +17579,7 @@ adminPrenetReferenceChips?.addEventListener("click", (event) => {
 });
 adminPrenetDownload?.addEventListener("click", downloadAdminPrenetPdf);
 adminPrenetSend?.addEventListener("click", sendAdminPrenetPrices);
+adminPrenetRefresh?.addEventListener("click", refreshPrenetDataFromDrive);
 document.querySelectorAll("[data-admin-prenet-sort-btn]").forEach((button) => {
   button.addEventListener("click", () => setAdminPrenetSort(button.dataset.adminPrenetSortBtn));
 });

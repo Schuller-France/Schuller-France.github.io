@@ -20,19 +20,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261120offreprospect1" />
-    <link rel="icon" href="assets/favicon.ico?v=20261120offreprospect1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261120offreprospect1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261120offreprospect1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261120offreprospect1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261123prenetdrive1" />
+    <link rel="icon" href="assets/favicon.ico?v=20261123prenetdrive1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261123prenetdrive1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261123prenetdrive1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261123prenetdrive1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261120offreprospect1" />
+    <link rel="stylesheet" href="style.css?v=20261123prenetdrive1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261120offreprospect1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261123prenetdrive1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -1735,9 +1735,12 @@
           <div>
             <p class="step">Contrôle tarifs</p>
             <h2>Prix nets commerciaux</h2>
-            <p>Consultez tous les prix nets par commercial, secteur, client ou référence.</p>
+            <p>Consultez tous les prix nets par commercial, secteur, client ou référence. La source est le dernier fichier <strong>Export_prix_net</strong> présent dans Drive.</p>
           </div>
-          <span class="status-pill" id="adminPrenetCount">0 ligne</span>
+          <div class="panel-heading-actions">
+            <button class="ghost-button compact" type="button" id="adminPrenetRefresh">Actualiser les prix nets</button>
+            <span class="status-pill" id="adminPrenetCount">0 ligne</span>
+          </div>
         </section>
 
         <section class="panel admin-prenet-panel">
@@ -2596,13 +2599,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261120offreprospect1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261123prenetdrive1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261120offreprospect1" charset="UTF-8"></script>
-    <script src="assets/guide-data.js?v=20261120offreprospect1" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261120offreprospect1" charset="UTF-8"></script>
+    <script src="script.js?v=20261123prenetdrive1" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261123prenetdrive1" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261123prenetdrive1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
