@@ -573,6 +573,8 @@ const centralesNewSubmit = document.querySelector("#centralesNewSubmit");
 const centralesNewCancel = document.querySelector("#centralesNewCancel");
 const centralesStatus = document.querySelector("#centralesStatus");
 const centralesList = document.querySelector("#centralesList");
+const centralesDetail = document.querySelector("#centralesDetail");
+const centralesFilters = document.querySelector("#centralesFilters");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogStatus = document.querySelector("#adminLogStatus");
 const adminSendHistoryBody = document.querySelector("#adminSendHistoryBody");
@@ -901,6 +903,10 @@ const prospectionAdminSummary = document.querySelector("#prospectionAdminSummary
 const prospectionList = document.querySelector("#prospectionList");
 let centralesRecords = [];
 let centralesBusy = false;
+let selectedCentraleId = "";
+let centralesFilter = "all";
+let centraleDraftType = "appel";
+let centraleContactFormOpen = false;
 let prospectionRecords = [];
 let prospectionUsers = [];
 let prospectionWeekKey = "";
@@ -15608,95 +15614,130 @@ function centraleIsDue(record) {
   return target.getTime() <= today.getTime();
 }
 
+function centraleTodayIso() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function centraleFormatDate(value, short = false) {
+  if (!value) return "";
+  const parts = String(value).slice(0, 10).split("-");
+  if (parts.length !== 3) return value;
+  return short ? `${parts[2]}/${parts[1]}` : `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function centraleStatusInfo(record) {
+  if (!record?.relanceDate) return { key: "none", label: "Sans relance", long: "Aucune relance prévue", tone: "none" };
+  const today = new Date(`${centraleTodayIso()}T12:00:00`);
+  const target = new Date(`${record.relanceDate}T12:00:00`);
+  const days = Math.round((target - today) / 86400000);
+  if (days < 0) return { key: "due", label: `Retard ${Math.abs(days)} j`, long: `Relance en retard de ${Math.abs(days)} j · ${centraleFormatDate(record.relanceDate)}`, tone: "late" };
+  if (days === 0) return { key: "due", label: "Aujourd'hui", long: `Relance aujourd'hui · ${centraleFormatDate(record.relanceDate)}`, tone: "today" };
+  return { key: "soon", label: centraleFormatDate(record.relanceDate, true), long: `Relance le ${centraleFormatDate(record.relanceDate)} · dans ${days} j`, tone: "soon" };
+}
+
+function centraleContacts(record) {
+  const contacts = Array.isArray(record?.contacts) ? record.contacts.slice() : [];
+  if (record?.contactName && !contacts.some((contact) => (contact.name || "").trim().toLowerCase() === record.contactName.trim().toLowerCase())) {
+    contacts.unshift({ id: "primary", name: record.contactName, role: "Contact principal", phone: record.contactPhone || "", email: record.contactEmail || "" });
+  }
+  return contacts;
+}
+
+function centraleEntryTypeLabel(type) {
+  return type === "rdv" ? "RDV" : type === "email" ? "E-mail" : type === "note" ? "Note" : "Appel";
+}
+
 function renderCentralesRecords() {
   const query = (centralesSearch?.value || "").trim().toLowerCase();
-  const filtered = centralesRecords.filter((record) => {
-    if (!query) return true;
-    return record.company.toLowerCase().includes(query) || (record.contactName || "").toLowerCase().includes(query);
+  const counts = { all: centralesRecords.length, due: 0, none: 0 };
+  centralesRecords.forEach((record) => {
+    const key = centraleStatusInfo(record).key;
+    if (key === "due") counts.due += 1;
+    if (key === "none") counts.none += 1;
   });
-  const dueCount = centralesRecords.filter(centraleIsDue).length;
+  const dueCount = counts.due;
   renderAdminNotifications();
   if (centralesRelanceCount) centralesRelanceCount.textContent = `${dueCount} à relancer`;
   if (centralesReminderBadge) {
     centralesReminderBadge.textContent = String(dueCount);
     centralesReminderBadge.classList.toggle("is-hidden", dueCount === 0);
   }
-  const records = filtered.slice().sort((a, b) => {
-    const aDue = centraleIsDue(a) ? 0 : 1;
-    const bDue = centraleIsDue(b) ? 0 : 1;
-    if (aDue !== bDue) return aDue - bDue;
-    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  centralesFilters?.querySelectorAll("[data-centrales-filter]").forEach((button) => {
+    const key = button.dataset.centralesFilter;
+    button.classList.toggle("is-active", key === centralesFilter);
+    const counter = button.querySelector("span");
+    if (counter) counter.textContent = String(counts[key] || 0);
   });
+  const records = centralesRecords.filter((record) => {
+    const contacts = centraleContacts(record);
+    const matchesQuery = !query || (record.company || "").toLowerCase().includes(query) || contacts.some((contact) => (contact.name || "").toLowerCase().includes(query));
+    return matchesQuery && (centralesFilter === "all" || centraleStatusInfo(record).key === centralesFilter);
+  }).sort((a, b) => String(a.relanceDate || "9999-12-31").localeCompare(String(b.relanceDate || "9999-12-31")) || String(a.company || "").localeCompare(String(b.company || ""), "fr"));
+  if (!selectedCentraleId || !centralesRecords.some((record) => record.id === selectedCentraleId)) selectedCentraleId = records[0]?.id || centralesRecords[0]?.id || "";
   if (!records.length) {
-    centralesList.innerHTML = `<div class="empty-state">${query ? "Aucune centrale ne correspond à la recherche." : "Aucune centrale enregistrée pour le moment. Cliquez sur « + Nouvelle centrale » pour commencer."}</div>`;
+    centralesList.innerHTML = `<div class="centrales-list-empty">Aucune centrale ne correspond.</div>`;
+  } else {
+    centralesList.innerHTML = records.map((record) => {
+      const status = centraleStatusInfo(record);
+      const contacts = centraleContacts(record);
+      const latest = (record.entries || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0];
+      return `<button type="button" class="centrale-list-row ${record.id === selectedCentraleId ? "is-selected" : ""} is-${status.tone}" data-select-centrale="${escapeHtml(record.id)}">
+        <span class="centrale-list-heading"><strong>${escapeHtml(record.company || "Sans nom")}</strong><span class="centrale-status-pill is-${status.tone}">${escapeHtml(status.label)}</span></span>
+        <span class="centrale-list-contact">${escapeHtml(contacts[0]?.name || "Aucun interlocuteur")}</span>
+        <span class="centrale-list-last">${latest ? `Dernier échange ${centraleFormatDate(latest.date)} · ${centraleEntryTypeLabel(latest.type)}` : "Aucun échange"}</span>
+      </button>`;
+    }).join("");
+  }
+  renderCentraleDetail();
+}
+
+function renderCentraleDetail() {
+  if (!centralesDetail) return;
+  const record = centralesRecords.find((item) => item.id === selectedCentraleId);
+  if (!record) {
+    centralesDetail.innerHTML = `<div class="centrales-empty-detail">Sélectionnez une centrale pour afficher sa fiche.</div>`;
     return;
   }
-  centralesList.innerHTML = records.map((record) => {
-    const due = centraleIsDue(record);
-    const entries = (record.entries || []).slice().sort((a, b) => {
-      return String(a.date || "").localeCompare(String(b.date || "")) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
-    });
-    return `
-    <details class="centrale-card ${due ? "is-due" : ""}" data-centrale-card="${escapeHtml(record.id)}" open>
-      <summary>
-        <span><strong>${escapeHtml(record.company)}</strong>${record.contactName ? `<small>${escapeHtml(record.contactName)}</small>` : ""}</span>
-        <span class="centrale-summary-actions">
-          ${due ? `<span class="centrale-alert-pill">🔔 Relance</span>` : ""}
-          <button type="button" class="prospection-dismiss" data-delete-centrale="${escapeHtml(record.id)}" title="Supprimer cette fiche" aria-label="Supprimer ${escapeHtml(record.company)}">✕</button>
-        </span>
-      </summary>
-      <div class="centrale-contact-row">
-        <label>Interlocuteur<input data-centrale-field="contactName" value="${escapeHtml(record.contactName || "")}" placeholder="Prénom Nom" /></label>
-        <label>Téléphone<input data-centrale-field="contactPhone" value="${escapeHtml(record.contactPhone || "")}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
-        <label>E-mail<input data-centrale-field="contactEmail" value="${escapeHtml(record.contactEmail || "")}" inputmode="email" placeholder="contact@centrale.fr" /></label>
-        <label>Date de relance<input data-centrale-field="relanceDate" type="date" value="${escapeHtml(record.relanceDate || "")}" /></label>
-        <button class="ghost-button" type="button" data-save-centrale="${escapeHtml(record.id)}">Enregistrer la fiche</button>
-      </div>
-
-      <div class="centrale-timeline">
-        ${entries.length ? entries.map((entry) => `
-          <div class="centrale-entry">
-            <div class="centrale-entry-date">${escapeHtml(new Date(entry.date + "T00:00:00").toLocaleDateString("fr-FR"))}<span class="centrale-entry-type">${entry.type === "rdv" ? "Rendez-vous" : entry.type === "email" ? "E-mail" : "Appel"}</span></div>
-            <div class="centrale-entry-notes">${escapeHtml(entry.notes || "").replace(/\n/g, "<br>")}</div>
-            <button type="button" class="centrale-entry-delete" data-delete-centrale-entry="${escapeHtml(record.id)}" data-entry-id="${escapeHtml(entry.id)}" aria-label="Supprimer cette entrée">✕</button>
-          </div>`).join("") : `<p class="centrale-empty-timeline">Aucun échange enregistré pour le moment.</p>`}
-      </div>
-
-      <div class="centrale-add-entry">
-        <label>Date<input data-centrale-new-entry-date="${escapeHtml(record.id)}" type="date" value="${new Date().toISOString().slice(0, 10)}" /></label>
-        <label>Type
-          <select data-centrale-new-entry-type="${escapeHtml(record.id)}">
-            <option value="appel">Appel</option>
-            <option value="rdv">Rendez-vous</option>
-            <option value="email">Envoyer un mail</option>
-          </select>
-        </label>
-        <label class="centrale-add-entry-notes">Notes<textarea data-centrale-new-entry-notes="${escapeHtml(record.id)}" rows="2" placeholder="Ce qui a été dit..."></textarea></label>
-        <button class="primary-button" type="button" data-add-centrale-entry="${escapeHtml(record.id)}">+ Ajouter à l'historique</button>
-      </div>
-
-      <div class="centrale-contacts">
-        ${(record.contacts || []).length ? (record.contacts || []).map((contact) => `
-          <div class="centrale-contact-chip">
-            <div class="centrale-contact-chip-info">
-              <strong>${escapeHtml(contact.name || "")}</strong>${contact.role ? `<span class="centrale-contact-role">${escapeHtml(contact.role)}</span>` : ""}
-              ${contact.phone ? `<span>${escapeHtml(contact.phone)}</span>` : ""}
-              ${contact.email ? `<span>${escapeHtml(contact.email)}</span>` : ""}
-              ${contact.relanceDate ? `<span>Relance : ${escapeHtml(new Date(contact.relanceDate + "T00:00:00").toLocaleDateString("fr-FR"))}</span>` : ""}
-            </div>
-            <button type="button" class="centrale-contact-delete" data-delete-centrale-contact="${escapeHtml(record.id)}" data-contact-id="${escapeHtml(contact.id)}" aria-label="Supprimer cet interlocuteur">✕</button>
-          </div>`).join("") : ""}
-      </div>
-      <div class="centrale-add-contact">
-        <label>Nom<input data-centrale-new-contact-name="${escapeHtml(record.id)}" placeholder="Prénom Nom" /></label>
-        <label>Rôle<input data-centrale-new-contact-role="${escapeHtml(record.id)}" placeholder="Ex: Acheteur, Directeur..." /></label>
-        <label>Téléphone<input data-centrale-new-contact-phone="${escapeHtml(record.id)}" inputmode="tel" placeholder="06 00 00 00 00" /></label>
-        <label>E-mail<input data-centrale-new-contact-email="${escapeHtml(record.id)}" inputmode="email" placeholder="contact@centrale.fr" /></label>
-        <label>Date de relance<input data-centrale-new-contact-relance="${escapeHtml(record.id)}" type="date" /></label>
-        <button class="ghost-button" type="button" data-add-centrale-contact="${escapeHtml(record.id)}">+ Ajouter un interlocuteur</button>
-      </div>
-    </details>`;
-  }).join("");
+  const status = centraleStatusInfo(record);
+  const contacts = centraleContacts(record);
+  const entries = (record.entries || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  centralesDetail.innerHTML = `
+    <section class="centrale-detail-head">
+      <div><h3>${escapeHtml(record.company || "Sans nom")}</h3><p>${contacts[0] ? `${escapeHtml(contacts[0].name || "")}${contacts[0].role ? ` · ${escapeHtml(contacts[0].role)}` : ""}` : "Aucun interlocuteur"}</p></div>
+      <div class="centrale-detail-head-actions"><span class="centrale-status-pill is-${status.tone}">${escapeHtml(status.long)}</span><button type="button" data-delete-centrale="${escapeHtml(record.id)}" title="Supprimer la centrale" aria-label="Supprimer ${escapeHtml(record.company || "cette centrale")}">×</button></div>
+    </section>
+    <div class="centrale-detail-grid" data-centrale-card="${escapeHtml(record.id)}">
+      <section class="centrale-history-card">
+        <h4>Historique</h4>
+        <div class="centrale-composer">
+          <div class="centrale-composer-top">
+            <div class="centrale-type-switch">${[["appel","Appel"],["email","E-mail"],["rdv","RDV"],["note","Note"]].map(([value,label]) => `<button type="button" class="${centraleDraftType === value ? "is-active" : ""}" data-centrale-draft-type="${value}">${label}</button>`).join("")}</div>
+            <input data-centrale-new-entry-date="${escapeHtml(record.id)}" type="date" value="${centraleTodayIso()}" aria-label="Date de l'échange" />
+          </div>
+          <textarea data-centrale-new-entry-notes="${escapeHtml(record.id)}" rows="3" placeholder="Ce qui a été dit, prochaine étape…"></textarea>
+          <div class="centrale-composer-actions"><button class="centrales-primary" type="button" data-add-centrale-entry="${escapeHtml(record.id)}">Ajouter à l'historique</button></div>
+        </div>
+        <div class="centrale-history-list">${entries.length ? entries.map((entry) => `<article class="centrale-history-entry">
+          <div><time>${centraleFormatDate(entry.date)}</time><span class="centrale-entry-type is-${escapeHtml(entry.type || "appel")}">${centraleEntryTypeLabel(entry.type)}</span></div>
+          <p>${escapeHtml(entry.notes || "")}</p>
+          <button type="button" data-delete-centrale-entry="${escapeHtml(record.id)}" data-entry-id="${escapeHtml(entry.id)}" title="Supprimer" aria-label="Supprimer cette entrée">×</button>
+        </article>`).join("") : `<p class="centrale-empty-timeline">Aucun échange enregistré pour l'instant.</p>`}</div>
+      </section>
+      <aside class="centrale-side-column">
+        <section class="centrale-side-card">
+          <h4>Prochaine relance</h4>
+          <input type="date" data-centrale-relance="${escapeHtml(record.id)}" value="${escapeHtml(record.relanceDate || "")}" aria-label="Date de prochaine relance" />
+          <div class="centrale-quick-dates"><button type="button" data-relance-days="7">+1 semaine</button><button type="button" data-relance-days="14">+2 semaines</button><button type="button" data-relance-days="30">+1 mois</button><button type="button" data-relance-clear="1">Aucune</button></div>
+        </section>
+        <section class="centrale-side-card centrale-contacts-card">
+          <div class="centrale-card-title"><h4>Interlocuteurs</h4><button type="button" data-toggle-centrale-contact>${centraleContactFormOpen ? "Annuler" : "+ Ajouter"}</button></div>
+          <div class="centrale-contact-list">${contacts.length ? contacts.map((contact) => `<article class="centrale-contact-item"><div><strong>${escapeHtml(contact.name || "Sans nom")}</strong>${contact.id !== "primary" ? `<button type="button" data-delete-centrale-contact="${escapeHtml(record.id)}" data-contact-id="${escapeHtml(contact.id)}" aria-label="Retirer cet interlocuteur">×</button>` : ""}</div><span>${escapeHtml(contact.role || "Rôle non renseigné")}</span>${contact.phone ? `<a href="tel:${escapeHtml(contact.phone)}">${escapeHtml(contact.phone)}</a>` : `<em>Téléphone non renseigné</em>`}${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>` : `<em>E-mail non renseigné</em>`}</article>`).join("") : `<p class="centrale-empty-timeline">Aucun interlocuteur enregistré.</p>`}</div>
+          ${centraleContactFormOpen ? `<div class="centrale-contact-form"><input data-centrale-new-contact-name="${escapeHtml(record.id)}" placeholder="Prénom Nom" /><input data-centrale-new-contact-role="${escapeHtml(record.id)}" placeholder="Rôle (Acheteur, Directeur…)" /><input data-centrale-new-contact-phone="${escapeHtml(record.id)}" inputmode="tel" placeholder="06 00 00 00 00" /><input data-centrale-new-contact-email="${escapeHtml(record.id)}" inputmode="email" placeholder="contact@centrale.fr" /><button class="centrales-dark-button" type="button" data-add-centrale-contact="${escapeHtml(record.id)}">Ajouter l'interlocuteur</button></div>` : ""}
+        </section>
+      </aside>
+    </div>`;
 }
 
 async function loadCentralesData() {
@@ -15705,6 +15746,7 @@ async function loadCentralesData() {
   try {
     const result = await postService({ action: "getCentralesData" });
     centralesRecords = Array.isArray(result.records) ? result.records : [];
+    if (!selectedCentraleId || !centralesRecords.some((record) => record.id === selectedCentraleId)) selectedCentraleId = centralesRecords[0]?.id || "";
     centralesStatus.textContent = "";
     renderCentralesRecords();
   } catch (error) {
@@ -15719,7 +15761,7 @@ function toggleCentralesNewForm(show) {
 
 async function submitNewCentrale() {
   if (centralesBusy) return;
-  const company = centralesNewCompany.value.trim();
+  const company = centralesNewCompany.value.trim().toLocaleUpperCase("fr-FR");
   if (!company) {
     centralesStatus.textContent = "Saisissez le nom de la centrale.";
     centralesNewCompany.focus();
@@ -15729,7 +15771,7 @@ async function submitNewCentrale() {
   centralesNewSubmit?.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Création…";
   try {
-    await postService({
+    const result = await postService({
       action: "saveCentraleRecord",
       company,
       contactName: centralesNewContactName.value.trim(),
@@ -15740,6 +15782,8 @@ async function submitNewCentrale() {
     centralesNewContactName.value = "";
     centralesNewContactPhone.value = "";
     centralesNewContactEmail.value = "";
+    selectedCentraleId = result?.record?.id || result?.id || selectedCentraleId;
+    centralesFilter = "all";
     toggleCentralesNewForm(false);
     centralesStatus.textContent = "Centrale créée.";
   } catch (error) {
@@ -15747,6 +15791,11 @@ async function submitNewCentrale() {
   } finally {
     centralesNewSubmit?.removeAttribute("disabled");
     await loadCentralesData();
+    const createdRecord = centralesRecords.find((record) => (record.company || "").trim().toLocaleUpperCase("fr-FR") === company);
+    if (createdRecord) {
+      selectedCentraleId = createdRecord.id;
+      renderCentralesRecords();
+    }
     centralesBusy = false;
   }
 }
@@ -15785,10 +15834,15 @@ async function addCentraleEntryFromCard(button) {
   const id = button.dataset.addCentraleEntry;
   const card = button.closest("[data-centrale-card]");
   const date = card?.querySelector(`[data-centrale-new-entry-date="${id}"]`)?.value || "";
-  const type = card?.querySelector(`[data-centrale-new-entry-type="${id}"]`)?.value || "appel";
+  const type = centraleDraftType || "appel";
   const notes = card?.querySelector(`[data-centrale-new-entry-notes="${id}"]`)?.value.trim() || "";
   if (!date) {
     centralesStatus.textContent = "Choisissez une date pour cette entrée.";
+    return;
+  }
+  if (!notes) {
+    centralesStatus.textContent = "Saisissez une note avant de l'ajouter à l'historique.";
+    card?.querySelector(`[data-centrale-new-entry-notes="${id}"]`)?.focus();
     return;
   }
   centralesBusy = true;
@@ -15829,7 +15883,6 @@ async function addCentraleContactFromCard(button) {
   const role = card?.querySelector(`[data-centrale-new-contact-role="${id}"]`)?.value.trim() || "";
   const phone = card?.querySelector(`[data-centrale-new-contact-phone="${id}"]`)?.value.trim() || "";
   const email = card?.querySelector(`[data-centrale-new-contact-email="${id}"]`)?.value.trim() || "";
-  const relanceDate = card?.querySelector(`[data-centrale-new-contact-relance="${id}"]`)?.value || "";
   if (!name) {
     centralesStatus.textContent = "Saisissez le nom de l'interlocuteur.";
     return;
@@ -15838,8 +15891,9 @@ async function addCentraleContactFromCard(button) {
   button.setAttribute("disabled", "disabled");
   centralesStatus.textContent = "Ajout de l'interlocuteur…";
   try {
-    await postService({ action: "addCentraleContact", id, name, role, phone, email, relanceDate });
+    await postService({ action: "addCentraleContact", id, name, role, phone, email, relanceDate: "" });
     centralesStatus.textContent = "Interlocuteur ajouté.";
+    centraleContactFormOpen = false;
   } catch (error) {
     centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
   } finally {
@@ -15888,18 +15942,53 @@ async function deleteCentraleRecordCard(id) {
   loadCentralesData();
 }
 
+async function saveCentraleRelance(id, relanceDate) {
+  if (centralesBusy) return;
+  const source = centralesRecords.find((record) => record.id === id);
+  if (!source) return;
+  const previous = source.relanceDate || "";
+  source.relanceDate = relanceDate;
+  renderCentralesRecords();
+  centralesBusy = true;
+  centralesStatus.textContent = "Enregistrement de la relance…";
+  try {
+    await postService({ action: "saveCentraleRecord", id, company: source.company, contactName: source.contactName || "", contactPhone: source.contactPhone || "", contactEmail: source.contactEmail || "", relanceDate });
+    centralesStatus.textContent = "Relance enregistrée.";
+  } catch (error) {
+    source.relanceDate = previous;
+    renderCentralesRecords();
+    centralesStatus.textContent = (error?.message || "Le serveur met du temps à répondre.") + " Vérification en cours…";
+  } finally {
+    centralesBusy = false;
+  }
+}
+
 centralesAddButton?.addEventListener("click", () => toggleCentralesNewForm(centralesNewForm?.classList.contains("is-hidden")));
 centralesNewCancel?.addEventListener("click", () => toggleCentralesNewForm(false));
 centralesNewSubmit?.addEventListener("click", submitNewCentrale);
-centralesSearch?.addEventListener("input", renderCentralesRecords);
-centralesList?.addEventListener("click", (event) => {
-  const deleteRecordButton = event.target.closest("[data-delete-centrale]");
-  if (deleteRecordButton) {
+centralesNewCompany?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
     event.preventDefault();
-    event.stopPropagation();
-    deleteCentraleRecordCard(deleteRecordButton.dataset.deleteCentrale);
-    return;
+    submitNewCentrale();
   }
+});
+centralesSearch?.addEventListener("input", renderCentralesRecords);
+centralesFilters?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-centrales-filter]");
+  if (!button) return;
+  centralesFilter = button.dataset.centralesFilter || "all";
+  renderCentralesRecords();
+});
+centralesList?.addEventListener("click", (event) => {
+  const selectButton = event.target.closest("[data-select-centrale]");
+  if (!selectButton) return;
+  selectedCentraleId = selectButton.dataset.selectCentrale || "";
+  centraleContactFormOpen = false;
+  renderCentralesRecords();
+});
+centralesDetail?.addEventListener("click", (event) => {
+  const deleteRecordButton = event.target.closest("[data-delete-centrale]");
+  if (deleteRecordButton) return void deleteCentraleRecordCard(deleteRecordButton.dataset.deleteCentrale);
   const deleteEntryButton = event.target.closest("[data-delete-centrale-entry]");
   if (deleteEntryButton) {
     event.preventDefault();
@@ -15910,6 +15999,19 @@ centralesList?.addEventListener("click", (event) => {
   const addEntryButton = event.target.closest("[data-add-centrale-entry]");
   if (addEntryButton) {
     addCentraleEntryFromCard(addEntryButton);
+    return;
+  }
+  const typeButton = event.target.closest("[data-centrale-draft-type]");
+  if (typeButton) {
+    centraleDraftType = typeButton.dataset.centraleDraftType || "appel";
+    renderCentraleDetail();
+    return;
+  }
+  const toggleContactButton = event.target.closest("[data-toggle-centrale-contact]");
+  if (toggleContactButton) {
+    centraleContactFormOpen = !centraleContactFormOpen;
+    renderCentraleDetail();
+    if (centraleContactFormOpen) requestAnimationFrame(() => centralesDetail.querySelector("[data-centrale-new-contact-name]")?.focus());
     return;
   }
   const deleteContactButton = event.target.closest("[data-delete-centrale-contact]");
@@ -15924,8 +16026,18 @@ centralesList?.addEventListener("click", (event) => {
     addCentraleContactFromCard(addContactButton);
     return;
   }
-  const saveButton = event.target.closest("[data-save-centrale]");
-  if (saveButton) saveCentraleCard(saveButton);
+  const quickDateButton = event.target.closest("[data-relance-days]");
+  if (quickDateButton) {
+    const target = new Date(`${centraleTodayIso()}T12:00:00`);
+    target.setDate(target.getDate() + Number(quickDateButton.dataset.relanceDays || 0));
+    saveCentraleRelance(selectedCentraleId, target.toISOString().slice(0, 10));
+    return;
+  }
+  if (event.target.closest("[data-relance-clear]")) saveCentraleRelance(selectedCentraleId, "");
+});
+centralesDetail?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-centrale-relance]");
+  if (input) saveCentraleRelance(input.dataset.centraleRelance, input.value || "");
 });
 
 function exportProspectionRecords() {
