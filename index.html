@@ -9,7 +9,7 @@
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://www.schuller.eu https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://europe-west1-schuller-crm.cloudfunctions.net; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.schuller.eu https://*.tile.openstreetmap.org https://drive.google.com https://*.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://europe-west1-schuller-crm.cloudfunctions.net; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com; upgrade-insecure-requests"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
@@ -20,19 +20,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="application-name" content="Schuller" />
     <meta name="msapplication-TileColor" content="#e30613" />
-    <link rel="manifest" href="manifest.webmanifest?v=20261123prenetdrive1" />
-    <link rel="icon" href="assets/favicon.ico?v=20261123prenetdrive1" sizes="any" />
-    <link rel="icon" href="assets/favicon-32.png?v=20261123prenetdrive1" type="image/png" sizes="32x32" />
-    <link rel="icon" href="assets/favicon-16.png?v=20261123prenetdrive1" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261123prenetdrive1" />
+    <link rel="manifest" href="manifest.webmanifest?v=20261126referencement1" />
+    <link rel="icon" href="assets/favicon.ico?v=20261126referencement1" sizes="any" />
+    <link rel="icon" href="assets/favicon-32.png?v=20261126referencement1" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=20261126referencement1" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20261126referencement1" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20261123prenetdrive1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css?v=20261126referencement1" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
       <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
-      <script src="assets/splash.js?v=20261123prenetdrive1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
+      <script src="assets/splash.js?v=20261126referencement1" data-wordmark="assets/wordmark.png" data-logo-selector=".login-logo" data-skip-if-session="schullerRememberedSession,orderEntryUser"></script>
       <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
         <h1 id="loginTitle">Connexion commercial</h1>
@@ -2303,40 +2306,44 @@
         </section>
       </main>
 
-      <main class="app-shell admin-shell is-hidden" id="adminCentralesView">
-        <section class="panel admin-hero">
+      <main class="app-shell admin-shell centrales-shell is-hidden" id="adminCentralesView">
+        <header class="centrales-page-header">
           <div>
-            <p class="step">Prospection grands comptes</p>
+            <p class="centrales-kicker">Schuller France · Administration</p>
             <h2>Référencement</h2>
-            <p>Suivez vos d&eacute;marches aupr&egrave;s des centrales d'achat : historique des appels et rendez-vous, notes, et dates de relance.</p>
+            <p>Suivez vos démarches auprès des centrales d'achat : historique des appels et rendez-vous, notes et dates de relance.</p>
           </div>
-          <span class="status-pill" id="centralesRelanceCount">0 &agrave; relancer</span>
-        </section>
+          <button class="centrales-primary" type="button" id="centralesAddButton">+ Nouvelle centrale</button>
+        </header>
 
-        <section class="panel centrales-panel">
-          <div class="centrales-topbar">
-            <label class="centrales-search-label">
-              Rechercher une centrale
-              <input id="centralesSearch" type="search" autocomplete="off" placeholder="Nom de la soci&eacute;t&eacute;&hellip;" />
-            </label>
-            <button class="primary-button" type="button" id="centralesAddButton">+ Nouvelle centrale</button>
-          </div>
+        <p class="centrales-status" id="centralesStatus" role="status" aria-live="polite"></p>
+        <span class="is-hidden" id="centralesRelanceCount">0 à relancer</span>
 
-          <div class="centrales-new-form is-hidden" id="centralesNewForm">
-            <label>Soci&eacute;t&eacute;<input id="centralesNewCompany" type="text" placeholder="Nom de la centrale" /></label>
-            <label>Interlocuteur<input id="centralesNewContactName" type="text" placeholder="Pr&eacute;nom Nom" /></label>
-            <label>T&eacute;l&eacute;phone<input id="centralesNewContactPhone" type="tel" placeholder="06 00 00 00 00" /></label>
-            <label>E-mail<input id="centralesNewContactEmail" type="email" placeholder="contact@centrale.fr" /></label>
-            <div class="centrales-new-form-actions">
-              <button class="primary-button" type="button" id="centralesNewSubmit">Cr&eacute;er la fiche</button>
-              <button class="ghost-button" type="button" id="centralesNewCancel">Annuler</button>
+        <div class="centrales-workspace">
+          <aside class="centrales-sidebar-card">
+            <div class="centrales-list-tools">
+              <div class="centrales-new-form is-hidden" id="centralesNewForm">
+                <input id="centralesNewCompany" type="text" autocomplete="organization" placeholder="Nom de la centrale" aria-label="Nom de la centrale" />
+                <button class="centrales-dark-button" type="button" id="centralesNewSubmit">Créer</button>
+                <input class="is-hidden" id="centralesNewContactName" type="text" />
+                <input class="is-hidden" id="centralesNewContactPhone" type="tel" />
+                <input class="is-hidden" id="centralesNewContactEmail" type="email" />
+                <button class="is-hidden" type="button" id="centralesNewCancel">Annuler</button>
+              </div>
+              <input id="centralesSearch" type="search" autocomplete="off" placeholder="Rechercher une centrale ou un contact…" aria-label="Rechercher une centrale ou un contact" />
+              <div class="centrales-filter-chips" id="centralesFilters" aria-label="Filtres des centrales">
+                <button type="button" class="is-active" data-centrales-filter="all">Toutes <span>0</span></button>
+                <button type="button" data-centrales-filter="due">À relancer <span>0</span></button>
+                <button type="button" data-centrales-filter="none">Sans relance <span>0</span></button>
+              </div>
             </div>
-          </div>
+            <div class="centrales-list" id="centralesList"></div>
+          </aside>
 
-          <p class="admin-prenet-status" id="centralesStatus"></p>
-
-          <div class="centrales-list" id="centralesList"></div>
-        </section>
+          <section class="centrales-detail" id="centralesDetail">
+            <div class="centrales-empty-detail">Sélectionnez une centrale pour afficher sa fiche.</div>
+          </section>
+        </div>
       </main>
 
       <main class="app-shell admin-shell is-hidden" id="adminOffrePrixView">
@@ -2599,13 +2606,13 @@
       <button type="button" id="pwaUpdateRefresh">Mettre a jour maintenant</button>
     </div>
 
-    <script src="tarifs.js?v=20261123prenetdrive1" charset="UTF-8"></script>
+    <script src="tarifs.js?v=20261126referencement1" charset="UTF-8"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="script.js?v=20261123prenetdrive1" charset="UTF-8"></script>
-    <script src="assets/guide-data.js?v=20261123prenetdrive1" charset="UTF-8"></script>
-    <script src="assets/guide-produits.js?v=20261123prenetdrive1" charset="UTF-8"></script>
+    <script src="script.js?v=20261126referencement1" charset="UTF-8"></script>
+    <script src="assets/guide-data.js?v=20261126referencement1" charset="UTF-8"></script>
+    <script src="assets/guide-produits.js?v=20261126referencement1" charset="UTF-8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
